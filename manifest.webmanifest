@@ -1,0 +1,12 @@
+{
+  "name": "GTA TBG – Tarnobrzeg open world",
+  "short_name": "GTA TBG",
+  "description": "Gra 3D w otwartym świecie: Tarnobrzeg z danych OpenStreetMap.",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0d2236",
+  "theme_color": "#0d2236",
+  "lang": "pl",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

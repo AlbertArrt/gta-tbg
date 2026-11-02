@@ -1,0 +1,182 @@
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#0d2236;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.hidden{display:none!important}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:20}
+#loading{background:radial-gradient(circle at 50% 40%,#1c4466,#0b1a2a)}
+.logo{font-size:clamp(32px,7vw,64px);font-weight:900;letter-spacing:4px;text-shadow:0 4px 20px rgba(0,0,0,.5)}
+.logo{display:flex;align-items:center;justify-content:center;gap:.18em;line-height:1;font-family:Impact,"Arial Black","Franklin Gothic Heavy",system-ui,sans-serif;letter-spacing:1px;margin:4px 0 6px}
+.logo .lg-gta{font-size:1.35em;font-style:italic;font-weight:900;transform:skewX(-8deg);background:linear-gradient(180deg,#fff 0%,#ffe9a8 45%,#ff9a1f 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:2px #111;filter:drop-shadow(3px 4px 0 #000)}
+.logo .lg-tbg{font-size:.8em;font-weight:900;color:#111;background:linear-gradient(135deg,#ffd23f,#ff7a1a);padding:.08em .35em .12em;border:3px solid #111;border-radius:6px;transform:rotate(-6deg) skewX(-8deg);box-shadow:4px 4px 0 #000;text-shadow:none}
+.bar{width:min(380px,80vw);height:10px;background:#ffffff22;border-radius:6px;margin:24px 0 10px;overflow:hidden}
+#loadbar{height:100%;width:0;background:linear-gradient(90deg,#ffcf3f,#ff8a3d);transition:width .2s}
+#menu{background:rgba(5,15,28,.55);backdrop-filter:blur(3px)}
+.panel{background:rgba(10,25,45,.88);border:1px solid #ffffff22;border-radius:18px;padding:22px 26px;max-width:min(640px,94vw);max-height:94vh;overflow:auto;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.sub{opacity:.8;margin:4px 0 16px}
+button{font:inherit;color:#fff;background:#24476b;border:1px solid #ffffff30;border-radius:10px;padding:9px 16px;cursor:pointer}
+button:hover{background:#2f5b88}
+button.big{font-size:26px;font-weight:800;padding:12px 60px;background:linear-gradient(180deg,#ffb52e,#f07b1d);border:none;color:#1a1000;letter-spacing:3px;margin:6px 0 12px}
+.row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.box{text-align:left;margin-top:14px;background:#ffffff0d;border-radius:12px;padding:10px 14px;font-size:14px}
+.box h3{margin:6px 0}
+.box table td{padding:2px 10px 2px 0;vertical-align:top}
+.box table td:first-child{color:#ffcf3f;white-space:nowrap}
+.box label{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:8px 0}
+select{font:inherit;background:#13304d;color:#fff;border:1px solid #ffffff40;border-radius:8px;padding:4px}
+.attr{font-size:12px;opacity:.85;margin-top:14px}
+.attr a{color:#9fd3ff}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+#hud button,#hud input,#hud a{pointer-events:auto}
+#minimapWrap{position:absolute;left:14px;top:14px;width:200px;height:200px;border-radius:50%;overflow:hidden;border:3px solid #ffffffcc;box-shadow:0 4px 18px rgba(0,0,0,.45);background:#cfd8c4}
+#minimap{width:100%;height:100%}
+#compass{position:absolute;left:50%;top:4px;transform:translateX(-50%);font-weight:800;font-size:13px;color:#c00;text-shadow:0 0 3px #fff}
+#street{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(10,20,35,.72);padding:7px 18px;border-radius:20px;font-weight:700;font-size:16px;max-width:60vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#speedo{position:absolute;right:18px;bottom:40px;width:140px;height:140px}
+#speedGauge{position:absolute;inset:0}
+#speedVal{position:absolute;width:100%;top:46px;text-align:center;font-size:36px;font-weight:900;z-index:1}
+#speedo .unit{position:absolute;width:100%;top:88px;text-align:center;font-size:12px;opacity:.8;z-index:1}
+#hint{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(0,0,0,.6);padding:8px 16px;border-radius:10px;font-weight:600;display:none}
+#toast{position:absolute;left:50%;top:60px;transform:translateX(-50%);background:rgba(200,60,30,.9);padding:6px 14px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .3s}
+#fps{position:absolute;right:10px;top:64px;font:12px monospace;background:#0008;padding:2px 6px;border-radius:4px}
+#topbtns{position:absolute;right:12px;top:12px;display:flex;gap:6px}
+#topbtns button{width:44px;height:44px;padding:0;font-size:20px;border-radius:12px;background:rgba(10,25,45,.75)}
+#topbtns button.on{background:#e0861f}
+#radioPanel{position:absolute;right:12px;top:64px;width:230px;background:rgba(10,25,45,.88);border:1px solid #ffffff30;border-radius:12px;padding:10px;pointer-events:auto;font-size:13px}
+.rtitle{font-weight:800;color:#ffcf3f}
+#radioNow{margin:4px 0;opacity:.9;min-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow{display:flex;align-items:center;gap:8px}
+.rrow button{width:40px;height:34px;padding:0}
+.rrow input{flex:1}
+#radioMsg{color:#ffb4a0;font-size:12px;margin-top:4px}
+.hudattr{position:absolute;right:8px;bottom:4px;margin:0;font-size:11px;background:#0007;padding:1px 6px;border-radius:4px}
+#touch{position:fixed;inset:0;z-index:11;pointer-events:none}
+#joy{position:absolute;left:24px;bottom:28px;width:140px;height:140px;border-radius:50%;background:#ffffff18;border:2px solid #ffffff50;pointer-events:auto}
+#joyKnob{position:absolute;left:45px;top:45px;width:50px;height:50px;border-radius:50%;background:#ffffffaa}
+
+#tbtns{position:absolute;right:14px;bottom:24px;display:grid;grid-template-columns:repeat(3,auto);gap:10px;pointer-events:none}
+.tb{pointer-events:auto;width:72px;height:60px;border-radius:16px;font-weight:800;font-size:13px;background:rgba(20,45,75,.7);padding:0}
+.tb.wide{grid-column:1 / span 3;width:auto;height:44px;background:rgba(224,134,31,.85)}
+.tb.active{background:#e0861f}
+#touch.incar .foot{display:none}
+#touch:not(.incar) .car{display:none}
+#mapScreen{background:rgba(0,0,0,.6)}
+.mapPanel{background:#0d2236;border-radius:14px;padding:10px;width:min(1200px,98vw);height:min(820px,96vh);display:flex;flex-direction:column}
+.mapHead{display:flex;align-items:center;gap:8px;padding:2px 4px 8px}
+.mapHead #mapClose{margin-left:auto}
+.muted{opacity:.7;font-size:13px}
+.mapBody{flex:1;display:flex;gap:10px;min-height:0}
+#mapCanvasWrap{flex:1;position:relative;min-width:0;display:flex;align-items:center;justify-content:center;background:#cfd8c4;border-radius:10px;overflow:hidden}
+#bigmap{max-width:100%;max-height:100%;cursor:crosshair}
+#travelList{width:250px;overflow:auto;display:flex;flex-direction:column;gap:5px}
+#travelList button{text-align:left;font-size:13px;padding:7px 10px}
+@media (max-width:700px),(max-height:500px){
+  #minimapWrap{width:120px;height:120px;left:8px;top:8px}
+  #street{font-size:13px;top:8px;max-width:44vw}
+  #speedo{transform:scale(.75);transform-origin:right bottom;right:8px;bottom:auto;top:62px}
+  #travelList{width:180px}
+  .mapBody{flex-direction:row}
+  #topbtns button{width:38px;height:38px;font-size:17px}
+  #radioPanel{top:56px}
+  #hint{bottom:14px;top:auto;max-width:52vw;text-align:center;font-size:14px}
+  #toast{top:96px}
+}
+#race{position:absolute;left:50%;top:56px;transform:translateX(-50%);background:rgba(20,20,10,.78);border:2px solid #ffb020;color:#ffe9b0;padding:6px 16px;border-radius:12px;font-weight:800;font-size:16px;white-space:nowrap}
+#travelList button.egg{background:linear-gradient(90deg,#0a6f86,#14506b);border-color:#22e6ff;color:#dffaff}
+.tpflash{position:fixed;inset:0;background:radial-gradient(circle,#bff7ff 0%,#22e6ff 40%,rgba(0,40,60,0) 80%);pointer-events:none;z-index:50;animation:tpf .7s ease-out forwards}
+@keyframes tpf{from{opacity:.95}to{opacity:0}}
+@media (max-width:950px),(max-height:500px){#race{top:84px;font-size:13px;padding:4px 10px}}
+
+/* ===================== KOMIKS – styl kreskówkowy (Fredoka, grube obrysy) ===================== */
+@font-face{font-family:"Fredoka";src:url("fonts/fredoka-subset.woff") format("woff");font-weight:300 700;font-display:swap}
+html,body{font-family:"Fredoka",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,select,input{font-family:inherit}
+:root{--ink:#2a211c;--cream:#fff8e8;--sun:#ffd21f;--pink:#ff3fa4;--sky:#7fc8f8}
+.panel,.box,.mapPanel{border:3px solid var(--ink)!important;box-shadow:0 6px 0 var(--ink)!important}
+button{border:2.5px solid var(--ink);box-shadow:0 3px 0 var(--ink);font-weight:600;transition:transform .08s}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+#street{background:var(--cream);color:var(--ink);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);font-weight:600}
+#minimapWrap{border:4px solid var(--ink);box-shadow:0 4px 0 var(--ink)}
+#hint{background:var(--cream);color:var(--ink);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);border-radius:14px}
+#toast{background:var(--sun);color:var(--ink);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);border-radius:14px;z-index:30}
+#topbtns button{background:var(--cream);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+#topbtns button.on{background:var(--sun)}
+#speedVal{color:#fff;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:0 3px 0 var(--ink)}
+/* gwiazdki poszukiwania */
+#wanted{position:absolute;right:16px;top:66px;display:flex;gap:2px;font-size:30px;line-height:1;opacity:.35;transition:opacity .3s}
+#wanted.active{opacity:1}
+#wanted span{color:#fff3;-webkit-text-stroke:2px var(--ink);text-shadow:0 3px 0 #0005}
+#wanted span.on{color:var(--sun)}
+#wanted.flash span.on{animation:starfl .5s steps(2) infinite}
+@keyframes starfl{50%{color:#fff;opacity:.4}}
+#money{position:absolute;right:16px;top:104px;font-size:26px;font-weight:700;color:#7dff7a;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:0 3px 0 var(--ink)}
+#money.bump{animation:mbump .5s ease-out}
+@keyframes mbump{30%{transform:scale(1.3)}}
+#hpbar{position:absolute;right:18px;bottom:190px;width:140px;height:14px;border:3px solid var(--ink);border-radius:9px;background:#0006;overflow:hidden}
+#hpbar i{display:block;height:100%;width:100%;transition:width .2s}
+#hpbar.hidden{display:none}
+/* banery: ZATRZYMANY / ROZBITY / MISJA */
+#banner{position:fixed;left:0;right:0;top:34%;text-align:center;z-index:40;pointer-events:none;font-size:clamp(40px,8vw,96px);font-weight:700;letter-spacing:2px;white-space:pre-line;line-height:1.05;-webkit-text-stroke:4px var(--ink);paint-order:stroke fill;text-shadow:0 7px 0 var(--ink);animation:bnin .45s cubic-bezier(.2,1.6,.4,1)}
+#banner.hidden{display:none}
+#banner.busted{color:#5aa8ff}#banner.wasted{color:#ff4b3a}#banner.pass{color:var(--sun)}#banner.fail{color:#ff7a5a}#banner.go{color:#7dff7a}#banner.mstart{color:#fff;font-size:clamp(30px,5vw,60px)}
+@keyframes bnin{from{transform:scale(2.2);opacity:0}}
+/* dialogi kreskówkowe */
+.cdialog{position:fixed;left:50%;bottom:8%;transform:translateX(-50%);width:min(560px,92vw);background:var(--cream);color:var(--ink);border:4px solid var(--ink);border-radius:22px;box-shadow:0 8px 0 var(--ink);padding:16px 20px;z-index:45;animation:dlgin .35s cubic-bezier(.2,1.5,.4,1)}
+.cdialog.hidden{display:none}
+.cdialog .who{display:inline-block;background:var(--sun);border:3px solid var(--ink);border-radius:12px;padding:2px 12px;font-weight:700;margin-top:-34px;margin-bottom:6px;box-shadow:0 3px 0 var(--ink)}
+.cdialog h3{margin:4px 0;font-size:24px}
+.cdialog p{margin:6px 0 10px;font-size:17px;line-height:1.35}
+.cdialog .reward{font-weight:700;color:#2b8a2b;margin-bottom:10px}
+.cdialog .btns{display:flex;gap:10px;flex-wrap:wrap}
+.cdialog button{background:var(--sun);color:var(--ink);font-size:17px;padding:8px 16px;border-radius:14px}
+.cdialog button.sec{background:#e9e1cf}
+@keyframes dlgin{from{transform:translate(-50%,40px) scale(.9);opacity:0}}
+#mhud{position:absolute;left:226px;top:14px;background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-radius:14px;box-shadow:0 3px 0 var(--ink);padding:6px 12px;max-width:min(360px,40vw)}
+#mhud b{display:block;font-size:15px;color:#c0392b}
+#mhud span{font-size:14px}
+#mhud.hidden{display:none}
+/* radio */
+#radioPanel{background:var(--cream);color:var(--ink);border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);width:260px;z-index:12}
+.rtitle{color:#c0392b;font-weight:700}
+.rst{display:flex;align-items:center;gap:6px;margin:6px 0}
+.rst button{width:36px;height:36px;padding:0;background:var(--sun);color:var(--ink);font-size:16px;border-radius:12px}
+.rname{flex:1;text-align:center;min-width:0}
+.rname b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rname span{font-size:12px;opacity:.75}
+.rrow button{width:auto;padding:0 10px;background:var(--sun);color:var(--ink)}
+#radioMsg{color:#c0392b}
+#radioPop{position:fixed;left:50%;top:18%;transform:translateX(-50%);text-align:center;z-index:35;pointer-events:none;opacity:0;color:#fff;-webkit-text-stroke:3px var(--ink);paint-order:stroke fill;text-shadow:0 4px 0 var(--ink)}
+#radioPop b{display:block;font-size:clamp(26px,4vw,46px);font-weight:700}
+#radioPop span{font-size:clamp(16px,2vw,24px);color:var(--sun)}
+#radioPop.show{animation:rpop 2.6s ease-out forwards}
+@keyframes rpop{0%{opacity:0;transform:translate(-50%,-14px)}10%,75%{opacity:1;transform:translate(-50%,0)}100%{opacity:0}}
+.tb{background:var(--cream);color:var(--ink);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+.tb.wide{background:var(--sun)}
+.tb.active{background:var(--sun)}
+.tb.small{font-size:18px}
+#loading,#menu{background:radial-gradient(circle at 50% 30%,#9fd8ff,#4aa3e0 60%,#2a6fb0)}
+@media (max-width:700px),(max-height:500px){
+  #wanted{font-size:22px;top:52px;right:8px}
+  #money{font-size:19px;top:78px;right:8px}
+  #mhud{left:136px;top:44px;max-width:44vw;padding:3px 8px}#mhud b{font-size:12px}#mhud span{font-size:12px}
+  #hpbar{bottom:auto;top:104px;right:8px;width:100px}
+  .cdialog{bottom:4%;padding:10px 14px}.cdialog p{font-size:14px}.cdialog h3{font-size:18px}
+  #radioPanel{width:230px}
+}
+/* ===================== DOTYK – wielodotyk, większe pola, pływający joystick ===================== */
+:root{--bs:1;--tbs:calc(clamp(64px,12vmin,96px) * var(--bs))}
+#touch{position:fixed;inset:0;z-index:9;pointer-events:auto;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#touch *{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#touch.hidden{display:none}
+#joy{position:absolute;left:calc(24px + var(--tbs) * 1.1);top:auto;bottom:calc(28px + var(--tbs) * .2);width:calc(var(--tbs) * 2);height:calc(var(--tbs) * 2);transform:translate(-50%,50%);border-radius:50%;background:#fff8e822;border:3px dashed #fff8e877;pointer-events:none;opacity:.55;transition:opacity .15s}
+#joy.on{transform:translate(-50%,-50%);opacity:1;background:#fff8e844;border:3px solid var(--ink);transition:none}
+#joyKnob{position:absolute;left:50%;top:50%;width:calc(var(--tbs) * .85);height:calc(var(--tbs) * .85);transform:translate(-50%,-50%);border-radius:50%;background:var(--cream);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+#joy.on #joyKnob{background:var(--sun)}
+#tbtns{position:absolute;right:calc(14px + env(safe-area-inset-right));bottom:calc(20px + env(safe-area-inset-bottom));left:auto;display:grid;grid-template-columns:repeat(3,auto);gap:calc(12px * var(--bs));pointer-events:none;align-items:end}
+.tb{pointer-events:auto;width:var(--tbs);height:calc(var(--tbs) * .86);border-radius:18px;font-size:calc(14px * var(--bs));font-weight:700;padding:0;transition:transform .05s,background .05s}
+.tb.gas{height:calc(var(--tbs) * 1.25)}
+.tb.wide{grid-column:1 / span 3;width:auto;height:calc(var(--tbs) * .62)}
+.tb.small{grid-column:3;height:calc(var(--tbs) * .62)}
+.tb.active{background:var(--sun)!important;transform:translateY(3px) scale(.94);box-shadow:0 0 0 var(--ink)!important}
+#touch.lefty #tbtns{right:auto;left:calc(14px + env(safe-area-inset-left))}
+#touch.lefty #joy{left:auto;right:calc(24px + var(--tbs) * 1.1);transform:translate(50%,50%)}
+#touch.lefty #joy.on{right:auto;transform:translate(-50%,-50%)}

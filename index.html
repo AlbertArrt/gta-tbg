@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d2236">
+<title>GTA TBG – Tarnobrzeg – otwarty świat</title>
+<meta name="description" content="GTA TBG – gra 3D w otwartym świecie: prawdziwy Tarnobrzeg z danych OpenStreetMap. Jeździj autem i chodź pieszo.">
+<meta name="application-name" content="GTA TBG">
+<meta name="apple-mobile-web-app-title" content="GTA TBG">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+</head>
+<body>
+<!--UI-->
+<div id="app">
+  <canvas id="c"></canvas>
+
+  <div id="loading" class="screen">
+    <div class="logo"><span class="lg-gta">GTA</span><span class="lg-tbg">TBG</span></div>
+    <div class="bar"><div id="loadbar"></div></div>
+    <div id="loadtxt">Wczytywanie mapy…</div>
+  </div>
+
+  <div id="menu" class="screen hidden">
+    <div class="panel">
+      <div class="logo"><span class="lg-gta">GTA</span><span class="lg-tbg">TBG</span></div>
+      <div class="sub">Tarnobrzeg – open world · prawdziwy układ ulic miasta</div>
+      <button id="btnStart" class="big">START</button>
+      <div class="row">
+        <button id="btnHelp">Sterowanie</button>
+        <button id="btnSettings">Ustawienia</button>
+      </div>
+      <div id="helpBox" class="box hidden">
+        <h3>Sterowanie – komputer</h3>
+        <table>
+          <tr><td>W A S D / strzałki</td><td>chodzenie / jazda</td></tr>
+          <tr><td>Mysz</td><td>rozglądanie się (kliknij, aby przechwycić kursor)</td></tr>
+          <tr><td>Shift</td><td>bieg</td></tr>
+          <tr><td>Spacja</td><td>skok / hamulec ręczny (drift)</td></tr>
+          <tr><td>E</td><td>wsiądź / wysiądź · akcja (misja, teleport, lakiernia) · porwij auto z ruchu</td></tr>
+          <tr><td>M</td><td>mapa i szybka podróż</td></tr>
+          <tr><td>Q / R  (lub , .)</td><td>radio – poprzednia / następna stacja</td></tr>
+          <tr><td>T</td><td>radio – włącz / wyłącz (wycisz)</td></tr>
+          <tr><td>1 / 2</td><td>w Lakierni: malowanie 100 zł / naprawa 50 zł</td></tr>
+          <tr><td>N</td><td>dzień / noc</td></tr>
+          <tr><td>C</td><td>zmiana kamery (zbliżenie)</td></tr>
+          <tr><td>Esc</td><td>pauza / menu</td></tr>
+        </table>
+        <h3>Sterowanie – telefon</h3>
+        <p>Lewy joystick – ruch / skręt. Przeciągnij prawą stronę ekranu – kamera. Przyciski: SKOK, BIEG, GAZ, HAMULEC, RĘCZNY, WSIĄDŹ/AKCJA, MAPA, 📻 (panel stacji), 📻▶ (następna stacja).</p>
+        <h3>Jak grać</h3>
+        <p><b>Misje:</b> szukaj świecących słupów z „!” (też na minimapie). Podejdź – zleceniodawca opowie, o co chodzi. Za misje dostajesz złotówki; po 5 misjach odblokujesz finał przy Muzeum Siarki.</p>
+        <p><b>Policja:</b> potrącenie pieszego, staranowanie radiowozu, kradzież auta czy pędzenie obok policji dają gwiazdki ★ (1–5). Zgub pościg – zniknij policji z oczu, aż gwiazdki przestaną migać, albo wjedź do Lakierni (różowy znacznik, 50 zł). Gdy cię złapią: <b>ZATRZYMANY</b> (mandat, Komenda). Rozbite auto zapala się i wybucha: <b>ROZBITY</b> (Szpital).</p>
+        <p><b>Radio:</b> 12 stacji (Rock, Metal, Jazz, Chillout, Pop, House, Lokalne – Radio Leliwa). Włącza się samo po wejściu do auta.</p>
+      </div>
+      <div id="settingsBox" class="box hidden">
+        <h3>Ustawienia</h3>
+        <label>Jakość grafiki
+          <select id="selQuality">
+            <option value="low">Niska (telefony)</option>
+            <option value="med">Średnia</option>
+            <option value="high">Wysoka (cienie)</option>
+          </select>
+        </label>
+        <label>Styl grafiki
+          <select id="selStyle">
+            <option value="full">Komiks (pełny)</option>
+            <option value="lite">Komiks (lekki – telefony)</option>
+            <option value="classic">Klasyczny</option>
+          </select>
+        </label>
+        <div id="styleNote" class="muted"></div>
+        <label>Pora dnia
+          <select id="selTime"><option value="day">Dzień</option><option value="night">Noc</option></select>
+        </label>
+        <label>Czułość kamery (mysz / dotyk) <input id="rngSens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label>
+        <label>Czułość sterowania (joystick) <input id="rngSteer" type="range" min="0.5" max="2" step="0.05" value="1"></label>
+        <label>Rozmiar przycisków <input id="rngBtn" type="range" min="0.8" max="1.5" step="0.05" value="1"></label>
+        <label><input id="chkLeft" type="checkbox"> Układ dla leworęcznych (joystick po prawej)</label>
+        <label><input id="chkVibe" type="checkbox"> Wibracja przy dotyku</label>
+        <label><input id="chkRadioAuto" type="checkbox"> Radio włącza się w aucie</label>
+        <label><input id="chkFps" type="checkbox"> Pokaż licznik FPS</label>
+      </div>
+      <div class="attr">Dane mapy © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> (ODbL)</div>
+    </div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div id="minimapWrap"><canvas id="minimap" width="200" height="200"></canvas><div id="compass">N</div></div>
+    <div id="street">—</div>
+    <div id="speedo" class="hidden"><div id="speedVal">0</div><div class="unit">km/h</div><canvas id="speedGauge" width="140" height="140"></canvas></div>
+    <div id="hint"></div>
+    <div id="toast"></div>
+    <div id="fps" class="hidden"></div>
+    <div id="topbtns">
+      <button id="btnRadio" title="Radio (Q/R – stacje, T – wł./wył.)">📻</button>
+      <button id="btnMap" title="Mapa (M)">🗺️</button>
+      <button id="btnNight" title="Dzień / noc (N)">🌙</button>
+      <button id="btnPause" title="Menu (Esc)">⏸</button>
+    </div>
+    <div id="radioPanel" class="hidden">
+      <div class="rtitle">📻 RADIO TBG</div>
+      <div class="rst"><button id="radioPrev" title="Poprzednia (Q)">◀</button><div class="rname"><b id="radioName">—</b><span id="radioGenre"></span></div><button id="radioNext" title="Następna (R)">▶</button></div>
+      <div id="radioNow">—</div>
+      <div class="rrow"><button id="radioPlay">⏻ Włącz</button><input id="radioVol" type="range" min="0" max="1" step="0.05" value="0.7"></div>
+      <div id="radioMsg"></div>
+    </div>
+    <div id="radioPop"></div>
+    <div class="attr hudattr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></div>
+  </div>
+
+  <div id="touch" class="hidden">
+    <div id="joy"><div id="joyKnob"></div></div>
+    <div id="tbtns">
+      <button id="tEnter" class="tb wide" data-kind="tap" data-key="enter">WSIĄDŹ</button>
+      <button id="tJump" class="tb foot" data-kind="tap" data-key="jump">SKOK</button>
+      <button id="tRun" class="tb foot" data-kind="hold" data-key="run">BIEG</button>
+      <button id="tHand" class="tb car" data-kind="hold" data-key="hand">RĘCZNY</button>
+      <button id="tBrake" class="tb car" data-kind="hold" data-key="brake">HAM.</button>
+      <button id="tGas" class="tb car gas" data-kind="hold" data-key="gas">GAZ</button>
+      <button id="tRadio" class="tb car small" data-kind="tap" data-key="radio">📻▶</button>
+    </div>
+  </div>
+
+  <div id="mapScreen" class="screen hidden">
+    <div class="mapPanel">
+      <div class="mapHead"><b>GTA TBG – mapa Tarnobrzega</b> <span class="muted">– kliknij na mapie lub wybierz miejsce, aby się przenieść</span> <button id="mapClose">✕</button></div>
+      <div class="mapBody">
+        <div id="mapCanvasWrap"><canvas id="bigmap"></canvas></div>
+        <div id="travelList"></div>
+      </div>
+      <div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></div>
+    </div>
+  </div>
+</div>
+<!--DATA-->
+<script type="module" src="./main.js"></script>
+</body>
+</html>
