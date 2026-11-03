@@ -92,7 +92,7 @@ function tUp(e) {
 function joyEnd() { TP.joy = null; G.touch.jx = G.touch.jy = 0; G.touch.jon = false; const base = $('joy'); base.classList.remove('on'); base.style.left = base.style.top = base.style.right = base.style.bottom = ''; $('joyKnob').style.transform = ''; }
 function touchReset() {
   TP.stats.reset++; TP.ptrs.clear(); TP.look = null; TP.held = {}; joyEnd(); G.mouseLooking = false;
-  for (const k of ['gas', 'brake', 'hand', 'run', 'jump']) G.touch[k] = false;
+  for (const k of ['gas', 'brake', 'hand', 'run', 'jump', 'nitro']) G.touch[k] = false;
   for (const b of TP.btns) b.el.classList.remove('active');
   if (G.keys) G.keys.clear();
 }

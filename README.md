@@ -34,11 +34,12 @@ Wersja z folderu nie zadziała po dwukrotnym kliknięciu `index.html`, bo przegl
 |---|---|
 | W A S D / strzałki | chodzenie / jazda |
 | Mysz (kliknij ekran) | rozglądanie się |
-| Shift | bieg |
-| Spacja | skok (pieszo) / hamulec ręczny i drift (w aucie) |
-| E (lub F) | wsiądź / wysiądź, **porwij auto z ruchu** (kierowca ucieka), rozmowa ze zleceniodawcą misji, przyjęcie misji |
+| Shift | bieg (pieszo) / **nitro** (w aucie, po kupieniu w garażu) |
+| Spacja | skok (pieszo) / hamulec ręczny i **drift → kasa** (w aucie) |
+| E (lub F) | wsiądź / wysiądź, **porwij auto z ruchu** (kierowca ucieka), rozmowa ze zleceniodawcą misji, przyjęcie misji, **wejście do garażu** |
 | Esc | zamknięcie okna misji / lakierni, pauza / menu |
 | 1 / 2 | w lakierni: przemaluj (100 zł) / napraw (50 zł) |
+| 1 – 4, ← → | w garażu: zakładki (Moje auta / Salon / Tuning / Lakier) i wybór auta |
 | M | mapa i szybka podróż |
 | R lub `.` / Q lub `,` | radio: następna / poprzednia stacja |
 | T | radio: włącz / wyłącz |
@@ -48,10 +49,10 @@ Wersja z folderu nie zadziała po dwukrotnym kliknięciu `index.html`, bo przegl
 ### Telefon (dotyk)
 - **Prawdziwy wielodotyk:** joystick, gaz/hamulec i obracanie kamery działają jednocześnie – każdy palec jest śledzony osobno (Pointer Events, `pointerId`).
 - **Pływający joystick:** dotknij gdziekolwiek w lewej części ekranu – środek joysticka pojawia się pod kciukiem i podąża za nim, gdy palec wyjedzie poza zasięg. Mała martwa strefa i płynna (analogowa) krzywa odpowiedzi.
-- **W aucie:** joystick = analogowy skręt (słabszy przy dużej prędkości, wygładzany), **GAZ / HAM. / RĘCZNY** to przyciski „trzymaj”; można przesuwać palec między GAZ i HAM. bez odrywania.
+- **W aucie:** joystick = analogowy skręt (słabszy przy dużej prędkości, wygładzany), **GAZ / HAM. / RĘCZNY** to przyciski „trzymaj”; można przesuwać palec między GAZ i HAM. bez odrywania. **RĘCZNY + skręt = drift.** Przycisk **🔥NITRO** pojawia się, gdy auto ma nitro.
 - Przyciski reagują już przy dotknięciu (bez 300 ms opóźnienia), mają strefę trafienia większą od rysunku (min. ~64 px, rośnie z ekranem), widoczny stan wciśnięcia i opcjonalną krótką wibrację.
 - Strona nie przewija się, nie powiększa, nie zaznacza tekstu i nie pokazuje menu długiego przytrzymania. Gdy palec zjedzie z ekranu, przyjdzie `pointercancel`, okno straci fokus albo karta zostanie ukryta – wszystkie wejścia są zerowane (nic się nie „zacina”).
-- **Ustawienia (zapisywane w przeglądarce):** *Czułość kamery*, *Czułość sterowania*, *Rozmiar przycisków* (80–150%), *Układ dla leworęcznych* (joystick po prawej, przyciski po lewej), *Wibracje*.
+- **Ustawienia (zapisywane w przeglądarce):** *Czułość kamery*, *Czułość sterowania*, *Rozmiar przycisków* (80–150%), *Układ dla leworęcznych* (joystick po prawej, przyciski po lewej), *Wibracje*, *Głośność silnika i efektów*.
 - Na górze: 📻 radio, 🗺️ mapa, 🌙 dzień/noc, ⏸ pauza. Testowane w poziomie 915×412.
 
 ## Co jest w grze
@@ -65,9 +66,9 @@ Wersja z folderu nie zadziała po dwukrotnym kliknięciu `index.html`, bo przegl
   Kolizje z autami i budynkami uszkadzają auto (pasek HP). Przy 0 HP auto dymi, płonie i wybucha.
 - **Policja i gwiazdki ★1–5:** potrącenie przechodnia (przewraca się i wstaje), taranowanie radiowozu, kradzież auta, zbyt szybka jazda obok policji. Radiowozy mają kontury, migające koguty i syrenę (Web Audio), ścigają cię i taranują, przy 4–5 ★ stawiają blokady, wysiadają też policjanci pieszo.
   - **Ucieczka:** zgub radiowozy (gwiazdki migają, gdy policja cię nie widzi – policja przeszukuje miejsce, gdzie cię ostatnio widziała) albo wjedź do **lakierni** (Warsztat, DULUX, przy myjni) – przemalowanie za 50 zł kasuje gwiazdki.
-  - **ZATRZYMANY** – złapany przez policję: odrodzenie przed Komendą Policji (mandat 10% gotówki).
-  - **ROZBITY** – tylko po wybuchu twojego auta: odrodzenie przed Szpitalem.
-- **Misje (8) w prawdziwych miejscach:** świecące postacie z „!”, okienka dialogowe po polsku, znaczniki na minimapie i mapie M, nagrody w złotówkach (zł wydajesz w lakierni). Postęp i gotówka zapisują się w przeglądarce (localStorage).
+  - **ZATRZYMANY** – złapany przez policję: odrodzenie przed Komendą Policji (mandat 50 zł + 10% gotówki).
+  - **ROZBITY** – tylko po wybuchu twojego auta: odrodzenie przed Szpitalem (75 zł + 5% gotówki).
+- **Misje (8) w prawdziwych miejscach:** świecące postacie z „!”, okienka dialogowe po polsku, znaczniki na minimapie i mapie M, nagrody w złotówkach (zł wydajesz w garażach i lakierni). Postęp i gotówka zapisują się w przeglądarce (localStorage).
 
 | Misja | Gdzie | Zadanie | Nagroda |
 |---|---|---|---|
@@ -101,6 +102,63 @@ Wersja z folderu nie zadziała po dwukrotnym kliknięciu `index.html`, bo przegl
 - **HUD:** prędkościomierz, minimapa z obrotem, gwiazdki, gotówka, pasek HP auta, nazwa ulicy, mapa M z szybką podróżą (niedostępna przy gwiazdkach).
 - **Grafika:** cykl dnia i nocy, chunki z ukrywaniem niewidocznych, jakość Niska / Średnia / Wysoka (z cieniami).
   Kontury budynków w stylu komiksowym rysują się tylko w pobliżu kamery (Niska 200 m, Średnia 320 m, Wysoka 500 m; w trybie lekkim 75% tego). Dalej i tak zasłania je mgła, a to mocno odciąża słabsze telefony.
+
+## 💰 Kasa, garaże i tuning (v3)
+- **Zarabiasz:** misje, taksówka/napiwki, **drift** (punkty ÷ 7 = zł), **skoki** w terenie (> 0,7 s w powietrzu = 40 zł/s), **16 paczek z kasą** przy drogach (20–50 zł, odnawiają się po 4 min, widać je na minimapie z bliska).
+- **Tracisz:** ZATRZYMANY = mandat 50 zł + 10% gotówki, ROZBITY = szpital 75 zł + 5% gotówki, naprawa 50 zł, lakier 100 zł.
+- **Garaże (2, niebieski znacznik „G” na minimapie i mapie M):** „Garaże” i „Garaż przy Orlenie”. Podjedź / podejdź i naciśnij **E**. Komiksowe menu z dużymi przyciskami (dotyk), zakładki:
+  - **Moje auta** – do 6 aut, wyjazd wybranym, naprawa, sprzedaż (50% ceny + 30% tuningu), schowanie skradzionego auta (staje się twoje).
+  - **Salon** – 5 klas aut:
+
+| Auto | Klasa | Cena | V maks. | Przysp. | Pancerz* |
+|---|---|---|---|---|---|
+| Kropka | hatchback (na start) | 800 zł | 42 m/s | 12 | 1,00 |
+| Leliwa | sedan | 2 500 zł | 48 | 13,5 | 0,85 |
+| Kosynier 4×4 | terenówka | 4 500 zł | 43 | 14,5 | 0,70 |
+| Siarka GT | sportowe | 8 000 zł | 60 | 19 | 1,00 |
+| Interceptor | muscle à la radiowóz | 12 000 zł | 56 | 17,5 | 0,62 |
+
+  \* mnożnik obrażeń – mniej = twardsze auto.
+  - **Tuning** (działa na fizykę):
+
+| Część | Poziomy i ceny | Efekt na poziom |
+|---|---|---|
+| ⚙️ Silnik | 600 / 1 400 / 2 800 zł | +6% V maks., +12% przyspieszenia |
+| 🛑 Hamulce | 300 / 700 / 1 500 zł | +15% siły hamowania |
+| 🛞 Opony i zawieszenie | 400 / 900 / 1 900 zł | +10% przyczepności, +4% skrętu |
+| 🛡️ Pancerz | 500 / 1 200 / 2 500 zł | −15% obrażeń |
+| 🔥 Nitro | 1 500 / 3 000 zł | zastrzyk mocy (Shift / przycisk NITRO), zbiornik odnawia się powoli |
+
+  - **Lakier** – 12 kolorów po 100 zł.
+- Zapis w `localStorage` (`gtatbg_save`, wersja 2). Stare zapisy (gotówka, misje) są automatycznie przenoszone – dostajesz Kropkę w garażu.
+
+## 🏁 Jazda (v3)
+- **Dźwięk silnika** generowany na żywo (Web Audio): obroty, biegi z „przegazówką” przy zmianie, inna barwa dla każdego auta, pisk opon przy poślizgu.
+- **Drift:** ręczny (Spacja / RĘCZNY) + skręt – tył ucieka, licznik DRIFT z mnożnikiem do ×2. Po wyjściu z driftu punkty zamieniają się w złotówki; uderzenie przerywa drift.
+- **Ślady opon i dym** (pula obiektów, 1 wywołanie rysowania na typ; liczba zależna od jakości: 200 / 420 / 800 śladów), w terenie zamiast dymu – kurz.
+- **Kolizje:** iskry, dźwięk zgniatania blachy, wstrząs kamery, wibracja.
+- **Poprawka grafiki:** podłoże to teraz podzielona płaszczyzna podążająca za kamerą – wcześniej (także w v2) na długich prostych za miastem trawa potrafiła „przykryć” asfalt tuż przed autem.
+- **Uszkodzenia:** < 60 HP – jasny dym, < 35 HP – ciemny dym, < 15 HP – ogień spod maski, 0 HP – pożar i wybuch po 5 s.
+
+## ⚖️ Balans (v3)
+| | Przed (v2) | Teraz (v3) |
+|---|---|---|
+| Obrażenia z uderzenia | 4 HP za każdy m/s powyżej 3 m/s | 1,5 HP/m/s powyżej 6 m/s (+0,8 powyżej 20 m/s), × pancerz |
+| Uderzenie 10 / 15 / 20 m/s | 28 / 48 / 68 HP | 6 / 13,5 / 21 HP |
+| Pożar przed wybuchem | 3,2 s | 5 s |
+| Gwiazdki za przestępstwo (ped / taran / kradzież / prędkość), przerwa | 1,2 / 2 / 0,5 / 6 s | 2,5 / 6 / 8 / 15 s |
+| Radiowozy przy ★1 / ★2 | do 1 / 2 | do 1 / 1 (wolniejsze: 80% / 87% prędkości) |
+| Pojawianie się radiowozów | co 2,2 s, 110 m | ★1 co 6 s / 150 m, ★2 co 5 s / 140 m |
+| Zasięg wzroku policji ★1 / ★2 | 125 m | 90 / 100 m |
+| Zgubienie pościgu | 8 + 3×★ s poza wzrokiem | 5 + 2×★ s (★1 = 7 s) |
+| Eskalacja w trakcie pościgu | +1★ co 50 s (do ★3) | +1★ co 90 s (do ★2) |
+| Aresztowanie | < 8 m, < 2 m/s przez 3 s | < 5 m, < 1 m/s przez 5 s |
+| Policjanci pieszo | od ★2, co 9 s, 7,3 m/s | od ★3, co 12 s, 6–7,3 m/s |
+| Fotoradar „za szybko” | > 19,5 m/s w 38 m od policji | > 24 m/s w 28 m |
+| Taranowanie radiowozu | każde zderzenie z radiowozem przy > 6 m/s | tylko gdy **ty** wjeżdżasz w radiowóz (radiowóz uderzający w ciebie nie daje gwiazdki) |
+| Kary | ZATRZYMANY: 10% gotówki · ROZBITY: 50 zł + 5% | ZATRZYMANY: 50 zł + 10% · ROZBITY: 75 zł + 5% (nigdy poniżej 0 zł) |
+
+Poprawka AI: radiowóz po przeliczeniu trasy nie zawraca już do skrzyżowania, które właśnie minął.
 
 ## 🤫 Sekret: trasy off-road
 Na placu w centrum stoi **pomnik Bartosza Głowackiego**. Jego pozycja pochodzi z OSM (`historic=memorial`, „Pomnik Bartosza Głowackiego”). Obok pomnika świeci niebieski przycisk.
@@ -141,3 +199,5 @@ python3 tools/build_single.py      # -> gta-tbg-single.html
 - Dokładność mapy zależy od kompletności danych OSM. Nazwy ulic pochodzą z OSM.
 - Radio wymaga internetu; dostępność stacji zależy od nadawców. Przeglądarka może wymagać dotknięcia ekranu, zanim odtworzy dźwięk.
 - Styl komiksowy (pełny) jest cięższy dla słabych telefonów – na telefonach domyślnie włącza się wariant lekki.
+- Dźwięk silnika i efektów startuje dopiero po pierwszym dotknięciu/kliknięciu (zasada przeglądarek). Fizyka driftu jest zręcznościowa (uproszczona), auta AI z niej nie korzystają.
+- Ślady opon to pula (200–800 odcinków) – najstarsze znikają. Na bardzo niskim ekranie (< 500 px wysokości) karty w Salonie chowają paski statystyk, żeby zmieścić przyciski.

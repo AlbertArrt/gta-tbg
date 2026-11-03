@@ -180,3 +180,74 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 #touch.lefty #tbtns{right:auto;left:calc(14px + env(safe-area-inset-left))}
 #touch.lefty #joy{left:auto;right:calc(24px + var(--tbs) * 1.1);transform:translate(50%,50%)}
 #touch.lefty #joy.on{right:auto;transform:translate(-50%,-50%)}
+/* ===================== GARAŻ, DRIFT, NITRO, ZATRZYMANIE ===================== */
+.tb.nitro{grid-column:1;display:none;background:#4fc3ff;font-size:calc(12px * var(--bs))}
+#touch.incar.hasnitro .tb.nitro{display:block}
+#nitrobar{position:absolute;right:18px;bottom:168px;width:140px;height:12px;border:3px solid var(--ink);border-radius:9px;background:#0006;overflow:hidden}
+#nitrobar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#4fc3ff,#b8f0ff);transition:width .15s}
+#nitrobar b{position:absolute;left:0;right:0;top:-2px;text-align:center;font-size:10px;color:#fff;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;letter-spacing:1px}
+#nitrobar.on i{background:linear-gradient(90deg,#ff8a1e,#ffe14a)}
+#nitrobar.hidden,#bustbar.hidden,#drift.hidden{display:none}
+#bustbar{position:absolute;left:50%;top:22%;transform:translateX(-50%);width:min(300px,64vw);height:26px;border:4px solid var(--ink);border-radius:14px;background:#fff8e8;overflow:hidden;box-shadow:0 4px 0 var(--ink)}
+#bustbar i{display:block;height:100%;width:0;background:repeating-linear-gradient(45deg,#2a5cff 0 14px,#ff2a2a 14px 28px)}
+#bustbar b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;-webkit-text-stroke:3px var(--ink);paint-order:stroke fill}
+#drift{position:absolute;left:50%;top:14%;transform:translateX(-50%) rotate(-4deg);font-size:clamp(26px,4.2vw,44px);font-weight:700;color:var(--sun);-webkit-text-stroke:4px var(--ink);paint-order:stroke fill;text-shadow:0 5px 0 var(--ink);pointer-events:none;white-space:nowrap}
+#drift small{font-size:.55em;margin-left:10px;color:#fff}
+#drift.bank{color:#7dff7a;animation:dpop .35s ease-out}
+#drift.crash{color:#ff4b3a;animation:dpop .35s ease-out}
+@keyframes dpop{0%{transform:translateX(-50%) rotate(-4deg) scale(1.5)}100%{transform:translateX(-50%) rotate(-4deg) scale(1)}}
+#garage{position:fixed;left:50%;top:50%;bottom:auto;transform:translate(-50%,-50%);width:min(760px,96vw);max-height:92vh;display:flex;flex-direction:column;z-index:40;padding:14px 16px}
+#garage.hidden{display:none}
+.gHead{display:flex;align-items:center;gap:10px}
+.gHead h3{flex:1;margin:0;font-size:22px;line-height:1.1}
+.gCash{font-size:24px;font-weight:700;color:#7dff7a;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill}
+#garage button{min-height:46px;font-size:16px;padding:0 14px;border-radius:14px}
+#garage button.gX{width:46px;padding:0;font-size:20px}
+#garage button.small{font-size:13px;min-height:40px}
+#garage button.poor{opacity:.55}
+#garage button:disabled{opacity:.6;background:#d8d2c2}
+.gTabs{display:flex;gap:6px;margin:10px 0 8px;flex-wrap:wrap}
+.gTabs button{flex:1;background:var(--cream)!important;color:var(--ink)}
+.gTabs button.on{background:var(--sun)!important;transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.gBody{overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;flex:1;padding:2px 4px 6px;display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:10px;align-content:start}
+.gCard{background:#fff;border:3px solid var(--ink);border-radius:16px;padding:10px;box-shadow:0 3px 0 var(--ink)}
+.gCard.sel{background:#fff6c8}
+.gCarHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gCarHead b{font-size:19px}
+.gCarHead small{width:100%;font-size:13px;opacity:.8}
+.gSw{display:inline-block;width:26px;height:18px;border:3px solid var(--ink);border-radius:6px;vertical-align:middle}
+.gStats{margin:8px 0;display:grid;gap:3px}
+.gStat{display:grid;grid-template-columns:104px 1fr 64px;align-items:center;gap:6px;font-size:13px}
+.gStat i{height:11px;border:2px solid var(--ink);border-radius:6px;background:#eee6d4;overflow:hidden}
+.gStat i b{display:block;height:100%;background:linear-gradient(90deg,#2fd0ff,#45b65a)}
+.gStat em{font-style:normal;font-weight:700;text-align:right}
+.gBtns{display:flex;gap:6px;flex-wrap:wrap}
+.gBtns button{flex:1 1 auto}
+.gNote{grid-column:1 / -1;background:#e6f8ff;border:3px dashed var(--ink);border-radius:14px;padding:8px 10px;font-size:15px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.gSelBar{grid-column:1 / -1;display:flex;align-items:center;gap:10px;justify-content:space-between}
+.gSelBar div{flex:1;text-align:center;font-size:19px}
+.gSelBar .gSw{margin-right:8px}
+.gSelBar button{width:56px}
+.gBody > .gStats{grid-column:1 / -1;background:#fff;border:3px solid var(--ink);border-radius:14px;padding:8px 10px;margin:0}
+.gUp{display:flex;align-items:center;gap:10px;background:#fff;border:3px solid var(--ink);border-radius:14px;padding:8px 10px}
+.gUpL{flex:1;min-width:0}
+.gUpL b{font-size:16px}
+.gUpL small{display:block;font-size:12px;opacity:.8}
+.gPips{color:#e0861f;font-size:17px;letter-spacing:2px;margin-left:4px}
+.gPips s{text-decoration:none;color:#b9b2a2}
+.gUp button{min-width:136px}
+.gTxt{grid-column:1 / -1;margin:2px 0}
+.gPal{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:8px}
+#garage .gPaint{height:56px;min-height:56px;border:4px solid var(--ink);border-radius:14px;padding:0}
+#garage .gPaint.on{outline:4px solid var(--sun);outline-offset:2px}
+.gFoot{font-size:12px;opacity:.7;text-align:center;margin-top:6px}
+@media (max-width:700px),(max-height:500px){
+  #garage{padding:10px;max-height:96vh;width:98vw}
+  .gHead h3{font-size:16px}.gCash{font-size:18px}
+  .gBody{grid-template-columns:1fr}
+  #garage button{min-height:44px;font-size:15px}
+  .gStat{grid-template-columns:92px 1fr 58px;font-size:12px}
+  #nitrobar{bottom:auto;top:124px;right:8px;width:100px}
+  #drift{top:20%}
+}
+@media (max-height:500px){ .gBody{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))} .gCard .gStats{display:none} .gTabs{margin:6px 0} }

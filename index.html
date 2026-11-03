@@ -38,13 +38,14 @@
         <table>
           <tr><td>W A S D / strzałki</td><td>chodzenie / jazda</td></tr>
           <tr><td>Mysz</td><td>rozglądanie się (kliknij, aby przechwycić kursor)</td></tr>
-          <tr><td>Shift</td><td>bieg</td></tr>
-          <tr><td>Spacja</td><td>skok / hamulec ręczny (drift)</td></tr>
-          <tr><td>E</td><td>wsiądź / wysiądź · akcja (misja, teleport, lakiernia) · porwij auto z ruchu</td></tr>
+          <tr><td>Shift</td><td>bieg · w aucie: nitro (po tuningu, też X)</td></tr>
+          <tr><td>Spacja</td><td>skok / hamulec ręczny – drift (punkty driftu = kasa)</td></tr>
+          <tr><td>E</td><td>wsiądź / wysiądź · akcja (misja, teleport, lakiernia, garaż) · porwij auto z ruchu</td></tr>
           <tr><td>M</td><td>mapa i szybka podróż</td></tr>
           <tr><td>Q / R  (lub , .)</td><td>radio – poprzednia / następna stacja</td></tr>
           <tr><td>T</td><td>radio – włącz / wyłącz (wycisz)</td></tr>
           <tr><td>1 / 2</td><td>w Lakierni: malowanie 100 zł / naprawa 50 zł</td></tr>
+          <tr><td>1 – 4, ← →</td><td>w Garażu: zakładki (auta, salon, tuning, lakier) / wybór auta</td></tr>
           <tr><td>N</td><td>dzień / noc</td></tr>
           <tr><td>C</td><td>zmiana kamery (zbliżenie)</td></tr>
           <tr><td>Esc</td><td>pauza / menu</td></tr>
@@ -79,6 +80,7 @@
         <label>Czułość kamery (mysz / dotyk) <input id="rngSens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label>
         <label>Czułość sterowania (joystick) <input id="rngSteer" type="range" min="0.5" max="2" step="0.05" value="1"></label>
         <label>Rozmiar przycisków <input id="rngBtn" type="range" min="0.8" max="1.5" step="0.05" value="1"></label>
+        <label>Głośność silnika i efektów <input id="rngSfx" type="range" min="0" max="1" step="0.05" value="0.7"></label>
         <label><input id="chkLeft" type="checkbox"> Układ dla leworęcznych (joystick po prawej)</label>
         <label><input id="chkVibe" type="checkbox"> Wibracja przy dotyku</label>
         <label><input id="chkRadioAuto" type="checkbox"> Radio włącza się w aucie</label>
@@ -121,6 +123,7 @@
       <button id="tHand" class="tb car" data-kind="hold" data-key="hand">RĘCZNY</button>
       <button id="tBrake" class="tb car" data-kind="hold" data-key="brake">HAM.</button>
       <button id="tGas" class="tb car gas" data-kind="hold" data-key="gas">GAZ</button>
+      <button id="tNitro" class="tb car small nitro" data-kind="hold" data-key="nitro">🔥NITRO</button>
       <button id="tRadio" class="tb car small" data-kind="tap" data-key="radio">📻▶</button>
     </div>
   </div>

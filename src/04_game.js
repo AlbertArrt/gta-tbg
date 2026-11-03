@@ -64,7 +64,7 @@ async function init() {
   player = { x: 0, z: 0, y: 0, vy: 0, h: 0, mesh: makeWalker(), speed: 0, onGround: true };
   scene.add(player.mesh);
   spawnAtRynek();
-  spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions();
+  spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions(); initGarages(); initDriveFx();
   applyTime(); applyQuality();
   initMinimap(); initBigMap(); initInput(); initRadio(); initMenu();
   window.addEventListener('resize', onResize); onResize();
@@ -168,7 +168,7 @@ function updateFoot(dt) {
   animateWalker(player.mesh, speed, dt, !player.onGround);
 }
 function updateCar(c, dt, drive) {
-  let thr = 0, brk = 0, steerIn = 0, hand = false;
+  let thr = 0, brk = 0, steerIn = 0, hand = false; const isPlayer = drive === true;
   if (drive && typeof drive === 'object') { thr = drive.thr; steerIn = drive.steer; hand = !!drive.hand; drive = false; }
   else if (drive) {
     const { f, s } = inputAxes(); thr = f; steerIn = -s;
@@ -181,7 +181,12 @@ function updateCar(c, dt, drive) {
   }
   const fx = Math.sin(c.h), fz = Math.cos(c.h); const rx = Math.cos(c.h), rz = -Math.sin(c.h);
   let vF = c.vx * fx + c.vz * fz, vR = c.vx * rx + c.vz * rz;
-  const OR = c.offroad; let MAXV = OR ? 41 : 48; const ACC = OR ? 14 : 13, BRK = 28;
+  const OR = c.offroad, st = c.st; let MAXV = st ? st.maxv : (OR ? 41 : 48); let ACC = st ? st.acc : (OR ? 14 : 13); const BRK = st ? st.brk : 28;
+  const GRIP = st ? st.grip : 9, STEER = st ? st.steer : 0.55;
+  if (c.pmul && c !== activeCar) { MAXV *= c.pmul; ACC *= c.pmul; } // police slowed down at low wanted levels
+  if (c.hp < 25 && !c.wrecked && !c.police) MAXV *= 0.85; // badly damaged engine
+  c.nitroOn = false;
+  if (isPlayer && st && st.nitro && typeof nitroTick === 'function') { const want = G.keys.has('ShiftLeft') || G.keys.has('ShiftRight') || G.keys.has('KeyX') || G.touch.nitro; if (nitroTick(c, want && thr > 0 && !c.air, dt)) { c.nitroOn = true; MAXV *= st.nboost; ACC *= st.nboost * 1.5; } }
   // surface (only in the off-road zone): dirt trails and grass slow normal cars much more than the 4x4
   let surfGrip = 1; c.surf = 'road';
   if (W.off && inOffRect(c.x, c.z)) {
@@ -194,14 +199,18 @@ function updateCar(c, dt, drive) {
   if (thr > 0) { if (vF < -0.5) vF += BRK * dt; else vF += ACC * thr * dt * (1 - Math.max(0, vF) / MAXV); }
   else if (thr < 0) { if (vF > 0.5) vF -= BRK * dt; else vF = Math.max(-12, vF - 7 * dt); }
   else { vF -= Math.sign(vF) * Math.min(Math.abs(vF), (2.2 + Math.abs(vF) * 0.04) * dt); }
-  if (hand) { vF -= Math.sign(vF) * Math.min(Math.abs(vF), 9 * dt); }
-  const maxSteer = 0.55 / (1 + Math.abs(vF) * 0.035);
+  if (hand) { vF -= Math.sign(vF) * Math.min(Math.abs(vF), (thr > 0 ? 5 : 9) * dt); }
+  const maxSteer = STEER / (1 + Math.abs(vF) * 0.035);
   c.steer = lerp(c.steer, steerIn * maxSteer, Math.min(1, dt * (drive && G.touch.jon ? 7 : 6)));
-  const grip = c.air ? 0.2 : (hand ? 1.3 : 9 * surfGrip);
+  c.gripK = hand ? 0 : Math.min(1, (c.gripK === undefined ? 1 : c.gripK) + dt * (thr > 0 ? 1.5 : 3)); // grip comes back gradually after the handbrake → longer, controllable drifts
+  const gFull = GRIP * surfGrip, gLo = Math.min(1.8, gFull);
+  const grip = c.air ? 0.2 : (hand ? 1.3 : gLo + (gFull - gLo) * c.gripK * c.gripK);
   vR -= vR * Math.min(1, grip * dt);
   const yawRate = vF / 2.6 * Math.tan(c.steer) * (hand ? 1.35 : 1) * (c.air ? 0.15 : 1);
   c.h += yawRate * dt; c.yawRate = yawRate;
-  const nfx = Math.sin(c.h), nfz = Math.cos(c.h), nrx = Math.cos(c.h), nrz = -Math.sin(c.h);
+  // inertia: with the handbrake (and while grip recovers) the velocity lags behind the body → real slip angle / drift
+  const lag = c.air ? 1 : hand ? 0.85 : (1 - c.gripK) * 0.75, vh = c.h - yawRate * dt * lag;
+  const nfx = Math.sin(vh), nfz = Math.cos(vh), nrx = Math.cos(vh), nrz = -Math.sin(vh);
   c.vx = nfx * vF + nrx * vR; c.vz = nfz * vF + nrz * vR;
   // move with substeps and collide with buildings
   const dist = Math.hypot(c.vx, c.vz) * dt; const steps = Math.max(1, Math.ceil(dist / 0.3));
@@ -231,17 +240,20 @@ function updateCar(c, dt, drive) {
         const nx = dx / dd, nz = dz / dd, p = (RR - dd) / 2; c.x += nx * p; c.z += nz * p; o.x -= nx * p; o.z -= nz * p;
         const vn = (c.vx - o.vx) * nx + (c.vz - o.vz) * nz;
         if (vn < 0) {
+          if (-vn > 2.5 && (o === activeCar || c === activeCar)) carHitEvent(c === activeCar ? o : c, -vn); // judged on pre-impact velocities
           impact = Math.max(impact, -vn); c.vx -= vn * nx * 0.6; c.vz -= vn * nz * 0.6; o.vx += vn * nx * 0.6; o.vz += vn * nz * 0.6;
-          if (-vn > 2.5) { trafficHit(o, c, -vn); if (o === activeCar || c === activeCar) carHitEvent(c === activeCar ? o : c, -vn); if (-vn > 4) damageCar(o, (-vn - 3) * 3); }
+          if (-vn > 2.5) { trafficHit(o, c, -vn); damageCar(o, impactDamage(-vn)); if (o === activeCar && -vn > 4) collisionFx(o, -vn, (c.x + o.x) / 2, (c.z + o.z) / 2); }
         }
         o.sync();
       }
     }
   }
   const now = performance.now();
-  if (impact > 3) { damageCar(c, (impact - 3) * 4); if (c === activeCar && now - (G.lastHit || 0) > 700) { G.lastHit = now; G.collisions++; if (typeof missionImpact === 'function') missionImpact(impact); toast('Bum! Kolizja'); } }
+  if (impact > 4) collisionFx(c, impact);
+  if (impact > 3) { damageCar(c, impactDamage(impact)); if (c === activeCar && now - (G.lastHit || 0) > 700) { G.lastHit = now; G.collisions++; if (typeof missionImpact === 'function') missionImpact(impact); toast('Bum! Kolizja'); } }
   updateCarVertical(c, dt);
   c.sync();
+  { const hs = Math.sin(c.h), hc = Math.cos(c.h); c.vFl = c.vx * hs + c.vz * hc; c.vRl = c.vx * hc - c.vz * hs; } c.thrl = thr; c.handl = hand; c.brkl = brk;
   c.spin += vF * dt / (c.wr || 0.36);
   for (const w of c.wheels) { w.w.rotation.x = c.spin; if (w.front) w.pv.rotation.y = c.steer; }
   c.g.rotation.x = c.pitch; c.g.rotation.z = c.roll + clamp(-c.yawRate * vF * 0.004, -0.06, 0.06);
@@ -306,6 +318,8 @@ function updateCamera(dt) {
   if (G.mode === 'car') camera.position.lerp(camPos, Math.min(1, dt * 10)); else camera.position.copy(camPos);
   camLook.set(tx, ty + (G.mode === 'car' ? 0.4 : 0.1), tz);
   camera.lookAt(camLook);
+  if (G.shake > 0.001) { const k = G.shake * G.shake * 0.35; camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; camera.position.z += (Math.random() - 0.5) * k; camera.rotation.z += (Math.random() - 0.5) * k * 0.06; G.shake = Math.max(0, G.shake - dt * 2.2); }
+  const fov = 65 + (G.mode === 'car' && activeCar && activeCar.nitroOn ? 7 : 0); if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 5); camera.updateProjectionMatrix(); }
 }
 function insideBuildingH(x, z, y) {
   const a = W.bCells.get(Math.floor(x / 32) * 100000 + Math.floor(z / 32)); if (!a) return false;
@@ -316,6 +330,7 @@ function insideBuildingH(x, z, y) {
 let visT = 0;
 function updateVisibility(force) {
   const q = QUALITY[settings.quality]; const cx = camera.position.x, cz = camera.position.z;
+  if (W.ground) { W.ground.position.x = Math.round(cx / 125) * 125; W.ground.position.z = Math.round(cz / 125) * 125; }
   // kontury budynków (linie ekranowe) tylko w pobliżu – daleko i tak giną we mgle, a kosztują dużo wierzchołków
   const EDGE_D = (q.edge || 400) * (STYLE === 'lite' ? 0.75 : 1);
   const D = G.camOverride ? 2600 : (G.started ? q.dist : Math.max(q.dist, 900));
@@ -332,16 +347,18 @@ let fpsAcc = 0, fpsN = 0, hudT = 0;
 function loop() {
   const rawDt = clock.getDelta(); let dt = Math.min(0.05, rawDt); const tU = performance.now();
   if (G.started && !G.paused) {
+    G.gameT = (G.gameT || 0) + dt;
     if (G.cut) { G.cut.t -= dt; if (G.mode === 'car') updateCar(activeCar, dt, { thr: 0, steer: 0, hand: true }); if (G.cut.t <= 0) { const f = G.cut.fn; G.cut = null; f(); } }
     else if (G.mode === 'foot') updateFoot(dt); else updateCar(activeCar, dt, true);
     updateParked(dt);
     updateTraffic(dt); updatePolice(dt); updateDamage(dt); updateShops(dt);
-    updateEgg(dt); updateMissions(dt);
-    const eh = eggHint() || missionHint() || shopHint();
+    updateEgg(dt); updateMissions(dt); updateGarages(dt); updateDriveFx(dt);
+    const eh = eggHint() || missionHint() || garageHint() || shopHint();
     const near = G.mode === 'foot' && cars.some((c) => Math.hypot(c.x - player.x, c.z - player.z) < 3.8);
     hint(eh || (near ? (isTouch ? 'Naciśnij WSIĄDŹ' : 'Naciśnij E, aby wsiąść') : ''));
     if (G.mode === 'foot') { const lbl = eh ? (nearEggButton() ? 'TELEPORT' : 'AKCJA') : 'WSIĄDŹ'; if (G.tLbl !== lbl) { G.tLbl = lbl; $('tEnter').textContent = lbl; } } else G.tLbl = '';
   }
+  engineTick(rawDt);
   G.updMs = (G.updMs || 0) * 0.95 + (performance.now() - tU) * 0.05;
   updateCamera(dt);
   const fx = G.started ? (G.mode === 'car' ? activeCar.x : player.x) : camera.position.x;
