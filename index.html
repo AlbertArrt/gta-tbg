@@ -31,6 +31,7 @@
       <button id="btnStart" class="big">START</button>
       <div class="row">
         <button id="btnHelp">Sterowanie</button>
+        <button id="btnTutor">Samouczek</button>
         <button id="btnSettings">Ustawienia</button>
       </div>
       <div id="helpBox" class="box hidden">
@@ -41,7 +42,9 @@
           <tr><td>Shift</td><td>bieg · w aucie: nitro (po tuningu, też X)</td></tr>
           <tr><td>Spacja</td><td>skok / hamulec ręczny – drift (punkty driftu = kasa)</td></tr>
           <tr><td>E</td><td>wsiądź / wysiądź · akcja (misja, teleport, lakiernia, garaż) · porwij auto z ruchu</td></tr>
-          <tr><td>M</td><td>mapa i szybka podróż</td></tr>
+          <tr><td>M</td><td>mapa: klik = teleport, przycisk GPS = trasa po ulicach</td></tr>
+          <tr><td>J</td><td>dziennik misji (aktywna / dostępne / ukończone)</td></tr>
+          <tr><td>G</td><td>wyłącz własny GPS (trasa misji wraca przy kolejnym etapie)</td></tr>
           <tr><td>Q / R  (lub , .)</td><td>radio – poprzednia / następna stacja</td></tr>
           <tr><td>T</td><td>radio – włącz / wyłącz (wycisz)</td></tr>
           <tr><td>1 / 2</td><td>w Lakierni: malowanie 100 zł / naprawa 50 zł</td></tr>
@@ -53,7 +56,8 @@
         <h3>Sterowanie – telefon</h3>
         <p>Lewy joystick – ruch / skręt. Przeciągnij prawą stronę ekranu – kamera. Przyciski: SKOK, BIEG, GAZ, HAMULEC, RĘCZNY, WSIĄDŹ/AKCJA, MAPA, 📻 (panel stacji), 📻▶ (następna stacja).</p>
         <h3>Jak grać</h3>
-        <p><b>Misje:</b> szukaj świecących słupów z „!” (też na minimapie). Podejdź – zleceniodawca opowie, o co chodzi. Za misje dostajesz złotówki; po 5 misjach odblokujesz finał przy Muzeum Siarki.</p>
+        <p><b>Misje:</b> szukaj świecących słupów z „!” albo otwórz dziennik (J / 📒). Po 5 misjach fabularnych odblokujesz finał przy Muzeum Siarki. Nowe wyzwania (kursy, dostawa, próby czasowe, drift, tort) płacą pełną nagrodę raz – potem tylko za rekord.</p>
+        <p><b>GPS:</b> niebieska linia na minimapie idzie po ulicach albo ścieżkach off-road. Nie przecina budynków ani wody. Gdy sieci nie łączy celu, zostaje odległość w linii prostej i komunikat, bez fałszywej kreski.</p>
         <p><b>Policja:</b> potrącenie pieszego, staranowanie radiowozu, kradzież auta czy pędzenie obok policji dają gwiazdki ★ (1–5). Zgub pościg – zniknij policji z oczu, aż gwiazdki przestaną migać, albo wjedź do Lakierni (różowy znacznik, 50 zł). Gdy cię złapią: <b>ZATRZYMANY</b> (mandat, Komenda). Rozbite auto zapala się i wybucha: <b>ROZBITY</b> (Szpital).</p>
         <p><b>Radio:</b> 12 stacji (Rock, Metal, Jazz, Chillout, Pop, House, Lokalne – Radio Leliwa). Włącza się samo po wejściu do auta.</p>
       </div>
@@ -99,6 +103,7 @@
     <div id="fps" class="hidden"></div>
     <div id="topbtns">
       <button id="btnRadio" title="Radio (Q/R – stacje, T – wł./wył.)">📻</button>
+      <button id="btnJournal" title="Dziennik misji (J)">📒</button>
       <button id="btnMap" title="Mapa (M)">🗺️</button>
       <button id="btnNight" title="Dzień / noc (N)">🌙</button>
       <button id="btnPause" title="Menu (Esc)">⏸</button>
@@ -130,12 +135,29 @@
 
   <div id="mapScreen" class="screen hidden">
     <div class="mapPanel">
-      <div class="mapHead"><b>GTA TBG – mapa Tarnobrzega</b> <span class="muted">– kliknij na mapie lub wybierz miejsce, aby się przenieść</span> <button id="mapClose">✕</button></div>
+      <div class="mapHead"><b>GTA TBG – mapa Tarnobrzega</b> <span class="muted">klik = teleport, GPS = trasa ulicami</span> <button id="mapGpsMode" type="button">Klik: teleport</button> <button id="mapGpsClear" type="button">Anuluj GPS</button> <button id="mapClose" type="button">✕</button></div>
       <div class="mapBody">
         <div id="mapCanvasWrap"><canvas id="bigmap"></canvas></div>
         <div id="travelList"></div>
       </div>
       <div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></div>
+    </div>
+  </div>
+
+  <div id="journal" class="screen hidden">
+    <div class="jPanel">
+      <div class="jHead"><b>Dziennik misji</b><button id="jClose" type="button">✕</button></div>
+      <div id="jTabs" class="jTabs"></div>
+      <div id="jBody" class="jBody"></div>
+    </div>
+  </div>
+
+  <div id="tutor" class="screen hidden">
+    <div class="tPanel">
+      <div class="tKicker" id="tutN">1 / 4</div>
+      <h2 id="tutH">Ruszaj</h2>
+      <p id="tutP"></p>
+      <div class="tBtns"><button id="tutSkip" type="button" class="sec">Pomiń</button><button id="tutNext" type="button">Dalej</button></div>
     </div>
   </div>
 </div>

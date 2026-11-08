@@ -53,6 +53,7 @@ function drawMinimap() {
   g.fillStyle = '#c6b8a6'; for (const it of items[3]) { poly(it.p); g.closePath(); g.fill(); }
   for (const it of items[2]) { g.strokeStyle = it.major ? '#ffd76a' : '#ffffff'; g.lineWidth = Math.max(it.w * 1.2, 3 / sc); poly(it.p); g.stroke(); }
   drawEggMinimap(g, sc);
+  if (typeof drawNavOverlay === 'function') drawNavOverlay(g, sc);
   // cars
   for (const c of cars) { if (c === activeCar || !c.g.visible || c.police) continue; g.fillStyle = c.mission ? '#ffd21f' : c.ai ? '#6c6c74' : '#d33'; g.save(); g.translate(c.x, c.z); g.rotate(-c.h); g.fillRect(-1.2, -2.3, 2.4, 4.6); g.restore(); }
   drawMissionMinimap(g, sc);
@@ -96,12 +97,24 @@ function initBigMap() {
   buildTravelList();
   c.addEventListener('click', (e) => {
     const r = c.getBoundingClientRect(); const mx = (e.clientX - r.left) / r.width * BM.W, my = (e.clientY - r.top) / r.height * BM.H;
-    teleport(mx / BM.s + MINX, my / BM.s + MINZ); closeMap(); toast('Teleport', 1200);
+    const x = mx / BM.s + MINX, z = my / BM.s + MINZ;
+    if (BM.gpsClick) {
+      if (inWater(x, z)) { toast('To jest woda – GPS nie prowadzi przez jezioro', 2000); return; }
+      navSet(x, z, 'punkt na mapie', { src: 'place' }); closeMap(); toast('GPS ustawiony', 1400); return;
+    }
+    teleport(x, z); closeMap(); toast('Teleport', 1200);
   });
 }
 function buildTravelList() {
   const list = $('travelList'); list.innerHTML = '';
-  W.travel.forEach((t, i) => { const b = document.createElement('button'); b.textContent = (i + 1) + '. ' + t[0]; if (t[0][0] === '★') b.className = 'egg'; b.onclick = () => { if (WANT.stars > 0) { toast('🚨 Szybka podróż niedostępna – najpierw zgub policję!', 2000); return; } teleport(t[1], t[2]); closeMap(); toast('Teleport: ' + t[0], 1800); }; list.appendChild(b); });
+  W.travel.forEach((t, i) => {
+    const row = document.createElement('div'); row.className = 'trow';
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = (i + 1) + '. ' + t[0]; if (t[0][0] === '★') b.className = 'egg';
+    b.onclick = () => { if (WANT.stars > 0) { toast('🚨 Szybka podróż niedostępna – najpierw zgub policję!', 2000); return; } teleport(t[1], t[2]); closeMap(); toast('Teleport: ' + t[0], 1800); };
+    const g = document.createElement('button'); g.type = 'button'; g.className = 'gps'; g.textContent = 'GPS';
+    g.onclick = () => { navSet(t[1], t[2], t[0], { src: 'place' }); closeMap(); toast('GPS: ' + t[0], 1600); };
+    row.appendChild(b); row.appendChild(g); list.appendChild(row);
+  });
 }
 function drawBigMap() {
   const g = BM.g; const [MINX, MINZ] = W.rect; const S = BM.s;
@@ -110,7 +123,7 @@ function drawBigMap() {
   W.travel.forEach((t, i) => { const x = (t[1] - MINX) * S, y = (t[2] - MINZ) * S; g.fillStyle = t[0][0] === '★' ? '#0a8fa8' : '#123'; g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillText(String(i + 1), x, y + 1); });
   g.fillStyle = '#2b4a6b'; g.font = 'bold 22px system-ui, sans-serif';
   for (const w of W.water) if (w.name && Math.abs(ringArea(w.ring)) > 200000) { let cx = 0, cz = 0; const n = w.ring.length / 2; for (let i = 0; i < w.ring.length; i += 2) { cx += w.ring[i]; cz += w.ring[i + 1]; } g.fillText(w.name, (cx / n - MINX) * S, (cz / n - MINZ) * S); }
-  g.save(); g.setTransform(S, 0, 0, S, -MINX * S, -MINZ * S); drawMissionMinimap(g, S * 1.6); g.restore();
+  g.save(); g.setTransform(S, 0, 0, S, -MINX * S, -MINZ * S); drawMissionMinimap(g, S * 1.6); if (typeof drawNavOverlay === 'function') drawNavOverlay(g, S); g.restore();
   const px = G.mode === 'car' ? activeCar.x : player.x, pz = G.mode === 'car' ? activeCar.z : player.z; const ph = G.mode === 'car' ? activeCar.h : player.h;
   g.save(); g.translate((px - MINX) * S, (pz - MINZ) * S); g.rotate(Math.PI - ph); g.fillStyle = '#ff3b30'; g.strokeStyle = '#fff'; g.lineWidth = 3;
   g.beginPath(); g.moveTo(0, -16); g.lineTo(11, 12); g.lineTo(0, 6); g.lineTo(-11, 12); g.closePath(); g.fill(); g.stroke(); g.restore();
@@ -126,12 +139,20 @@ function initInput() {
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     if (e.repeat) return;
     if (!G.started) return;
+    if (G.tutor) { tutorKey(e.code); return; }
+    if (G.journalOpen) { if (e.code === 'Escape' || e.code === 'KeyJ') closeJournal(); return; }
     if (G.dialogOpen) { if (e.code === 'KeyE' || e.code === 'Enter') dialogAction(); else if (e.code === 'Escape') dialogClose(); return; }
     if (G.inGarage) { garageKey(e.code); return; }
     if (POL.shop) { if (e.code === 'Digit1') { shopBuy('paint'); return; } if (e.code === 'Digit2') { shopBuy('fix'); return; } if (e.code === 'Escape' || e.code === 'Digit3') { shopClose(); return; } }
     if (e.code === 'Space' && G.mode === 'foot') G.jumpReq = true;
     if (e.code === 'KeyE' || e.code === 'KeyF') actionE();
     else if (e.code === 'KeyM') { G.mapOpen ? closeMap() : openMap(); }
+    else if (e.code === 'KeyJ') { if (!G.mapOpen && !G.inGarage && !POL.shop) openJournal(); }
+    else if (e.code === 'KeyG') {
+      if (!NAV.on) return;
+      if (NAV.src === 'mission') toast('To trasa misji. Inne miejsce: mapa M → GPS. Misję anulujesz w dzienniku (J).', 2600);
+      else { navClear(); toast('GPS wyłączony', 1200); }
+    }
     else if (e.code === 'KeyR' || e.code === 'Period') radioStep(1);
     else if (e.code === 'KeyQ' || e.code === 'Comma') radioStep(-1);
     else if (e.code === 'KeyT') radioPower();
@@ -175,7 +196,11 @@ function startGame() {
   $('menu').classList.add('hidden'); $('hud').classList.remove('hidden');
   if (isTouch) $('touch').classList.remove('hidden');
   updateVisibility(true); updateStreet();
-  if (!startGame._once) { startGame._once = true; toast(isTouch ? 'Joystick – ruch, prawa strona – kamera. Szukaj świecących „!” – to misje!' : 'WASD – ruch, E – auto/akcja, M – mapa, Q/R – radio. Świecące „!” to misje!', 5000); }
+  if (!startGame._once) {
+    startGame._once = true;
+    if (!SAVE.tut) openTutor();
+    else toast(isTouch ? 'Dziennik: 📒. Mapa: GPS przy miejscu. Świecące „!” to misje.' : 'J – dziennik, M – mapa i GPS, G – wyłącz GPS. Świecące „!” to misje.', 4200);
+  }
 }
 function initMenu() {
   $('btnStart').onclick = () => startGame();
@@ -210,6 +235,9 @@ Object.assign(G, {
   path: (ax, az, bx, bz) => { const p = astar(nearestNode(ax, az), nearestNode(bx, bz)); return p ? pathPoints(p) : null; },
   touchStats: () => ({ ...TP.stats, ptrs: TP.ptrs.size, joy: !!TP.joy, look: !!TP.look, jx: G.touch.jx, jy: G.touch.jy, gas: !!G.touch.gas, brake: !!G.touch.brake, hand: !!G.touch.hand, steer: activeCar ? activeCar.steer : 0 }), touchReset,
   dialogAction, dialogClose, shopBuy, shopClose, places: PLACES, money: () => SAVE.money,
+  navState: () => ({ on: NAV.on, status: NAV.status, note: NAV.note, instr: NAV.instr, dist: NAV.dist, src: NAV.src, n: NAV.pts ? NAV.pts.length / 2 : 0, plans: NAV.plans, tail: !!NAV.tail, cls: NAV.cls, name: NAV.name, dx: NAV.dx, dz: NAV.dz, sig: NAV.sig, bridges: NAV.bridges || 0, comps: NAV.comps || 0 }),
+  navSet: (x, z, name, opt) => navSet(x, z, name, opt || { src: 'place' }), navClear, navAudit, openJournal, closeJournal, openTutor, closeTutor, missionCancel,
+  storyDone: () => storyDoneCount(), save: () => SAVE,
   stats: () => ({ buildings: W.buildings.length, roads: W.roads.length, trees: W.treeCount, chunks: W.chunkCount, calls: renderer.info.render.calls, tris: renderer.info.render.triangles }),
   garage: () => ({ open: GAR.open ? GAR.open.n : null, tab: GAR.tab, sel: GAR.sel, places: GAR.places.map((p) => ({ n: p.n, x: p.x, z: p.z, h: p.h })), cars: SAVE.garage.cars.map((r) => ({ uid: r.uid, model: r.model, color: r.color, up: { ...r.up }, st: carStats(r) })),
     own: GAR.own ? { uid: GAR.own.own.uid, model: GAR.own.model, x: GAR.own.x, z: GAR.own.z, hp: GAR.own.hp, st: GAR.own.st, nf: GAR.own.nf, inside: GAR.own === activeCar } : null, save: SAVE }),

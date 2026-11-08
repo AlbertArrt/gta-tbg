@@ -66,7 +66,7 @@ async function init() {
   spawnAtRynek();
   spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions(); initGarages(); initDriveFx();
   applyTime(); applyQuality();
-  initMinimap(); initBigMap(); initInput(); initRadio(); initMenu();
+  initMinimap(); initBigMap(); initInput(); initRadio(); initMenu(); initNav();
   window.addEventListener('resize', onResize); onResize();
   setLoad(1, 'Gotowe!');
   $('loading').classList.add('hidden'); $('menu').classList.remove('hidden');
@@ -352,7 +352,7 @@ function loop() {
     else if (G.mode === 'foot') updateFoot(dt); else updateCar(activeCar, dt, true);
     updateParked(dt);
     updateTraffic(dt); updatePolice(dt); updateDamage(dt); updateShops(dt);
-    updateEgg(dt); updateMissions(dt); updateGarages(dt); updateDriveFx(dt);
+    updateEgg(dt); updateMissions(dt); updateNav(dt); updateGarages(dt); updateDriveFx(dt);
     const eh = eggHint() || missionHint() || garageHint() || shopHint();
     const near = G.mode === 'foot' && cars.some((c) => Math.hypot(c.x - player.x, c.z - player.z) < 3.8);
     hint(eh || (near ? (isTouch ? 'Naciśnij WSIĄDŹ' : 'Naciśnij E, aby wsiąść') : ''));

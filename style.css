@@ -67,13 +67,17 @@ select{font:inherit;background:#13304d;color:#fff;border:1px solid #ffffff40;bor
 .mapBody{flex:1;display:flex;gap:10px;min-height:0}
 #mapCanvasWrap{flex:1;position:relative;min-width:0;display:flex;align-items:center;justify-content:center;background:#cfd8c4;border-radius:10px;overflow:hidden}
 #bigmap{max-width:100%;max-height:100%;cursor:crosshair}
-#travelList{width:250px;overflow:auto;display:flex;flex-direction:column;gap:5px}
-#travelList button{text-align:left;font-size:13px;padding:7px 10px}
+#travelList{width:280px;overflow:auto;display:flex;flex-direction:column;gap:5px}
+#travelList .trow{display:flex;gap:6px}
+#travelList .trow button{flex:1;text-align:left;font-size:13px;padding:7px 10px;min-height:44px}
+#travelList button.gps{flex:0 0 64px;text-align:center;background:#d7ecff;padding:7px 0}
+.mapHead{flex-wrap:wrap}
+.mapHead button{min-height:40px}
 @media (max-width:700px),(max-height:500px){
   #minimapWrap{width:120px;height:120px;left:8px;top:8px}
   #street{font-size:13px;top:8px;max-width:44vw}
   #speedo{transform:scale(.75);transform-origin:right bottom;right:8px;bottom:auto;top:62px}
-  #travelList{width:180px}
+  #travelList{width:200px}
   .mapBody{flex-direction:row}
   #topbtns button{width:38px;height:38px;font-size:17px}
   #radioPanel{top:56px}
@@ -130,9 +134,13 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 .cdialog button{background:var(--sun);color:var(--ink);font-size:17px;padding:8px 16px;border-radius:14px}
 .cdialog button.sec{background:#e9e1cf}
 @keyframes dlgin{from{transform:translate(-50%,40px) scale(.9);opacity:0}}
-#mhud{position:absolute;left:226px;top:14px;background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-radius:14px;box-shadow:0 3px 0 var(--ink);padding:6px 12px;max-width:min(360px,40vw)}
+#mhud{position:absolute;left:226px;top:58px;background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-radius:14px;box-shadow:0 3px 0 var(--ink);padding:6px 12px;max-width:min(420px,calc(100vw - 250px));pointer-events:none}
 #mhud b{display:block;font-size:15px;color:#c0392b}
-#mhud span{font-size:14px}
+#mhud span{display:block;font-size:14px;line-height:1.3}
+#mhud em{display:block;margin-top:2px;font-style:normal;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+#mhud em.warn{color:#c0392b}
+#mhud small{display:block;margin-top:2px;font-size:13px;line-height:1.25;color:#1d4e89}
+#mhud button{pointer-events:auto;margin-top:6px;min-height:40px;background:#d7ecff;color:var(--ink);font-size:14px}
 #mhud.hidden{display:none}
 /* radio */
 #radioPanel{background:var(--cream);color:var(--ink);border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);width:260px;z-index:12}
@@ -157,7 +165,7 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 @media (max-width:700px),(max-height:500px){
   #wanted{font-size:22px;top:52px;right:8px}
   #money{font-size:19px;top:78px;right:8px}
-  #mhud{left:136px;top:44px;max-width:44vw;padding:3px 8px}#mhud b{font-size:12px}#mhud span{font-size:12px}
+  #mhud{left:8px;top:136px;max-width:calc(100vw - 118px);padding:4px 8px}#mhud b{font-size:13px}#mhud span,#mhud small{font-size:12px}#mhud em{font-size:15px}
   #hpbar{bottom:auto;top:104px;right:8px;width:100px}
   .cdialog{bottom:4%;padding:10px 14px}.cdialog p{font-size:14px}.cdialog h3{font-size:18px}
   #radioPanel{width:230px}
@@ -251,3 +259,34 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
   #drift{top:20%}
 }
 @media (max-height:500px){ .gBody{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))} .gCard .gStats{display:none} .gTabs{margin:6px 0} }
+#journal{z-index:46;background:rgba(8,18,32,.45)}
+.jPanel{width:min(640px,96vw);max-height:min(92vh,760px);background:var(--cream);color:var(--ink);border:4px solid var(--ink);border-radius:18px;box-shadow:0 8px 0 var(--ink);display:flex;flex-direction:column;padding:12px}
+.jHead{display:flex;align-items:center;gap:8px;font-size:22px}
+.jHead b{flex:1}
+.jHead button,.tBtns button,.jBtns button{min-height:48px}
+.jTabs{display:flex;gap:6px;margin:8px 0}
+.jTabs button{flex:1;background:#fff;color:var(--ink);min-height:48px}
+.jTabs button.on{background:var(--sun)}
+.jBody{overflow:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:8px;padding-bottom:6px}
+.jCard{background:#fff;border:3px solid var(--ink);border-radius:14px;padding:8px 10px}
+.jCard b{font-size:18px}
+.jWho,.jPay,.jLock{font-size:13px;margin-top:2px}
+.jPay{color:#2b8a2b;font-weight:700}
+.jLock{color:#c0392b;font-weight:700}
+.jCard p,.jCard li{font-size:14px;margin:2px 0}
+.jCard ol{margin:6px 0 6px 18px;padding:0}
+.jBtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.jBtns button{flex:1;background:var(--sun);color:var(--ink)}
+.jBtns button.sec{background:#e7e0d2}
+.jNow{background:#fff6c8;border:3px solid var(--ink);border-radius:12px;padding:8px 10px;font-weight:700}
+.jEmpty{padding:12px;font-size:16px}
+#tutor{z-index:60;background:rgba(8,18,32,.55)}
+.tPanel{width:min(560px,94vw);background:var(--cream);color:var(--ink);border:4px solid var(--ink);border-radius:18px;box-shadow:0 8px 0 var(--ink);padding:16px 18px}
+.tKicker{font-weight:700;color:#c0392b}
+.tPanel h2{margin:4px 0 8px;font-size:28px}
+.tPanel p{margin:0 0 14px;font-size:17px;line-height:1.35}
+.tBtns{display:flex;gap:8px}
+.tBtns button{flex:1;background:var(--sun);color:var(--ink);font-size:18px}
+.tBtns button.sec{background:#e7e0d2}
+#mapGpsMode.on{background:#d7ecff}
+#travelList{touch-action:pan-y}
