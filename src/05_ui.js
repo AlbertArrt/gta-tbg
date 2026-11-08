@@ -134,7 +134,7 @@ function closeMap() { $('mapScreen').classList.add('hidden'); G.mapOpen = false;
 // ======================= INPUT =======================
 function initInput() {
   addEventListener('keydown', (e) => {
-    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return;
     G.keys.add(e.code);
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     if (e.repeat) return;
@@ -152,6 +152,10 @@ function initInput() {
       if (!NAV.on) return;
       if (NAV.src === 'mission') toast('To trasa misji. Inne miejsce: mapa M → GPS. Misję anulujesz w dzienniku (J).', 2600);
       else { navClear(); toast('GPS wyłączony', 1200); }
+    }
+    else if (e.code === 'KeyH') {
+      if (G.mapOpen || G.journalOpen || G.dialogOpen || G.inGarage || G.tutor || (POL && POL.shop)) return;
+      e.preventDefault(); objToggle();
     }
     else if (e.code === 'KeyR' || e.code === 'Period') radioStep(1);
     else if (e.code === 'KeyQ' || e.code === 'Comma') radioStep(-1);
