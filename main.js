@@ -2915,7 +2915,7 @@ function initMissions() {
   }
   MIS.tgt = makeTarget();
   const hud = $('hud'); const mh = document.createElement('div'); mh.id = 'mhud'; mh.className = 'hidden';
-  mh.innerHTML = '<b id="objTitle"></b><span id="objText"></span><em id="objTime"></em><small id="objGps"></small><button type="button" id="gpsX" class="hidden">Anuluj GPS</button>';
+  mh.innerHTML = '<button type="button" id="objTab" aria-expanded="true" title="Pokaż lub schowaj cel (H)"><b id="objTabKey">H</b><em id="objTabTime"></em><small id="objTabDir"></small></button><div id="objSlide"><div id="objCard"><b id="objTitle"></b><span id="objText"></span><em id="objTime"></em><small id="objGps"></small><button type="button" id="gpsX" class="hidden">Anuluj GPS</button></div></div>';
   hud.appendChild(mh);
   const dl = document.createElement('div'); dl.id = 'dialog'; dl.className = 'cdialog hidden';
   dl.innerHTML = '<div class="who" id="dlgWho"></div><h3 id="dlgTitle"></h3><p id="dlgText"></p><div class="reward" id="dlgReward"></div><div class="btns"><button id="dlgYes">Przyjmij (E)</button><button id="dlgNo" class="sec">Nie teraz (Esc)</button></div>';
@@ -4141,17 +4141,59 @@ function navZone(x, z, r, on) {
   NAV.zone.position.set(x, groundH(x, z) + 0.4, z);
   const s = (r || 100) / 100; NAV.zone.scale.set(s, s, s);
 }
+const OBJ = { open: true, pref: null, introAt: 0, introDone: false };
+function objShort() { return !!(window.matchMedia && matchMedia('(max-height: 520px)').matches); }
+function objDirShort() {
+  if (!NAV.on || !NAV.instr) return '';
+  if (NAV.instr === 'Jesteś przy celu') return 'u celu';
+  const parts = NAV.instr.split(' · ').map((s) => s.trim()).filter(Boolean);
+  const dir = parts.find((p) => /^(za |w lewo|w prawo|zawróć|prosto|dalej |do ulicy)/i.test(p)) || parts[0] || '';
+  return dir.length > 24 ? dir.slice(0, 23) + '…' : dir;
+}
+function objWantOpen() {
+  if (OBJ.pref !== null) return !!OBJ.pref;
+  if (!objShort()) return true;
+  if (OBJ.introDone) return false;
+  if (!OBJ.introAt) OBJ.introAt = performance.now();
+  if (performance.now() - OBJ.introAt > 4200) { OBJ.introDone = true; return false; }
+  return true;
+}
+function objApply(el) {
+  const open = objWantOpen(); OBJ.open = open;
+  el.classList.toggle('collapsed', !open);
+  const tab = $('objTab'); if (tab) tab.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function objToggle() {
+  const el = $('mhud'); if (!el || el.classList.contains('hidden')) return;
+  OBJ.pref = !OBJ.open; OBJ.open = OBJ.pref; OBJ.introDone = true;
+  el.classList.toggle('collapsed', !OBJ.open);
+  const tab = $('objTab'); if (tab) tab.setAttribute('aria-expanded', OBJ.open ? 'true' : 'false');
+}
+function bindObjPanel() {
+  const tab = $('objTab'); if (!tab) return;
+  tab.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); });
+  tab.addEventListener('pointerup', (e) => e.stopPropagation());
+  tab.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); objToggle(); });
+  const card = $('objCard');
+  if (card) {
+    card.addEventListener('pointerdown', (e) => e.stopPropagation());
+    card.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
+  }
+}
 function paintHud() {
   const el = $('mhud'); if (!el) return;
   const m = typeof MIS !== 'undefined' ? MIS.active : null;
   const show = !!(m || NAV.on);
   el.classList.toggle('hidden', !show); if (!show) return;
+  objApply(el);
   const title = $('objTitle'), text = $('objText'), time = $('objTime'), gps = $('objGps'), btn = $('gpsX');
   if (title) title.textContent = m ? m.name : 'GPS';
   if (text) text.textContent = m && m.obj ? m.obj : (NAV.name || '');
   let t = '';
   if (m && typeof m.t === 'number' && m.t >= 0) t = '⏱ ' + fmtT(Math.max(0, m.t)).slice(0, 5);
   if (time) { time.textContent = t; time.classList.toggle('warn', !!(m && m.t < 20 && m.t >= 0 && t)); }
+  const tabTime = $('objTabTime'); if (tabTime) { tabTime.textContent = t; tabTime.classList.toggle('warn', !!(time && time.classList.contains('warn'))); }
+  const tabDir = $('objTabDir'); if (tabDir) tabDir.textContent = objDirShort();
   if (gps) gps.textContent = NAV.on && NAV.instr ? NAV.instr : '';
   if (btn) btn.classList.toggle('hidden', !(NAV.on && NAV.src !== 'mission'));
 }
@@ -4204,6 +4246,7 @@ function initNav() {
   NAV.zone = new THREE.Mesh(zg, new THREE.MeshBasicMaterial({ color: 0xffd21f, transparent: true, opacity: 0.85 }));
   NAV.zone.visible = false; scene.add(NAV.zone);
   const x = $('gpsX'); if (x) { x.onclick = (e) => { e.stopPropagation(); navClear(); toast('GPS wyłączony', 1200); }; x.addEventListener('pointerdown', (e) => e.stopPropagation()); }
+  bindObjPanel();
   bindJournal(); bindTutor(); bindMapGps();
   for (const id of ['journal', 'tutor']) { const n = $(id); if (!n) continue; n.addEventListener('pointerdown', (e) => e.stopPropagation()); n.addEventListener('mousedown', (e) => e.stopPropagation()); }
 }
@@ -4463,7 +4506,7 @@ function closeMap() { $('mapScreen').classList.add('hidden'); G.mapOpen = false;
 // ======================= INPUT =======================
 function initInput() {
   addEventListener('keydown', (e) => {
-    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return;
     G.keys.add(e.code);
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     if (e.repeat) return;
@@ -4481,6 +4524,10 @@ function initInput() {
       if (!NAV.on) return;
       if (NAV.src === 'mission') toast('To trasa misji. Inne miejsce: mapa M → GPS. Misję anulujesz w dzienniku (J).', 2600);
       else { navClear(); toast('GPS wyłączony', 1200); }
+    }
+    else if (e.code === 'KeyH') {
+      if (G.mapOpen || G.journalOpen || G.dialogOpen || G.inGarage || G.tutor || (POL && POL.shop)) return;
+      e.preventDefault(); objToggle();
     }
     else if (e.code === 'KeyR' || e.code === 'Period') radioStep(1);
     else if (e.code === 'KeyQ' || e.code === 'Comma') radioStep(-1);

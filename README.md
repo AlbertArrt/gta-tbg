@@ -58,6 +58,7 @@ Plik `gta-tbg-single.html` nie jest potrzebny na Pages. Wystarczy do gry offline
 | M | mapa: klik przenosi, przycisk **GPS** rysuje trasę |
 | J | dziennik misji |
 | G | wyłącz własny punkt GPS |
+| H | schowaj / pokaż panel celu (nie pauzuje misji ani GPS) |
 | R lub `.` / Q lub `,` | radio: następna / poprzednia stacja |
 | T | radio: włącz / wyłącz |
 | N | dzień / noc |
@@ -87,6 +88,7 @@ Plik `gta-tbg-single.html` nie jest potrzebny na Pages. Wystarczy do gry offline
   - **ROZBITY** – tylko po wybuchu twojego auta: odrodzenie przed Szpitalem (75 zł + 5% gotówki).
 - **Misje w prawdziwych miejscach:** świecące postacie z „!”, okienka dialogowe po polsku, znaczniki na minimapie i mapie M, nagrody w złotówkach. Postęp i gotówka zapisują się w przeglądarce (`localStorage`, klucz `gtatbg_save`).
 - **Dziennik (J albo 📒):** zakładki Aktywna / Dostępne / Ukończone, kroki, nagroda, rekord. Przyciski Przyjmij, GPS, Od nowa i Anuluj. Otwarty dziennik i mapa zatrzymują zegar misji.
+- **Panel celu:** na krótkim ekranie (telefon w poziomie) po około 4 s zjeżdża w lewo. Zostaje zakładka pod minimapą, co najmniej 44 px, z czasem i krótkim kierunkiem. Dotknięcie albo klawisz **H** rozwija i chowa panel. Ręczny wybór zostaje na czas misji – kolejny etap sam go nie otwiera. Na wyższym ekranie panel startuje rozwinięty. Zwijanie nie pauzuje gry i nie zeruje GPS. Długi opis przewija się w wąskiej karcie, żeby nie zasłaniać jezdni.
 - **GPS:** niebieska linia na minimapie i kilka strzałek na jezdni. Liczona jest po grafie ulic (tym samym, co ruch), a nad jeziorem po ścieżkach OSM. Nie idzie skrótem przez budynek ani wodę. Gdy sieć się urywa, linia staje, a napis podaje odległość w linii prostej albo „dalej pieszo”. Cel misji podmienia się sam przy kolejnym etapie. Własny cel: przycisk GPS na mapie albo tryb „Klik: GPS”. **G** albo „Anuluj GPS” kasuje własny cel.
 - **Samouczek:** cztery krótkie karty przy pierwszym uruchomieniu (Pomiń / Dalej). Ponownie z menu: **Samouczek**.
 

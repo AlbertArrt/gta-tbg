@@ -426,17 +426,59 @@ function navZone(x, z, r, on) {
   NAV.zone.position.set(x, groundH(x, z) + 0.4, z);
   const s = (r || 100) / 100; NAV.zone.scale.set(s, s, s);
 }
+const OBJ = { open: true, pref: null, introAt: 0, introDone: false };
+function objShort() { return !!(window.matchMedia && matchMedia('(max-height: 520px)').matches); }
+function objDirShort() {
+  if (!NAV.on || !NAV.instr) return '';
+  if (NAV.instr === 'Jesteś przy celu') return 'u celu';
+  const parts = NAV.instr.split(' · ').map((s) => s.trim()).filter(Boolean);
+  const dir = parts.find((p) => /^(za |w lewo|w prawo|zawróć|prosto|dalej |do ulicy)/i.test(p)) || parts[0] || '';
+  return dir.length > 24 ? dir.slice(0, 23) + '…' : dir;
+}
+function objWantOpen() {
+  if (OBJ.pref !== null) return !!OBJ.pref;
+  if (!objShort()) return true;
+  if (OBJ.introDone) return false;
+  if (!OBJ.introAt) OBJ.introAt = performance.now();
+  if (performance.now() - OBJ.introAt > 4200) { OBJ.introDone = true; return false; }
+  return true;
+}
+function objApply(el) {
+  const open = objWantOpen(); OBJ.open = open;
+  el.classList.toggle('collapsed', !open);
+  const tab = $('objTab'); if (tab) tab.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function objToggle() {
+  const el = $('mhud'); if (!el || el.classList.contains('hidden')) return;
+  OBJ.pref = !OBJ.open; OBJ.open = OBJ.pref; OBJ.introDone = true;
+  el.classList.toggle('collapsed', !OBJ.open);
+  const tab = $('objTab'); if (tab) tab.setAttribute('aria-expanded', OBJ.open ? 'true' : 'false');
+}
+function bindObjPanel() {
+  const tab = $('objTab'); if (!tab) return;
+  tab.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); });
+  tab.addEventListener('pointerup', (e) => e.stopPropagation());
+  tab.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); objToggle(); });
+  const card = $('objCard');
+  if (card) {
+    card.addEventListener('pointerdown', (e) => e.stopPropagation());
+    card.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
+  }
+}
 function paintHud() {
   const el = $('mhud'); if (!el) return;
   const m = typeof MIS !== 'undefined' ? MIS.active : null;
   const show = !!(m || NAV.on);
   el.classList.toggle('hidden', !show); if (!show) return;
+  objApply(el);
   const title = $('objTitle'), text = $('objText'), time = $('objTime'), gps = $('objGps'), btn = $('gpsX');
   if (title) title.textContent = m ? m.name : 'GPS';
   if (text) text.textContent = m && m.obj ? m.obj : (NAV.name || '');
   let t = '';
   if (m && typeof m.t === 'number' && m.t >= 0) t = '⏱ ' + fmtT(Math.max(0, m.t)).slice(0, 5);
   if (time) { time.textContent = t; time.classList.toggle('warn', !!(m && m.t < 20 && m.t >= 0 && t)); }
+  const tabTime = $('objTabTime'); if (tabTime) { tabTime.textContent = t; tabTime.classList.toggle('warn', !!(time && time.classList.contains('warn'))); }
+  const tabDir = $('objTabDir'); if (tabDir) tabDir.textContent = objDirShort();
   if (gps) gps.textContent = NAV.on && NAV.instr ? NAV.instr : '';
   if (btn) btn.classList.toggle('hidden', !(NAV.on && NAV.src !== 'mission'));
 }
@@ -489,6 +531,7 @@ function initNav() {
   NAV.zone = new THREE.Mesh(zg, new THREE.MeshBasicMaterial({ color: 0xffd21f, transparent: true, opacity: 0.85 }));
   NAV.zone.visible = false; scene.add(NAV.zone);
   const x = $('gpsX'); if (x) { x.onclick = (e) => { e.stopPropagation(); navClear(); toast('GPS wyłączony', 1200); }; x.addEventListener('pointerdown', (e) => e.stopPropagation()); }
+  bindObjPanel();
   bindJournal(); bindTutor(); bindMapGps();
   for (const id of ['journal', 'tutor']) { const n = $(id); if (!n) continue; n.addEventListener('pointerdown', (e) => e.stopPropagation()); n.addEventListener('mousedown', (e) => e.stopPropagation()); }
 }
