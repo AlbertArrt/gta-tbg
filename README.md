@@ -23,10 +23,25 @@ python3 -m http.server 8000
 Wersja z folderu nie zadziała po dwukrotnym kliknięciu `index.html`, bo przeglądarka blokuje wtedy wczytywanie modułów ES i pliku JSON. Do tego służy plik `gta-tbg-single.html`.
 
 ### 3. GitHub Pages
-1. Rozpakuj **`gta-tbg-web.zip`** do nowego repozytorium, tak aby plik `index.html` był w katalogu głównym.
-2. Wykonaj `git add . && git commit -m "GTA TBG" && git push`.
-3. W repozytorium wejdź w **Settings → Pages → Source: Deploy from a branch**, wybierz `main` i katalog `/ (root)`.
-4. Po minucie gra będzie dostępna pod adresem `https://<login>.github.io/<repo>/`.
+Rozpakuj **`gta-tbg-web.zip`** tak, aby w katalogu głównym repozytorium leżały pliki, a nie dodatkowy folder:
+
+```
+index.html
+main.js
+style.css
+manifest.webmanifest
+icon.svg
+data/tarnobrzeg.json
+fonts/fredoka-subset.woff
+fonts/OFL-Fredoka.txt
+vendor/three.module.js
+```
+
+1. `git add . && git commit -m "GTA TBG" && git push`
+2. **Settings → Pages → Source: Deploy from a branch**, gałąź `main`, katalog `/ (root)`.
+3. Po chwili gra jest pod `https://<login>.github.io/<repo>/`.
+
+Plik `gta-tbg-single.html` nie jest potrzebny na Pages. Wystarczy do gry offline.
 
 ## Sterowanie
 
@@ -40,7 +55,9 @@ Wersja z folderu nie zadziała po dwukrotnym kliknięciu `index.html`, bo przegl
 | Esc | zamknięcie okna misji / lakierni, pauza / menu |
 | 1 / 2 | w lakierni: przemaluj (100 zł) / napraw (50 zł) |
 | 1 – 4, ← → | w garażu: zakładki (Moje auta / Salon / Tuning / Lakier) i wybór auta |
-| M | mapa i szybka podróż |
+| M | mapa: klik przenosi, przycisk **GPS** rysuje trasę |
+| J | dziennik misji |
+| G | wyłącz własny punkt GPS |
 | R lub `.` / Q lub `,` | radio: następna / poprzednia stacja |
 | T | radio: włącz / wyłącz |
 | N | dzień / noc |
@@ -53,7 +70,7 @@ Wersja z folderu nie zadziała po dwukrotnym kliknięciu `index.html`, bo przegl
 - Przyciski reagują już przy dotknięciu (bez 300 ms opóźnienia), mają strefę trafienia większą od rysunku (min. ~64 px, rośnie z ekranem), widoczny stan wciśnięcia i opcjonalną krótką wibrację.
 - Strona nie przewija się, nie powiększa, nie zaznacza tekstu i nie pokazuje menu długiego przytrzymania. Gdy palec zjedzie z ekranu, przyjdzie `pointercancel`, okno straci fokus albo karta zostanie ukryta – wszystkie wejścia są zerowane (nic się nie „zacina”).
 - **Ustawienia (zapisywane w przeglądarce):** *Czułość kamery*, *Czułość sterowania*, *Rozmiar przycisków* (80–150%), *Układ dla leworęcznych* (joystick po prawej, przyciski po lewej), *Wibracje*, *Głośność silnika i efektów*.
-- Na górze: 📻 radio, 🗺️ mapa, 🌙 dzień/noc, ⏸ pauza. Testowane w poziomie 915×412.
+- Na górze: 📻 radio, 📒 dziennik, 🗺️ mapa, 🌙 dzień/noc, ⏸ pauza. Testowane w poziomie 844×390 i 1280×720.
 
 ## Co jest w grze
 - **Miasto z OSM:**
@@ -68,7 +85,10 @@ Wersja z folderu nie zadziała po dwukrotnym kliknięciu `index.html`, bo przegl
   - **Ucieczka:** zgub radiowozy (gwiazdki migają, gdy policja cię nie widzi – policja przeszukuje miejsce, gdzie cię ostatnio widziała) albo wjedź do **lakierni** (Warsztat, DULUX, przy myjni) – przemalowanie za 50 zł kasuje gwiazdki.
   - **ZATRZYMANY** – złapany przez policję: odrodzenie przed Komendą Policji (mandat 50 zł + 10% gotówki).
   - **ROZBITY** – tylko po wybuchu twojego auta: odrodzenie przed Szpitalem (75 zł + 5% gotówki).
-- **Misje (8) w prawdziwych miejscach:** świecące postacie z „!”, okienka dialogowe po polsku, znaczniki na minimapie i mapie M, nagrody w złotówkach (zł wydajesz w garażach i lakierni). Postęp i gotówka zapisują się w przeglądarce (localStorage).
+- **Misje w prawdziwych miejscach:** świecące postacie z „!”, okienka dialogowe po polsku, znaczniki na minimapie i mapie M, nagrody w złotówkach. Postęp i gotówka zapisują się w przeglądarce (`localStorage`, klucz `gtatbg_save`).
+- **Dziennik (J albo 📒):** zakładki Aktywna / Dostępne / Ukończone, kroki, nagroda, rekord. Przyciski Przyjmij, GPS, Od nowa i Anuluj. Otwarty dziennik i mapa zatrzymują zegar misji.
+- **GPS:** niebieska linia na minimapie i kilka strzałek na jezdni. Liczona jest po grafie ulic (tym samym, co ruch), a nad jeziorem po ścieżkach OSM. Nie idzie skrótem przez budynek ani wodę. Gdy sieć się urywa, linia staje, a napis podaje odległość w linii prostej albo „dalej pieszo”. Cel misji podmienia się sam przy kolejnym etapie. Własny cel: przycisk GPS na mapie albo tryb „Klik: GPS”. **G** albo „Anuluj GPS” kasuje własny cel.
+- **Samouczek:** cztery krótkie karty przy pierwszym uruchomieniu (Pomiń / Dalej). Ponownie z menu: **Samouczek**.
 
 | Misja | Gdzie | Zadanie | Nagroda |
 |---|---|---|---|
@@ -79,7 +99,21 @@ Wersja z folderu nie zadziała po dwukrotnym kliknięciu `index.html`, bo przegl
 | Zgarnij auto prezesa | Serbinów | ukradnij złote auto i dowieź do Warsztatu w jak najlepszym stanie | do 350 zł |
 | Rajd Głowackiego | pomnik Głowackiego | przejazd off-road w < 4 min | 400 zł |
 | Kurier z leków | Stacja paliw | leki do apteki przy szpitalu w 2,5 min, max 2 stłuczki | 200 zł |
-| Legenda Tarnobrzega (finał) | Muzeum Siarki | po 5 misjach: 4 ★ → Dzików, potem zgub policję | 1000 zł |
+| Legenda Tarnobrzega (finał) | Muzeum Siarki | po 5 misjach fabularnych: 4 ★ → Dzików, potem zgub policję | 1000 zł |
+
+Powyższe misje fabularne nadal płacą pełną nagrodę przy każdym zaliczeniu.
+
+### Wyzwania (nowe, powtarzalne)
+Pełna kwota tylko za pierwszym razem. Kolejny przejazd zapisuje rekord i daje **40 zł**, jeśli rekord jest lepszy. Nie da się odebrać nagrody drugi raz przez powtórkę.
+
+| Wyzwanie | Gdzie | Zadanie | Nagroda |
+|---|---|---|---|
+| Kursy po mieście | postój przy Banku Pekao | 3 losowe kursy pod prawdziwe adresy (zamek, szpital, PKS, stacja, Serbinów, Barbara, targ, stadion, urząd). Limit kursu z długości ulic | 180 zł + premia za zapas czasu |
+| Dostawa z targowiska | Plac Targowy | jabłka i ziemniaki, 2 losowe adresy | 150 zł + mała premia |
+| Próba uliczna | Plac Tysiąclecia | solo, checkpointy: stadion → szpital → urząd → Rynek. Limit ≈ długość / 8 m/s + zapas (min. 3 min) | 230 zł |
+| Próba nad jeziorem | plaża Jeziora Tarnobrzeskiego | 4 checkpointy off-road w odwrotnej kolejności niż rajd Głowackiego. Trzeba wjechać na ścieżkę (albo teleport przy pomniku) | 260 zł |
+| Drift pod Lidlem | parking przy Lidlu | 800 pkt driftu w 75 s wewnątrz żółtego kółka | 210 zł (rekord = punkty) |
+| Tort do Dzikowa | piekarnia Skalski | zamek bez utraty HP. Otarcie poniżej progu obrażeń się nie liczy. Kilka sekund na wyjechanie | 240 zł |
 
 - **📻 Radio (jak w GTA):** 12 stacji w 7 gatunkach. W aucie włącza się samo i pokazuje nazwę stacji, pieszo – ikoną 📻 w HUD. Tytuł utworu pobierany na żywo (SomaFM, Radio Leliwa). Gdy stacja nie odpowiada, radio przełącza się na następną; bez internetu pokazuje „Radio offline”, a gra działa dalej. Lista stacji jest w jednej tablicy `RADIO_STATIONS` w `src/01_head.js`.
 
@@ -130,7 +164,7 @@ Wersja z folderu nie zadziała po dwukrotnym kliknięciu `index.html`, bo przegl
 | 🔥 Nitro | 1 500 / 3 000 zł | zastrzyk mocy (Shift / przycisk NITRO), zbiornik odnawia się powoli |
 
   - **Lakier** – 12 kolorów po 100 zł.
-- Zapis w `localStorage` (`gtatbg_save`, wersja 2). Stare zapisy (gotówka, misje) są automatycznie przenoszone – dostajesz Kropkę w garażu.
+- Zapis w `localStorage` (`gtatbg_save`, wersja 3). Zapis v1/v2 (gotówka, ukończone misje, garaż, tuning, statystyki, rekordy) jest przenoszony. Dochodzą `claimed` (jednorazowe nagrody wyzwań) i `tut` (samouczek). Stary zapis dostaje Kropkę, jeśli garaż był pusty.
 
 ## 🏁 Jazda (v3)
 - **Dźwięk silnika** generowany na żywo (Web Audio): obroty, biegi z „przegazówką” przy zmianie, inna barwa dla każdego auta, pisk opon przy poślizgu.
@@ -188,8 +222,8 @@ pip install osmium
 python3 tools/extract_bbox.py podkarpackie-latest.osm.pbf raw/tarnobrzeg.osm.pbf
 python3 tools/extract_bbox.py swietokrzyskie-latest.osm.pbf raw/swietokrzyskie.osm.pbf
 python3 tools/process_osm.py raw/tarnobrzeg.osm.pbf raw/swietokrzyskie.osm.pbf data/tarnobrzeg.json
-cat src/0*.js > main.js
-python3 tools/build_single.py      # -> gta-tbg-single.html
+python3 tools/build_release.py
+# składa src/0*.js -> main.js, gta-tbg-single.html i gta-tbg-web.zip
 ```
 
 ## Ograniczenia
@@ -201,3 +235,8 @@ python3 tools/build_single.py      # -> gta-tbg-single.html
 - Styl komiksowy (pełny) jest cięższy dla słabych telefonów – na telefonach domyślnie włącza się wariant lekki.
 - Dźwięk silnika i efektów startuje dopiero po pierwszym dotknięciu/kliknięciu (zasada przeglądarek). Fizyka driftu jest zręcznościowa (uproszczona), auta AI z niej nie korzystają.
 - Ślady opon to pula (200–800 odcinków) – najstarsze znikają. Na bardzo niskim ekranie (< 500 px wysokości) karty w Salonie chowają paski statystyk, żeby zmieścić przyciski.
+- GPS nie zgaduje drogi przez wodę ani przez bryłę budynku. Środek jeziora nie dostaje trasy. Punkt w środku zabudowy (np. zamek, część placów) prowadzi ulicami do ostatniego czystego miejsca, a resztę opisuje tekst („ulica się kończy”).
+- Z tras off-road nie ma przejazdu ulicami do miasta: powrót to przycisk przy starcie ścieżki. Z miasta linia urywa się przed strefą jeziora; dalej jest teleport przy pomniku Głowackiego albo wjazd od plaży.
+- Dziennik i mapa pauzują grę, więc stoper misji wtedy stoi.
+- Teleport przy pomniku nadal uruchamia dawny przejazd z checkpointami. „Próba nad jeziorem” liczy własne cztery punkty i nie kasuje tamtego rekordu (`gtatbg_egg`).
+- Graf ulic OSM bywa porozrywany (osobne komponenty). GPS dojeżdża najbliższą połączoną ulicą i nie domalowuje brakującego odcinka, chyba że krótki mostek leży już na narysowanej drodze.

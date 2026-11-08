@@ -46,7 +46,9 @@ function migrateSave() {
   if (!g.cars.length) g.cars.push({ uid: g.next++, model: 'hatch', color: MODELS.hatch.col, up: { engine: 0, brakes: 0, grip: 0, armor: 0, nitro: 0 }, starter: true });
   if (!g.cars.some((r) => r.uid === g.sel)) g.sel = g.cars[0].uid;
   SAVE.stats = Object.assign({ driftBest: 0, driftCash: 0, jumps: 0, jumpBest: 0, pickups: 0 }, SAVE.stats || {});
-  SAVE.v = 2; GAR.migrated = old; saveGame();
+  if (!SAVE.claimed || typeof SAVE.claimed !== 'object' || Array.isArray(SAVE.claimed)) SAVE.claimed = {};
+  if (typeof SAVE.tut !== 'number') SAVE.tut = 0;
+  SAVE.v = 3; GAR.migrated = old; saveGame();
 }
 migrateSave();
 const ownRec = (uid) => SAVE.garage.cars.find((r) => r.uid === uid) || null;
