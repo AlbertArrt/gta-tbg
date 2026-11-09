@@ -202,6 +202,8 @@ function updateTraffic(dt) {
     const sp = Math.hypot(c.vx, c.vz); if (sp > a.v * 1.6 + 6) { c.vx *= (a.v + 1) / sp; c.vz *= (a.v + 1) / sp; }
     c.x = p.x; c.z = p.z; c.h += dh * Math.min(1, dt * 8); c.steer = clamp(dh * 3, -0.5, 0.5);
     c.y = 0; c.sync(); c.spin += a.v * dt / c.wr; for (const w of c.wheels) { w.w.rotation.x = c.spin; if (w.front) w.pv.rotation.y = c.steer; }
+    const lightD = settings.quality === 'low' ? 85 : (settings.quality === 'high' ? 145 : 115);
+    if (dP < lightD) carLights(c, a.v < 0.7 || target + 0.6 < a.v);
     c.g.rotation.x = 0; c.g.rotation.z = 0;
   }
   updatePeds(dt);
@@ -221,8 +223,9 @@ function trafficHit(o, by, vn) {
 }
 // distant cars: drop wheels / outline hull to save draw calls
 function lodCar(c, d) {
-  const near = d < 90; if (c.lodNear === near) return; c.lodNear = near;
-  for (const w of c.wheels) w.w.visible = near; if (c.hull) c.hull.visible = d < 140;
+  const wheelD = settings.quality === 'low' ? 60 : (settings.quality === 'high' ? 120 : 90);
+  const near = d < wheelD; if (c.lodNear === near) return; c.lodNear = near;
+  for (const w of c.wheels) w.w.visible = near; if (c.hull) c.hull.visible = d < (settings.quality === 'low' ? 100 : 140);
 }
 // player steals a traffic car: the driver jumps out and runs away
 function carjack(c) {
