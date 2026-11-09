@@ -61,7 +61,7 @@ async function init() {
   sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -130; sc.right = 130; sc.top = 130; sc.bottom = -130; sc.near = 10; sc.far = 600; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.05;
   headlight = new THREE.SpotLight(0xfff2d0, 0, 90, 0.55, 0.5, 1.2); scene.add(headlight); scene.add(headlight.target);
 
-  player = { x: 0, z: 0, y: 0, vy: 0, h: 0, mesh: makeWalker(), speed: 0, onGround: true };
+  player = { x: 0, z: 0, y: 0, vy: 0, h: 0, mesh: makeWalker({ hairStyle: 'short', bag: 0xe8503a }), speed: 0, onGround: true };
   scene.add(player.mesh);
   spawnAtRynek();
   spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions(); initGarages(); initDriveFx();
