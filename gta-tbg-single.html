@@ -750,16 +750,16 @@ function makeEdgeMesh(arr) {
   return m;
 }
 
-// ---- facade atlas: 4 columns (bloki, bloki z balkonami, domy, przemysł) × 2 rows (piętra, parter/sklepy)
-// colour texture + mask (R = wall paint, G = accent colour, B = window glass that can light up at night)
+// ---- facade atlas: 4 columns × 3 rows (piętro, zwykły parter, jedyne wejście)
+// mask: R = kolor ściany, G = akcent, B = szyba, która może świecić w nocy
 function makeFacadeAtlas(aniso) {
-  const CW = 128, W2 = CW * 4, H2 = CW * 2;
+  const CW = 128, COLS = 4, ROWS = 3, W2 = CW * COLS, H2 = CW * ROWS;
   const mk = () => { const c = document.createElement('canvas'); c.width = W2; c.height = H2; return [c, c.getContext('2d')]; };
   const [cc, g] = mk(), [mc, m] = mk();
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, W2, H2); m.fillStyle = 'rgb(255,0,0)'; m.fillRect(0, 0, W2, H2);
   const OUT = '#2a211c', GLASS = '#8ec5ea', GLASS2 = '#5f9fd0';
-  // rect in cell-local coords (x left→right, y bottom→top, 0..1)
-  const R = (col, row, x0, y0, x1, y1) => { const px = (col + x0) * CW, py = (row === 0 ? H2 : CW) - y1 * CW; return [px, py, (x1 - x0) * CW, (y1 - y0) * CW]; };
+  // cell coords: x left→right, y bottom→top, 0..1. Row 0 is the bottom band of the texture.
+  const R = (col, row, x0, y0, x1, y1) => { const px = (col + x0) * CW, py = H2 - (row + y1) * CW; return [px, py, (x1 - x0) * CW, (y1 - y0) * CW]; };
   const rect = (col, row, x0, y0, x1, y1, color, mask) => { const r = R(col, row, x0, y0, x1, y1); g.fillStyle = color; g.fillRect(...r); m.fillStyle = mask; m.fillRect(...r); };
   const win = (col, row, x0, y0, x1, y1, cross) => {
     rect(col, row, x0 - 0.035, y0 - 0.035, x1 + 0.035, y1 + 0.035, OUT, 'rgb(0,0,0)');
@@ -768,37 +768,41 @@ function makeFacadeAtlas(aniso) {
     g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.moveTo(r[0] + r[2] * 0.12, r[1] + r[3] * 0.55); g.lineTo(r[0] + r[2] * 0.45, r[1] + r[3] * 0.12); g.lineTo(r[0] + r[2] * 0.58, r[1] + r[3] * 0.12); g.lineTo(r[0] + r[2] * 0.12, r[1] + r[3] * 0.72); g.fill();
     if (cross) { rect(col, row, (x0 + x1) / 2 - 0.018, y0, (x0 + x1) / 2 + 0.018, y1, OUT, 'rgb(0,0,0)'); rect(col, row, x0, y0 + (y1 - y0) * 0.62, x1, y0 + (y1 - y0) * 0.62 + 0.03, OUT, 'rgb(0,0,0)'); }
   };
-  const band = (col, row, y0, y1) => { rect(col, row, 0, y0, 1, y1, '#ffffff', 'rgb(0,255,0)'); rect(col, row, 0, y1, 1, y1 + 0.02, OUT, 'rgb(0,0,0)'); };
-  for (const row of [0, 1]) {
-    // 0: bloki
-    band(0, row, 0, 0.07);
-    if (row === 0) { win(0, 0, 0.27, 0.3, 0.73, 0.8, true); rect(0, 0, 0.22, 0.22, 0.78, 0.27, '#ffffff', 'rgb(0,255,0)'); rect(0, 0, 0.22, 0.2, 0.78, 0.22, OUT, 'rgb(0,0,0)'); }
-    else { // sklep: duża witryna + markiza w paski
-      win(0, 1, 0.07, 0.1, 0.93, 0.68, false);
-      for (let k = 0; k < 6; k++) rect(0, 1, k / 6, 0.74, (k + 1) / 6, 0.9, k % 2 ? '#ffffff' : '#ffffff', k % 2 ? 'rgb(0,0,0)' : 'rgb(0,255,0)');
-      rect(0, 1, 0, 0.72, 1, 0.74, OUT, 'rgb(0,0,0)'); rect(0, 1, 0, 0.9, 1, 0.92, OUT, 'rgb(0,0,0)');
-    }
-    // 1: bloki z balkonami
-    band(1, row, 0, 0.06);
-    if (row === 0) {
-      win(1, 0, 0.32, 0.3, 0.68, 0.86, true);
-      rect(1, 0, 0.12, 0.06, 0.88, 0.36, OUT, 'rgb(0,0,0)'); rect(1, 0, 0.145, 0.085, 0.855, 0.335, '#ffffff', 'rgb(0,255,0)');
-      for (let k = 1; k < 7; k++) rect(1, 0, 0.145 + k * 0.1, 0.085, 0.145 + k * 0.1 + 0.015, 0.335, OUT, 'rgb(0,0,0)');
-    } else {
-      win(1, 1, 0.1, 0.12, 0.9, 0.66, true);
-      rect(1, 1, 0, 0.72, 1, 0.86, '#ffffff', 'rgb(0,255,0)'); rect(1, 1, 0, 0.7, 1, 0.72, OUT, 'rgb(0,0,0)');
-    }
-    // 2: domy – okno z okiennicami
-    band(2, row, 0, 0.05);
-    win(2, row, 0.34, 0.32, 0.66, 0.76, true);
-    rect(2, row, 0.2, 0.3, 0.3, 0.78, OUT, 'rgb(0,0,0)'); rect(2, row, 0.215, 0.315, 0.285, 0.765, '#ffffff', 'rgb(0,255,0)');
-    rect(2, row, 0.7, 0.3, 0.8, 0.78, OUT, 'rgb(0,0,0)'); rect(2, row, 0.715, 0.315, 0.785, 0.765, '#ffffff', 'rgb(0,255,0)');
-    rect(2, row, 0.3, 0.27, 0.7, 0.31, '#ffffff', 'rgb(0,255,0)');
-    // 3: przemysł – pas okien / brama
-    for (let k = 0; k < 8; k++) rect(3, row, k / 8, 0, k / 8 + 0.012, 1, 'rgba(0,0,0,0.12)', 'rgb(200,0,0)');
-    if (row === 0) win(3, 0, 0.0, 0.55, 1.0, 0.75, false);
-    else { rect(3, 1, 0.12, 0, 0.88, 0.72, OUT, 'rgb(0,0,0)'); rect(3, 1, 0.15, 0, 0.85, 0.69, '#ffffff', 'rgb(0,255,0)'); for (let k = 1; k < 8; k++) rect(3, 1, 0.15, k * 0.085, 0.85, k * 0.085 + 0.012, OUT, 'rgb(0,0,0)'); }
-  }
+  const sill = (col, row, x0, x1, y) => { rect(col, row, x0, y, x1, y + 0.035, '#ffffff', 'rgb(0,255,0)'); rect(col, row, x0, y - 0.012, x1, y, OUT, 'rgb(0,0,0)'); };
+  const cornice = (col, row) => { rect(col, row, 0, 0.9, 1, 0.97, '#ffffff', 'rgb(0,255,0)'); rect(col, row, 0, 0.97, 1, 1, OUT, 'rgb(0,0,0)'); rect(col, row, 0, 0, 1, 0.045, '#ffffff', 'rgb(0,255,0)'); rect(col, row, 0, 0.045, 1, 0.062, OUT, 'rgb(0,0,0)'); };
+  cornice(0, 0); win(0, 0, 0.22, 0.22, 0.46, 0.72, true); win(0, 0, 0.54, 0.22, 0.78, 0.72, true); sill(0, 0, 0.18, 0.82, 0.16);
+  cornice(1, 0); win(1, 0, 0.3, 0.28, 0.7, 0.78, true); sill(1, 0, 0.22, 0.78, 0.2);
+  cornice(2, 0); win(2, 0, 0.36, 0.28, 0.64, 0.74, true); sill(2, 0, 0.32, 0.68, 0.22);
+  rect(2, 0, 0.22, 0.26, 0.32, 0.76, OUT, 'rgb(0,0,0)'); rect(2, 0, 0.232, 0.28, 0.308, 0.74, '#ffffff', 'rgb(0,255,0)');
+  rect(2, 0, 0.68, 0.26, 0.78, 0.76, OUT, 'rgb(0,0,0)'); rect(2, 0, 0.692, 0.28, 0.768, 0.74, '#ffffff', 'rgb(0,255,0)');
+  for (let k = 0; k < 8; k++) rect(3, 0, k / 8, 0, k / 8 + 0.012, 1, 'rgba(0,0,0,.15)', 'rgb(180,0,0)');
+  win(3, 0, 0.04, 0.42, 0.96, 0.7, false); rect(3, 0, 0, 0.7, 1, 0.74, OUT, 'rgb(0,0,0)');
+  const plinth = (col) => { rect(col, 1, 0, 0, 1, 0.16, '#ffffff', 'rgb(0,255,0)'); rect(col, 1, 0, 0.16, 1, 0.185, OUT, 'rgb(0,0,0)'); };
+  plinth(0); win(0, 1, 0.22, 0.32, 0.46, 0.78, true); win(0, 1, 0.54, 0.32, 0.78, 0.78, true); sill(0, 1, 0.18, 0.82, 0.26);
+  plinth(1); win(1, 1, 0.3, 0.34, 0.7, 0.8, true); sill(1, 1, 0.24, 0.76, 0.28);
+  plinth(2); win(2, 1, 0.36, 0.36, 0.64, 0.78, true); sill(2, 1, 0.3, 0.7, 0.3);
+  plinth(3); win(3, 1, 0.08, 0.4, 0.92, 0.72, false);
+  const door = (col, x0, x1, y1, color) => {
+    rect(col, 2, x0 - 0.03, 0, x1 + 0.03, y1 + 0.04, OUT, 'rgb(0,0,0)');
+    rect(col, 2, x0, 0, x1, y1, color, 'rgb(0,0,0)');
+    rect(col, 2, (x0 + x1) / 2 - 0.01, 0.05, (x0 + x1) / 2 + 0.01, y1 - 0.04, OUT, 'rgb(0,0,0)');
+    rect(col, 2, x1 - 0.07, y1 * 0.48, x1 - 0.035, y1 * 0.48 + 0.04, '#f6c431', 'rgb(0,0,0)');
+  };
+  rect(0, 2, 0, 0, 1, 0.08, '#ffffff', 'rgb(0,255,0)');
+  win(0, 2, 0.06, 0.14, 0.94, 0.62, false);
+  for (let k = 0; k < 7; k++) rect(0, 2, k / 7, 0.66, (k + 0.86) / 7, 0.9, '#ffffff', k % 2 ? 'rgb(0,0,0)' : 'rgb(0,255,0)');
+  rect(0, 2, 0, 0.62, 1, 0.66, OUT, 'rgb(0,0,0)'); rect(0, 2, 0, 0.9, 1, 0.94, OUT, 'rgb(0,0,0)');
+  rect(1, 2, 0, 0, 1, 0.1, '#ffffff', 'rgb(0,255,0)');
+  door(1, 0.34, 0.66, 0.62, '#6b3e2a');
+  win(1, 2, 0.08, 0.28, 0.26, 0.62, true); win(1, 2, 0.74, 0.28, 0.92, 0.62, true);
+  rect(1, 2, 0.28, 0.66, 0.72, 0.74, '#ffffff', 'rgb(0,255,0)'); rect(1, 2, 0.28, 0.64, 0.72, 0.66, OUT, 'rgb(0,0,0)');
+  rect(2, 2, 0, 0, 1, 0.1, '#ffffff', 'rgb(0,255,0)');
+  door(2, 0.36, 0.64, 0.58, '#7a4632');
+  rect(2, 2, 0.3, 0.62, 0.7, 0.7, '#ffffff', 'rgb(0,255,0)');
+  win(2, 2, 0.72, 0.38, 0.9, 0.7, true);
+  rect(3, 2, 0.08, 0, 0.92, 0.78, OUT, 'rgb(0,0,0)');
+  rect(3, 2, 0.12, 0, 0.88, 0.74, '#d7d2c8', 'rgb(0,0,0)');
+  for (let k = 1; k < 6; k++) rect(3, 2, 0.12, k * 0.12, 0.88, k * 0.12 + 0.018, OUT, 'rgb(0,0,0)');
   const tex = new THREE.CanvasTexture(cc); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = aniso;
   const mask = new THREE.CanvasTexture(mc); mask.anisotropy = aniso;
   return { tex, mask };
@@ -815,10 +819,20 @@ function makeFacadeMat(aniso) {
         if (vTile < -0.5) { diffuseColor.rgb *= vColor; }
         else {
           vec2 fu = vMapUv; vec2 cu = fract(fu); float fl = floor(fu.y);
-          float tc = mod(vTile, 4.0); float shop = step(3.5, vTile);
-          float row = (fl < 0.5 && (shop > 0.5 || tc > 2.5)) ? 1.0 : 0.0;
-          vec2 auv = vec2((tc + cu.x) * 0.25, (row + cu.y) * 0.5);
-          vec2 gx = dFdx(fu) * vec2(0.25, 0.5), gy = dFdy(fu) * vec2(0.25, 0.5);
+          float door = step(15.5, vTile);
+          float base = vTile - door * 16.0;
+          float tc = mod(base, 4.0);
+          float shop = step(3.5, base);
+          float row = 0.0;
+          if (fl < 0.5) {
+            if (door > 0.5) {
+              row = 2.0;
+              if (shop > 0.5) tc = 0.0;
+              else if (tc < 1.5) tc = 1.0;
+            } else row = 1.0;
+          }
+          vec2 auv = vec2((tc + cu.x) * 0.25, (row + cu.y) / 3.0);
+          vec2 gx = dFdx(fu) * vec2(0.25, 0.333333), gy = dFdy(fu) * vec2(0.25, 0.333333);
           vec4 fc = textureGrad(map, auv, gx, gy); vec4 fm = textureGrad(facMask, auv, gx, gy);
           vec3 pc = mix(fc.rgb, vColor, fm.r); pc = mix(pc, vAcc, fm.g);
           diffuseColor.rgb *= pc;
@@ -827,7 +841,7 @@ function makeFacadeMat(aniso) {
       .replace('#include <color_fragment>', '')
       .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance *= facLit;');
   };
-  mat.customProgramCacheKey = () => 'facade';
+  mat.customProgramCacheKey = () => 'facade3';
   return mat;
 }
 
@@ -890,7 +904,7 @@ async function buildWorld(data, scene, renderer) {
   W.data = data; W.rect = data.rect; W.names = data.names;
   const CH = 250;
   const chunks = new Map();
-  const getChunk = (x, z) => { const k = Math.floor(x / CH) + ',' + Math.floor(z / CH); let c = chunks.get(k); if (!c) { c = { walls: new GeoBuf(), roofs: new GeoBuf(), area: new GeoBuf(), road: new GeoBuf(), mark: new GeoBuf(), water: new GeoBuf(), walk: new GeoBuf(), edges: [] }; if (TOON) c.walls.setX(null, -1); chunks.set(k, c); } return c; };
+  const getChunk = (x, z) => { const k = Math.floor(x / CH) + ',' + Math.floor(z / CH); let c = chunks.get(k); if (!c) { c = { walls: new GeoBuf(), roofs: new GeoBuf(), detail: new GeoBuf(), area: new GeoBuf(), road: new GeoBuf(), mark: new GeoBuf(), water: new GeoBuf(), walk: new GeoBuf(), edges: [] }; if (TOON) c.walls.setX(null, -1); chunks.set(k, c); } return c; };
   W.visObjects = [];
 
   const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -908,6 +922,7 @@ async function buildWorld(data, scene, renderer) {
     W.mats = {
       wall: makeFacadeMat(maxAniso),
       roof: mkMat({ vertexColors: true }),
+      balcony: mkMat({ vertexColors: true }),
       area: mkMat({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
       water: mkMat({ color: 0x47a6e0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
       walk: mkMat({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
@@ -1059,18 +1074,48 @@ async function buildWorld(data, scene, renderer) {
     const ch = getChunk(cx, cz);
     if (TOON) ch.walls.setX(acc, tile);
     const floors = Math.max(1, Math.round(wallH / 3)), fh = wallH / floors;
+    let doorI = -1, doorL = 0;
+    if (TOON) {
+      const mm = ring.length / 2;
+      for (let i = 0; i < mm; i++) {
+        const j = (i + 1) % mm;
+        const L = Math.hypot(ring[j * 2] - ring[i * 2], ring[j * 2 + 1] - ring[i * 2 + 1]);
+        if (L > doorL) { doorL = L; doorI = i; }
+      }
+    }
+    const wantDoor = TOON && doorL > 4.2 && !SHEDS.has(kind) && wallH > 2.5;
+    const blockish = palette === PAL.block && floors >= 3 && area > 140 && area < 4500;
+    const addQuad = (x1, z1, x2, z2, nx, nz, u0, u1, tcode) => {
+      if (TOON) ch.walls.setX(acc, tcode);
+      const v1 = TOON ? floors : wallH / 12;
+      ch.walls.tri(x1, 0, z1, x2, 0, z2, x2, wallH, z2, wcol, [u0, 0, u1, 0, u1, v1], nx, 0, nz);
+      ch.walls.tri(x1, 0, z1, x2, wallH, z2, x1, wallH, z1, wcol, [u0, 0, u1, v1, u0, v1], nx, 0, nz);
+    };
     const addWalls = (r, outer) => {
-      const m = r.length / 2; let u0 = Math.floor(rnd() * 4) * 3 / 12; const pos = ringArea(r) > 0;
+      const m = r.length / 2; let uRun = Math.floor(rnd() * 4) * 3 / 12; const pos = ringArea(r) > 0;
       for (let i = 0; i < m; i++) {
         const j = (i + 1) % m; const x1 = r[i * 2], z1 = r[i * 2 + 1], x2 = r[j * 2], z2 = r[j * 2 + 1];
         const len = Math.hypot(x2 - x1, z2 - z1); if (len < 0.05) continue;
-        // in (x,z) with positive signed area, outward normal of edge = (dz, -dx)
         let nx = (z2 - z1) / len, nz = -(x2 - x1) / len; if (pos !== outer) { nx = -nx; nz = -nz; }
-        let u1 = u0 + len / 12, v1 = wallH / 12;
-        if (TOON) { u0 = 0; u1 = len < 1.6 ? len / 3 : Math.max(1, Math.round(len / 3)); v1 = floors; }
-        ch.walls.tri(x1, 0, z1, x2, 0, z2, x2, wallH, z2, wcol, [u0, 0, u1, 0, u1, v1], nx, 0, nz);
-        ch.walls.tri(x1, 0, z1, x2, wallH, z2, x1, wallH, z1, wcol, [u0, 0, u1, v1, u0, v1], nx, 0, nz);
-        u0 = u1;
+        const fx = (x2 - x1) / len, fz = (z2 - z1) / len;
+        if (wantDoor && outer && i === doorI) {
+          const doorW = Math.min(2.3, Math.max(1.45, len * 0.2));
+          const gap = (len - doorW) / 2;
+          const parts = [[0, gap, tile, false], [gap, gap + doorW, tile + 16, true], [gap + doorW, len, tile, false]];
+          for (const [a, b, tcode, isDoor] of parts) {
+            if (b - a < 0.15) continue;
+            const xa = x1 + fx * a, za = z1 + fz * a, xb = x1 + fx * b, zb = z1 + fz * b;
+            const seglen = b - a;
+            const uu1 = isDoor ? 1 : (seglen < 1.6 ? seglen / 3 : Math.max(1, Math.round(seglen / 3)));
+            addQuad(xa, za, xb, zb, nx, nz, 0, uu1, tcode);
+          }
+        } else {
+          let u0 = uRun, u1 = u0 + len / 12;
+          if (TOON) { u0 = 0; u1 = len < 1.6 ? len / 3 : Math.max(1, Math.round(len / 3)); }
+          addQuad(x1, z1, x2, z2, nx, nz, u0, u1, tile);
+          uRun = u1;
+        }
+        if (TOON && blockish && outer && len > 7) addBalconies(ch.detail, x1, z1, fx, fz, nx, nz, len, floors, fh, rnd);
         W.bGrid.add(x1, z1, x2, z2, bi);
       }
     };
@@ -1097,6 +1142,7 @@ async function buildWorld(data, scene, renderer) {
         ch.roofs.tri(x1, wallH, z1, x2, wallH, z2, cx, wallH + roofH, cz, rcol, null, nx / L, ny / L, nz / L);
         if (TOON) ch.edges.push(x1, wallH, z1, cx, wallH + roofH, cz);
       }
+      if (TOON && area > 45 && (area < 700 || kind === 'church' || kind === 'chapel')) addChimney(ch, cx, cz, wallH + roofH, kind);
     } else {
       const { pts, faces } = triangulate(ring, holes);
       for (const f of faces) { const A = pts[f[0]], B = pts[f[1]], C = pts[f[2]]; ch.roofs.tri(A.x, wallH, A.y, B.x, wallH, B.y, C.x, wallH, C.y, rcol, null, 0, 1, 0); }
@@ -1129,6 +1175,14 @@ async function buildWorld(data, scene, renderer) {
     if (c.walk.count) addMesh(c.walk.toGeometry(), W.mats.walk, { bias: -50 });
     if (c.mark.count) addMesh(c.mark.toGeometry(), W.mats.mark, { bias: -150 });
     if (c.walls.count || c.roofs.count) addMesh(c.walls.toGeometry(c.roofs), [W.mats.wall, W.mats.roof], { cast: true });
+    if (TOON && c.detail && c.detail.count) {
+      const geo = c.detail.toGeometry();
+      const m = new THREE.Mesh(geo, W.mats.balcony);
+      m.matrixAutoUpdate = false; m.updateMatrix(); m.castShadow = true; m.receiveShadow = true;
+      W.chunkGroup.add(m);
+      const bs = geo.boundingSphere; W.visObjects.push({ obj: m, x: bs.center.x, z: bs.center.z, r: bs.radius, bias: 0, detail: true });
+      W.detailTris = (W.detailTris || 0) + Math.floor(geo.getAttribute('position').count / 3);
+    }
     if (c.edges.length) { const m = makeEdgeMesh(c.edges); W.chunkGroup.add(m); const bs = m.geometry.boundingSphere; W.visObjects.push({ obj: m, x: bs.center.x, z: bs.center.z, r: bs.radius, bias: -150, edge: true }); W.edgeCount = (W.edgeCount || 0) + c.edges.length / 6; c.edges = null; }
   }
   W.chunkCount = chunks.size;
@@ -1322,6 +1376,56 @@ function buildTrees(density) {
   W.treeCount = total;
 }
 
+// Stylized, not surveyed entrances: one balcony slab above head height, only on block-like OSM kinds.
+const BAL_COL = new THREE.Color('#f4efe6');
+const BAL_RAIL = new THREE.Color('#2a211c');
+function addBalconies(buf, x1, z1, fx, fz, nx, nz, len, floors, fh, rnd) {
+  if (!buf) return;
+  const spots = len > 16 ? [0.32, 0.68] : [0.5];
+  let made = 0;
+  for (let f = 1; f < floors && f <= 5 && made < 4; f += 2) {
+    const y = f * fh + 0.08; if (y < 2.7) continue;
+    for (const s of spots) {
+      if (made >= 4 || rnd() < 0.25) continue;
+      const px = x1 + fx * len * s, pz = z1 + fz * len * s;
+      const hw = 0.85, depth = 0.5;
+      const p = (a, b) => [px + fx * a + nx * b, pz + fz * a + nz * b];
+      const A = p(-hw, 0.06), B = p(hw, 0.06), C = p(hw, depth), D = p(-hw, depth);
+      const y1 = y + 0.1, yr = y1 + 0.5;
+      buf.tri(A[0], y1, A[1], B[0], y1, B[1], C[0], y1, C[1], BAL_COL, null, nx * 0.15, 0.98, nz * 0.15);
+      buf.tri(A[0], y1, A[1], C[0], y1, C[1], D[0], y1, D[1], BAL_COL, null, nx * 0.15, 0.98, nz * 0.15);
+      buf.tri(D[0], y, D[1], C[0], y, C[1], C[0], y1, C[1], BAL_COL, null, nx, 0, nz);
+      buf.tri(D[0], y, D[1], C[0], y1, C[1], D[0], y1, D[1], BAL_COL, null, nx, 0, nz);
+      buf.tri(D[0], y1, D[1], C[0], y1, C[1], C[0], yr, C[1], BAL_RAIL, null, nx, 0, nz);
+      buf.tri(D[0], y1, D[1], C[0], yr, C[1], D[0], yr, D[1], BAL_RAIL, null, nx, 0, nz);
+      made++;
+    }
+  }
+}
+const CHIM = new THREE.Color('#6b3a2e');
+function addChimney(ch, cx, cz, peakY, kind) {
+  const church = kind === 'church' || kind === 'chapel';
+  const s = church ? 0.55 : 0.32, hh = church ? 4.2 : 1.05;
+  const y0 = peakY - 0.05, y1 = y0 + hh;
+  const c = church ? new THREE.Color('#f7f3ea') : CHIM;
+  const P = [[cx - s, cz - s], [cx + s, cz - s], [cx + s, cz + s], [cx - s, cz + s]];
+  ch.roofs.tri(P[0][0], y1, P[0][1], P[1][0], y1, P[1][1], P[2][0], y1, P[2][1], c, null, 0, 1, 0);
+  ch.roofs.tri(P[0][0], y1, P[0][1], P[2][0], y1, P[2][1], P[3][0], y1, P[3][1], c, null, 0, 1, 0);
+  for (let i = 0; i < 4; i++) {
+    const A = P[i], B = P[(i + 1) % 4];
+    const ex = B[0] - A[0], ez = B[1] - A[1], L = Math.hypot(ex, ez) || 1, nnx = ez / L, nnz = -ex / L;
+    ch.roofs.tri(A[0], y0, A[1], B[0], y0, B[1], B[0], y1, B[1], c, null, nnx, 0, nnz);
+    ch.roofs.tri(A[0], y0, A[1], B[0], y1, B[1], A[0], y1, A[1], c, null, nnx, 0, nnz);
+    ch.edges.push(A[0], y0, A[1], A[0], y1, A[1]);
+  }
+  if (church) {
+    const tip = y1 + 1.6;
+    ch.roofs.tri(P[0][0], y1, P[0][1], P[1][0], y1, P[1][1], cx, tip, cz, c, null, 0, 1, 0);
+    ch.roofs.tri(P[1][0], y1, P[1][1], P[2][0], y1, P[2][1], cx, tip, cz, c, null, 0, 1, 0);
+    ch.roofs.tri(P[2][0], y1, P[2][1], P[3][0], y1, P[3][1], cx, tip, cz, c, null, 0, 1, 0);
+    ch.roofs.tri(P[3][0], y1, P[3][1], P[0][0], y1, P[0][1], cx, tip, cz, c, null, 0, 1, 0);
+  }
+}
 // small rooftop boxes (wentylatory, klatki schodowe) on flat roofs – comic style only
 const RB_COL = [new THREE.Color('#e9e5dc'), new THREE.Color('#b9b5ad'), new THREE.Color('#d6d0c4')];
 function roofBoxes(ch, ring, holes, y0, area, rnd) {
@@ -1977,6 +2081,7 @@ function updateVisibility(force) {
   for (const v of W.visObjects) {
     const d = Math.hypot(v.x - cx, v.z - cz) - v.r;
     if (v.near) v.obj.visible = d < TREE_NEAR && d < D + v.bias;
+    else if (v.detail) { const lim = settings.quality === 'high' ? 170 : (settings.quality === 'med' ? 130 : 0); v.obj.visible = lim > 0 && d < lim; }
     else if (v.far) v.obj.visible = d >= TREE_NEAR - 10 && d < D + v.bias;
     else if (v.edge) v.obj.visible = d < Math.min(D + v.bias, EDGE_D);
     else v.obj.visible = d < D + v.bias;

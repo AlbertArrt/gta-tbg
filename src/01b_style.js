@@ -132,16 +132,16 @@ function makeEdgeMesh(arr) {
   return m;
 }
 
-// ---- facade atlas: 4 columns (bloki, bloki z balkonami, domy, przemysł) × 2 rows (piętra, parter/sklepy)
-// colour texture + mask (R = wall paint, G = accent colour, B = window glass that can light up at night)
+// ---- facade atlas: 4 columns × 3 rows (piętro, zwykły parter, jedyne wejście)
+// mask: R = kolor ściany, G = akcent, B = szyba, która może świecić w nocy
 function makeFacadeAtlas(aniso) {
-  const CW = 128, W2 = CW * 4, H2 = CW * 2;
+  const CW = 128, COLS = 4, ROWS = 3, W2 = CW * COLS, H2 = CW * ROWS;
   const mk = () => { const c = document.createElement('canvas'); c.width = W2; c.height = H2; return [c, c.getContext('2d')]; };
   const [cc, g] = mk(), [mc, m] = mk();
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, W2, H2); m.fillStyle = 'rgb(255,0,0)'; m.fillRect(0, 0, W2, H2);
   const OUT = '#2a211c', GLASS = '#8ec5ea', GLASS2 = '#5f9fd0';
-  // rect in cell-local coords (x left→right, y bottom→top, 0..1)
-  const R = (col, row, x0, y0, x1, y1) => { const px = (col + x0) * CW, py = (row === 0 ? H2 : CW) - y1 * CW; return [px, py, (x1 - x0) * CW, (y1 - y0) * CW]; };
+  // cell coords: x left→right, y bottom→top, 0..1. Row 0 is the bottom band of the texture.
+  const R = (col, row, x0, y0, x1, y1) => { const px = (col + x0) * CW, py = H2 - (row + y1) * CW; return [px, py, (x1 - x0) * CW, (y1 - y0) * CW]; };
   const rect = (col, row, x0, y0, x1, y1, color, mask) => { const r = R(col, row, x0, y0, x1, y1); g.fillStyle = color; g.fillRect(...r); m.fillStyle = mask; m.fillRect(...r); };
   const win = (col, row, x0, y0, x1, y1, cross) => {
     rect(col, row, x0 - 0.035, y0 - 0.035, x1 + 0.035, y1 + 0.035, OUT, 'rgb(0,0,0)');
@@ -150,37 +150,41 @@ function makeFacadeAtlas(aniso) {
     g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.moveTo(r[0] + r[2] * 0.12, r[1] + r[3] * 0.55); g.lineTo(r[0] + r[2] * 0.45, r[1] + r[3] * 0.12); g.lineTo(r[0] + r[2] * 0.58, r[1] + r[3] * 0.12); g.lineTo(r[0] + r[2] * 0.12, r[1] + r[3] * 0.72); g.fill();
     if (cross) { rect(col, row, (x0 + x1) / 2 - 0.018, y0, (x0 + x1) / 2 + 0.018, y1, OUT, 'rgb(0,0,0)'); rect(col, row, x0, y0 + (y1 - y0) * 0.62, x1, y0 + (y1 - y0) * 0.62 + 0.03, OUT, 'rgb(0,0,0)'); }
   };
-  const band = (col, row, y0, y1) => { rect(col, row, 0, y0, 1, y1, '#ffffff', 'rgb(0,255,0)'); rect(col, row, 0, y1, 1, y1 + 0.02, OUT, 'rgb(0,0,0)'); };
-  for (const row of [0, 1]) {
-    // 0: bloki
-    band(0, row, 0, 0.07);
-    if (row === 0) { win(0, 0, 0.27, 0.3, 0.73, 0.8, true); rect(0, 0, 0.22, 0.22, 0.78, 0.27, '#ffffff', 'rgb(0,255,0)'); rect(0, 0, 0.22, 0.2, 0.78, 0.22, OUT, 'rgb(0,0,0)'); }
-    else { // sklep: duża witryna + markiza w paski
-      win(0, 1, 0.07, 0.1, 0.93, 0.68, false);
-      for (let k = 0; k < 6; k++) rect(0, 1, k / 6, 0.74, (k + 1) / 6, 0.9, k % 2 ? '#ffffff' : '#ffffff', k % 2 ? 'rgb(0,0,0)' : 'rgb(0,255,0)');
-      rect(0, 1, 0, 0.72, 1, 0.74, OUT, 'rgb(0,0,0)'); rect(0, 1, 0, 0.9, 1, 0.92, OUT, 'rgb(0,0,0)');
-    }
-    // 1: bloki z balkonami
-    band(1, row, 0, 0.06);
-    if (row === 0) {
-      win(1, 0, 0.32, 0.3, 0.68, 0.86, true);
-      rect(1, 0, 0.12, 0.06, 0.88, 0.36, OUT, 'rgb(0,0,0)'); rect(1, 0, 0.145, 0.085, 0.855, 0.335, '#ffffff', 'rgb(0,255,0)');
-      for (let k = 1; k < 7; k++) rect(1, 0, 0.145 + k * 0.1, 0.085, 0.145 + k * 0.1 + 0.015, 0.335, OUT, 'rgb(0,0,0)');
-    } else {
-      win(1, 1, 0.1, 0.12, 0.9, 0.66, true);
-      rect(1, 1, 0, 0.72, 1, 0.86, '#ffffff', 'rgb(0,255,0)'); rect(1, 1, 0, 0.7, 1, 0.72, OUT, 'rgb(0,0,0)');
-    }
-    // 2: domy – okno z okiennicami
-    band(2, row, 0, 0.05);
-    win(2, row, 0.34, 0.32, 0.66, 0.76, true);
-    rect(2, row, 0.2, 0.3, 0.3, 0.78, OUT, 'rgb(0,0,0)'); rect(2, row, 0.215, 0.315, 0.285, 0.765, '#ffffff', 'rgb(0,255,0)');
-    rect(2, row, 0.7, 0.3, 0.8, 0.78, OUT, 'rgb(0,0,0)'); rect(2, row, 0.715, 0.315, 0.785, 0.765, '#ffffff', 'rgb(0,255,0)');
-    rect(2, row, 0.3, 0.27, 0.7, 0.31, '#ffffff', 'rgb(0,255,0)');
-    // 3: przemysł – pas okien / brama
-    for (let k = 0; k < 8; k++) rect(3, row, k / 8, 0, k / 8 + 0.012, 1, 'rgba(0,0,0,0.12)', 'rgb(200,0,0)');
-    if (row === 0) win(3, 0, 0.0, 0.55, 1.0, 0.75, false);
-    else { rect(3, 1, 0.12, 0, 0.88, 0.72, OUT, 'rgb(0,0,0)'); rect(3, 1, 0.15, 0, 0.85, 0.69, '#ffffff', 'rgb(0,255,0)'); for (let k = 1; k < 8; k++) rect(3, 1, 0.15, k * 0.085, 0.85, k * 0.085 + 0.012, OUT, 'rgb(0,0,0)'); }
-  }
+  const sill = (col, row, x0, x1, y) => { rect(col, row, x0, y, x1, y + 0.035, '#ffffff', 'rgb(0,255,0)'); rect(col, row, x0, y - 0.012, x1, y, OUT, 'rgb(0,0,0)'); };
+  const cornice = (col, row) => { rect(col, row, 0, 0.9, 1, 0.97, '#ffffff', 'rgb(0,255,0)'); rect(col, row, 0, 0.97, 1, 1, OUT, 'rgb(0,0,0)'); rect(col, row, 0, 0, 1, 0.045, '#ffffff', 'rgb(0,255,0)'); rect(col, row, 0, 0.045, 1, 0.062, OUT, 'rgb(0,0,0)'); };
+  cornice(0, 0); win(0, 0, 0.22, 0.22, 0.46, 0.72, true); win(0, 0, 0.54, 0.22, 0.78, 0.72, true); sill(0, 0, 0.18, 0.82, 0.16);
+  cornice(1, 0); win(1, 0, 0.3, 0.28, 0.7, 0.78, true); sill(1, 0, 0.22, 0.78, 0.2);
+  cornice(2, 0); win(2, 0, 0.36, 0.28, 0.64, 0.74, true); sill(2, 0, 0.32, 0.68, 0.22);
+  rect(2, 0, 0.22, 0.26, 0.32, 0.76, OUT, 'rgb(0,0,0)'); rect(2, 0, 0.232, 0.28, 0.308, 0.74, '#ffffff', 'rgb(0,255,0)');
+  rect(2, 0, 0.68, 0.26, 0.78, 0.76, OUT, 'rgb(0,0,0)'); rect(2, 0, 0.692, 0.28, 0.768, 0.74, '#ffffff', 'rgb(0,255,0)');
+  for (let k = 0; k < 8; k++) rect(3, 0, k / 8, 0, k / 8 + 0.012, 1, 'rgba(0,0,0,.15)', 'rgb(180,0,0)');
+  win(3, 0, 0.04, 0.42, 0.96, 0.7, false); rect(3, 0, 0, 0.7, 1, 0.74, OUT, 'rgb(0,0,0)');
+  const plinth = (col) => { rect(col, 1, 0, 0, 1, 0.16, '#ffffff', 'rgb(0,255,0)'); rect(col, 1, 0, 0.16, 1, 0.185, OUT, 'rgb(0,0,0)'); };
+  plinth(0); win(0, 1, 0.22, 0.32, 0.46, 0.78, true); win(0, 1, 0.54, 0.32, 0.78, 0.78, true); sill(0, 1, 0.18, 0.82, 0.26);
+  plinth(1); win(1, 1, 0.3, 0.34, 0.7, 0.8, true); sill(1, 1, 0.24, 0.76, 0.28);
+  plinth(2); win(2, 1, 0.36, 0.36, 0.64, 0.78, true); sill(2, 1, 0.3, 0.7, 0.3);
+  plinth(3); win(3, 1, 0.08, 0.4, 0.92, 0.72, false);
+  const door = (col, x0, x1, y1, color) => {
+    rect(col, 2, x0 - 0.03, 0, x1 + 0.03, y1 + 0.04, OUT, 'rgb(0,0,0)');
+    rect(col, 2, x0, 0, x1, y1, color, 'rgb(0,0,0)');
+    rect(col, 2, (x0 + x1) / 2 - 0.01, 0.05, (x0 + x1) / 2 + 0.01, y1 - 0.04, OUT, 'rgb(0,0,0)');
+    rect(col, 2, x1 - 0.07, y1 * 0.48, x1 - 0.035, y1 * 0.48 + 0.04, '#f6c431', 'rgb(0,0,0)');
+  };
+  rect(0, 2, 0, 0, 1, 0.08, '#ffffff', 'rgb(0,255,0)');
+  win(0, 2, 0.06, 0.14, 0.94, 0.62, false);
+  for (let k = 0; k < 7; k++) rect(0, 2, k / 7, 0.66, (k + 0.86) / 7, 0.9, '#ffffff', k % 2 ? 'rgb(0,0,0)' : 'rgb(0,255,0)');
+  rect(0, 2, 0, 0.62, 1, 0.66, OUT, 'rgb(0,0,0)'); rect(0, 2, 0, 0.9, 1, 0.94, OUT, 'rgb(0,0,0)');
+  rect(1, 2, 0, 0, 1, 0.1, '#ffffff', 'rgb(0,255,0)');
+  door(1, 0.34, 0.66, 0.62, '#6b3e2a');
+  win(1, 2, 0.08, 0.28, 0.26, 0.62, true); win(1, 2, 0.74, 0.28, 0.92, 0.62, true);
+  rect(1, 2, 0.28, 0.66, 0.72, 0.74, '#ffffff', 'rgb(0,255,0)'); rect(1, 2, 0.28, 0.64, 0.72, 0.66, OUT, 'rgb(0,0,0)');
+  rect(2, 2, 0, 0, 1, 0.1, '#ffffff', 'rgb(0,255,0)');
+  door(2, 0.36, 0.64, 0.58, '#7a4632');
+  rect(2, 2, 0.3, 0.62, 0.7, 0.7, '#ffffff', 'rgb(0,255,0)');
+  win(2, 2, 0.72, 0.38, 0.9, 0.7, true);
+  rect(3, 2, 0.08, 0, 0.92, 0.78, OUT, 'rgb(0,0,0)');
+  rect(3, 2, 0.12, 0, 0.88, 0.74, '#d7d2c8', 'rgb(0,0,0)');
+  for (let k = 1; k < 6; k++) rect(3, 2, 0.12, k * 0.12, 0.88, k * 0.12 + 0.018, OUT, 'rgb(0,0,0)');
   const tex = new THREE.CanvasTexture(cc); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = aniso;
   const mask = new THREE.CanvasTexture(mc); mask.anisotropy = aniso;
   return { tex, mask };
@@ -197,10 +201,20 @@ function makeFacadeMat(aniso) {
         if (vTile < -0.5) { diffuseColor.rgb *= vColor; }
         else {
           vec2 fu = vMapUv; vec2 cu = fract(fu); float fl = floor(fu.y);
-          float tc = mod(vTile, 4.0); float shop = step(3.5, vTile);
-          float row = (fl < 0.5 && (shop > 0.5 || tc > 2.5)) ? 1.0 : 0.0;
-          vec2 auv = vec2((tc + cu.x) * 0.25, (row + cu.y) * 0.5);
-          vec2 gx = dFdx(fu) * vec2(0.25, 0.5), gy = dFdy(fu) * vec2(0.25, 0.5);
+          float door = step(15.5, vTile);
+          float base = vTile - door * 16.0;
+          float tc = mod(base, 4.0);
+          float shop = step(3.5, base);
+          float row = 0.0;
+          if (fl < 0.5) {
+            if (door > 0.5) {
+              row = 2.0;
+              if (shop > 0.5) tc = 0.0;
+              else if (tc < 1.5) tc = 1.0;
+            } else row = 1.0;
+          }
+          vec2 auv = vec2((tc + cu.x) * 0.25, (row + cu.y) / 3.0);
+          vec2 gx = dFdx(fu) * vec2(0.25, 0.333333), gy = dFdy(fu) * vec2(0.25, 0.333333);
           vec4 fc = textureGrad(map, auv, gx, gy); vec4 fm = textureGrad(facMask, auv, gx, gy);
           vec3 pc = mix(fc.rgb, vColor, fm.r); pc = mix(pc, vAcc, fm.g);
           diffuseColor.rgb *= pc;
@@ -209,7 +223,7 @@ function makeFacadeMat(aniso) {
       .replace('#include <color_fragment>', '')
       .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance *= facLit;');
   };
-  mat.customProgramCacheKey = () => 'facade';
+  mat.customProgramCacheKey = () => 'facade3';
   return mat;
 }
 

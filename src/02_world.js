@@ -9,7 +9,7 @@ async function buildWorld(data, scene, renderer) {
   W.data = data; W.rect = data.rect; W.names = data.names;
   const CH = 250;
   const chunks = new Map();
-  const getChunk = (x, z) => { const k = Math.floor(x / CH) + ',' + Math.floor(z / CH); let c = chunks.get(k); if (!c) { c = { walls: new GeoBuf(), roofs: new GeoBuf(), area: new GeoBuf(), road: new GeoBuf(), mark: new GeoBuf(), water: new GeoBuf(), walk: new GeoBuf(), edges: [] }; if (TOON) c.walls.setX(null, -1); chunks.set(k, c); } return c; };
+  const getChunk = (x, z) => { const k = Math.floor(x / CH) + ',' + Math.floor(z / CH); let c = chunks.get(k); if (!c) { c = { walls: new GeoBuf(), roofs: new GeoBuf(), detail: new GeoBuf(), area: new GeoBuf(), road: new GeoBuf(), mark: new GeoBuf(), water: new GeoBuf(), walk: new GeoBuf(), edges: [] }; if (TOON) c.walls.setX(null, -1); chunks.set(k, c); } return c; };
   W.visObjects = [];
 
   const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -27,6 +27,7 @@ async function buildWorld(data, scene, renderer) {
     W.mats = {
       wall: makeFacadeMat(maxAniso),
       roof: mkMat({ vertexColors: true }),
+      balcony: mkMat({ vertexColors: true }),
       area: mkMat({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
       water: mkMat({ color: 0x47a6e0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
       walk: mkMat({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
@@ -178,18 +179,48 @@ async function buildWorld(data, scene, renderer) {
     const ch = getChunk(cx, cz);
     if (TOON) ch.walls.setX(acc, tile);
     const floors = Math.max(1, Math.round(wallH / 3)), fh = wallH / floors;
+    let doorI = -1, doorL = 0;
+    if (TOON) {
+      const mm = ring.length / 2;
+      for (let i = 0; i < mm; i++) {
+        const j = (i + 1) % mm;
+        const L = Math.hypot(ring[j * 2] - ring[i * 2], ring[j * 2 + 1] - ring[i * 2 + 1]);
+        if (L > doorL) { doorL = L; doorI = i; }
+      }
+    }
+    const wantDoor = TOON && doorL > 4.2 && !SHEDS.has(kind) && wallH > 2.5;
+    const blockish = palette === PAL.block && floors >= 3 && area > 140 && area < 4500;
+    const addQuad = (x1, z1, x2, z2, nx, nz, u0, u1, tcode) => {
+      if (TOON) ch.walls.setX(acc, tcode);
+      const v1 = TOON ? floors : wallH / 12;
+      ch.walls.tri(x1, 0, z1, x2, 0, z2, x2, wallH, z2, wcol, [u0, 0, u1, 0, u1, v1], nx, 0, nz);
+      ch.walls.tri(x1, 0, z1, x2, wallH, z2, x1, wallH, z1, wcol, [u0, 0, u1, v1, u0, v1], nx, 0, nz);
+    };
     const addWalls = (r, outer) => {
-      const m = r.length / 2; let u0 = Math.floor(rnd() * 4) * 3 / 12; const pos = ringArea(r) > 0;
+      const m = r.length / 2; let uRun = Math.floor(rnd() * 4) * 3 / 12; const pos = ringArea(r) > 0;
       for (let i = 0; i < m; i++) {
         const j = (i + 1) % m; const x1 = r[i * 2], z1 = r[i * 2 + 1], x2 = r[j * 2], z2 = r[j * 2 + 1];
         const len = Math.hypot(x2 - x1, z2 - z1); if (len < 0.05) continue;
-        // in (x,z) with positive signed area, outward normal of edge = (dz, -dx)
         let nx = (z2 - z1) / len, nz = -(x2 - x1) / len; if (pos !== outer) { nx = -nx; nz = -nz; }
-        let u1 = u0 + len / 12, v1 = wallH / 12;
-        if (TOON) { u0 = 0; u1 = len < 1.6 ? len / 3 : Math.max(1, Math.round(len / 3)); v1 = floors; }
-        ch.walls.tri(x1, 0, z1, x2, 0, z2, x2, wallH, z2, wcol, [u0, 0, u1, 0, u1, v1], nx, 0, nz);
-        ch.walls.tri(x1, 0, z1, x2, wallH, z2, x1, wallH, z1, wcol, [u0, 0, u1, v1, u0, v1], nx, 0, nz);
-        u0 = u1;
+        const fx = (x2 - x1) / len, fz = (z2 - z1) / len;
+        if (wantDoor && outer && i === doorI) {
+          const doorW = Math.min(2.3, Math.max(1.45, len * 0.2));
+          const gap = (len - doorW) / 2;
+          const parts = [[0, gap, tile, false], [gap, gap + doorW, tile + 16, true], [gap + doorW, len, tile, false]];
+          for (const [a, b, tcode, isDoor] of parts) {
+            if (b - a < 0.15) continue;
+            const xa = x1 + fx * a, za = z1 + fz * a, xb = x1 + fx * b, zb = z1 + fz * b;
+            const seglen = b - a;
+            const uu1 = isDoor ? 1 : (seglen < 1.6 ? seglen / 3 : Math.max(1, Math.round(seglen / 3)));
+            addQuad(xa, za, xb, zb, nx, nz, 0, uu1, tcode);
+          }
+        } else {
+          let u0 = uRun, u1 = u0 + len / 12;
+          if (TOON) { u0 = 0; u1 = len < 1.6 ? len / 3 : Math.max(1, Math.round(len / 3)); }
+          addQuad(x1, z1, x2, z2, nx, nz, u0, u1, tile);
+          uRun = u1;
+        }
+        if (TOON && blockish && outer && len > 7) addBalconies(ch.detail, x1, z1, fx, fz, nx, nz, len, floors, fh, rnd);
         W.bGrid.add(x1, z1, x2, z2, bi);
       }
     };
@@ -216,6 +247,7 @@ async function buildWorld(data, scene, renderer) {
         ch.roofs.tri(x1, wallH, z1, x2, wallH, z2, cx, wallH + roofH, cz, rcol, null, nx / L, ny / L, nz / L);
         if (TOON) ch.edges.push(x1, wallH, z1, cx, wallH + roofH, cz);
       }
+      if (TOON && area > 45 && (area < 700 || kind === 'church' || kind === 'chapel')) addChimney(ch, cx, cz, wallH + roofH, kind);
     } else {
       const { pts, faces } = triangulate(ring, holes);
       for (const f of faces) { const A = pts[f[0]], B = pts[f[1]], C = pts[f[2]]; ch.roofs.tri(A.x, wallH, A.y, B.x, wallH, B.y, C.x, wallH, C.y, rcol, null, 0, 1, 0); }
@@ -248,6 +280,14 @@ async function buildWorld(data, scene, renderer) {
     if (c.walk.count) addMesh(c.walk.toGeometry(), W.mats.walk, { bias: -50 });
     if (c.mark.count) addMesh(c.mark.toGeometry(), W.mats.mark, { bias: -150 });
     if (c.walls.count || c.roofs.count) addMesh(c.walls.toGeometry(c.roofs), [W.mats.wall, W.mats.roof], { cast: true });
+    if (TOON && c.detail && c.detail.count) {
+      const geo = c.detail.toGeometry();
+      const m = new THREE.Mesh(geo, W.mats.balcony);
+      m.matrixAutoUpdate = false; m.updateMatrix(); m.castShadow = true; m.receiveShadow = true;
+      W.chunkGroup.add(m);
+      const bs = geo.boundingSphere; W.visObjects.push({ obj: m, x: bs.center.x, z: bs.center.z, r: bs.radius, bias: 0, detail: true });
+      W.detailTris = (W.detailTris || 0) + Math.floor(geo.getAttribute('position').count / 3);
+    }
     if (c.edges.length) { const m = makeEdgeMesh(c.edges); W.chunkGroup.add(m); const bs = m.geometry.boundingSphere; W.visObjects.push({ obj: m, x: bs.center.x, z: bs.center.z, r: bs.radius, bias: -150, edge: true }); W.edgeCount = (W.edgeCount || 0) + c.edges.length / 6; c.edges = null; }
   }
   W.chunkCount = chunks.size;
@@ -441,6 +481,56 @@ function buildTrees(density) {
   W.treeCount = total;
 }
 
+// Stylized, not surveyed entrances: one balcony slab above head height, only on block-like OSM kinds.
+const BAL_COL = new THREE.Color('#f4efe6');
+const BAL_RAIL = new THREE.Color('#2a211c');
+function addBalconies(buf, x1, z1, fx, fz, nx, nz, len, floors, fh, rnd) {
+  if (!buf) return;
+  const spots = len > 16 ? [0.32, 0.68] : [0.5];
+  let made = 0;
+  for (let f = 1; f < floors && f <= 5 && made < 4; f += 2) {
+    const y = f * fh + 0.08; if (y < 2.7) continue;
+    for (const s of spots) {
+      if (made >= 4 || rnd() < 0.25) continue;
+      const px = x1 + fx * len * s, pz = z1 + fz * len * s;
+      const hw = 0.85, depth = 0.5;
+      const p = (a, b) => [px + fx * a + nx * b, pz + fz * a + nz * b];
+      const A = p(-hw, 0.06), B = p(hw, 0.06), C = p(hw, depth), D = p(-hw, depth);
+      const y1 = y + 0.1, yr = y1 + 0.5;
+      buf.tri(A[0], y1, A[1], B[0], y1, B[1], C[0], y1, C[1], BAL_COL, null, nx * 0.15, 0.98, nz * 0.15);
+      buf.tri(A[0], y1, A[1], C[0], y1, C[1], D[0], y1, D[1], BAL_COL, null, nx * 0.15, 0.98, nz * 0.15);
+      buf.tri(D[0], y, D[1], C[0], y, C[1], C[0], y1, C[1], BAL_COL, null, nx, 0, nz);
+      buf.tri(D[0], y, D[1], C[0], y1, C[1], D[0], y1, D[1], BAL_COL, null, nx, 0, nz);
+      buf.tri(D[0], y1, D[1], C[0], y1, C[1], C[0], yr, C[1], BAL_RAIL, null, nx, 0, nz);
+      buf.tri(D[0], y1, D[1], C[0], yr, C[1], D[0], yr, D[1], BAL_RAIL, null, nx, 0, nz);
+      made++;
+    }
+  }
+}
+const CHIM = new THREE.Color('#6b3a2e');
+function addChimney(ch, cx, cz, peakY, kind) {
+  const church = kind === 'church' || kind === 'chapel';
+  const s = church ? 0.55 : 0.32, hh = church ? 4.2 : 1.05;
+  const y0 = peakY - 0.05, y1 = y0 + hh;
+  const c = church ? new THREE.Color('#f7f3ea') : CHIM;
+  const P = [[cx - s, cz - s], [cx + s, cz - s], [cx + s, cz + s], [cx - s, cz + s]];
+  ch.roofs.tri(P[0][0], y1, P[0][1], P[1][0], y1, P[1][1], P[2][0], y1, P[2][1], c, null, 0, 1, 0);
+  ch.roofs.tri(P[0][0], y1, P[0][1], P[2][0], y1, P[2][1], P[3][0], y1, P[3][1], c, null, 0, 1, 0);
+  for (let i = 0; i < 4; i++) {
+    const A = P[i], B = P[(i + 1) % 4];
+    const ex = B[0] - A[0], ez = B[1] - A[1], L = Math.hypot(ex, ez) || 1, nnx = ez / L, nnz = -ex / L;
+    ch.roofs.tri(A[0], y0, A[1], B[0], y0, B[1], B[0], y1, B[1], c, null, nnx, 0, nnz);
+    ch.roofs.tri(A[0], y0, A[1], B[0], y1, B[1], A[0], y1, A[1], c, null, nnx, 0, nnz);
+    ch.edges.push(A[0], y0, A[1], A[0], y1, A[1]);
+  }
+  if (church) {
+    const tip = y1 + 1.6;
+    ch.roofs.tri(P[0][0], y1, P[0][1], P[1][0], y1, P[1][1], cx, tip, cz, c, null, 0, 1, 0);
+    ch.roofs.tri(P[1][0], y1, P[1][1], P[2][0], y1, P[2][1], cx, tip, cz, c, null, 0, 1, 0);
+    ch.roofs.tri(P[2][0], y1, P[2][1], P[3][0], y1, P[3][1], cx, tip, cz, c, null, 0, 1, 0);
+    ch.roofs.tri(P[3][0], y1, P[3][1], P[0][0], y1, P[0][1], cx, tip, cz, c, null, 0, 1, 0);
+  }
+}
 // small rooftop boxes (wentylatory, klatki schodowe) on flat roofs – comic style only
 const RB_COL = [new THREE.Color('#e9e5dc'), new THREE.Color('#b9b5ad'), new THREE.Color('#d6d0c4')];
 function roofBoxes(ch, ring, holes, y0, area, rnd) {

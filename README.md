@@ -79,6 +79,11 @@ Plik `gta-tbg-single.html` nie jest potrzebny na Pages. Wystarczy do gry offline
   - ok. 5 500 odcinków dróg, chodniki z krawężnikami, przejścia dla pieszych (zebry), Wisła, jeziora, parki, lasy i ok. 45 000 drzew.
   - Obszar to ok. 9,2 × 9,2 km (50.522–50.605 N, 21.605–21.735 E): centrum, Dzików, Serbinów, Mokrzyszów, Siarkowiec oraz Jezioro Tarnobrzeskie.
 - **Styl komiksowy** (Ustawienia → *Styl*): kontury, ciepłe cieniowanie „cel”, jasnoniebieskie niebo, kolorowe elewacje, czerwone dachówki, płaskie dachy z nadbudówkami, limonkowa trawa, ciemny asfalt z białymi pasami, puszyste drzewa i żywopłoty, czcionka Fredoka.
+- **Elewacje (komiks):** jeden atlas na wszystkie ściany, bez nowych plików z sieci. Piętra są w osobnych pasach: u góry okna w rytmie kondygnacji, na parterze cokół i okno, a na najdłuższej ścianie jedno wejście (drzwi domu, drzwi klatki albo witryna z markizą, gdy OSM mówi sklep albo budynek stoi blisko centrum). Bloki (`apartments`, `residential` i duże `yes`) dostają kilka płyt balkonów. Domy ze stromym dachem mają komin, kościół i kaplica — umowną wieżyczkę. To nie są prawdziwe elewacje z OSM: w danych nie ma położenia drzwi ani balkonów.
+  - **Niska:** atlas, kominy i nadbudówki dachów. Balkony są w pamięci, ale się nie rysują.
+  - **Średnia:** balkony do około 130 m.
+  - **Wysoka:** balkony do około 170 m.
+  - **Klasyczny:** poprzednie gładkie ściany, bez tego atlasu.
   - *Komiks (pełny)* – z konturami (domyślnie na komputerze), *Komiks (lekki)* – bez kosztownego przejścia konturów (domyślnie na telefonie), *Klasyczny* – wcześniejszy wygląd.
 - **Ruch uliczny:** auta AI jeżdżą po grafie ulic z OSM prawym pasem, skręcają na skrzyżowaniach, zatrzymują się za innymi autami i przed graczem (15 / 22 / 30 aut zależnie od jakości), po chodnikach chodzą przechodnie.
   Kolizje z autami i budynkami uszkadzają auto (pasek HP). Przy 0 HP auto dymi, płonie i wybucha.
@@ -235,6 +240,7 @@ python3 tools/build_release.py
 - Dokładność mapy zależy od kompletności danych OSM. Nazwy ulic pochodzą z OSM.
 - Radio wymaga internetu; dostępność stacji zależy od nadawców. Przeglądarka może wymagać dotknięcia ekranu, zanim odtworzy dźwięk.
 - Styl komiksowy (pełny) jest cięższy dla słabych telefonów – na telefonach domyślnie włącza się wariant lekki.
+- Drzwi, balkony i kominy są umownym rysunkiem dopasowanym do typu budynku z OSM (albo do powierzchni, gdy typ to `yes`). Nie odwzorowują konkretnej kamienicy ani sklepu.
 - Dźwięk silnika i efektów startuje dopiero po pierwszym dotknięciu/kliknięciu (zasada przeglądarek). Fizyka driftu jest zręcznościowa (uproszczona), auta AI z niej nie korzystają.
 - Ślady opon to pula (200–800 odcinków) – najstarsze znikają. Na bardzo niskim ekranie (< 500 px wysokości) karty w Salonie chowają paski statystyk, żeby zmieścić przyciski.
 - GPS nie zgaduje drogi przez wodę ani przez bryłę budynku. Środek jeziora nie dostaje trasy. Punkt w środku zabudowy (np. zamek, część placów) prowadzi ulicami do ostatniego czystego miejsca, a resztę opisuje tekst („ulica się kończy”).
