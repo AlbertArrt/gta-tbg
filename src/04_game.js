@@ -37,7 +37,7 @@ function applyTime() {
   W.mats.water.color.set(n ? '#1b3550' : (TOON ? '#47a6e0' : '#3f7398'));
   W.mats.ground.color.set(n ? (TOON ? '#5f7f3c' : '#5d7048') : (TOON ? '#a3d65c' : '#93ad6e'));
   headlight.intensity = n ? 60 : 0;
-  for (const c of cars.concat(TR.pool, POL.cars)) { c.headMat.emissiveIntensity = n ? 2.5 : 0.2; c.tailMat.emissiveIntensity = n ? 1.5 : 0.3; }
+  for (const c of cars.concat(TR.pool, POL.cars)) { if (!c.headMat) continue; c._hl = c._tl = undefined; c.headMat.emissiveIntensity = n ? 2.3 : 0.12; c.tailMat.emissiveIntensity = n ? 1.25 : 0.22; }
   renderer.toneMappingExposure = n ? 1.15 : 1.0;
   $('btnNight').textContent = n ? '☀️' : '🌙';
   applyFog();
@@ -256,6 +256,7 @@ function updateCar(c, dt, drive) {
   { const hs = Math.sin(c.h), hc = Math.cos(c.h); c.vFl = c.vx * hs + c.vz * hc; c.vRl = c.vx * hc - c.vz * hs; } c.thrl = thr; c.handl = hand; c.brkl = brk;
   c.spin += vF * dt / (c.wr || 0.36);
   for (const w of c.wheels) { w.w.rotation.x = c.spin; if (w.front) w.pv.rotation.y = c.steer; }
+  carLights(c, thr < -0.12 || !!hand);
   c.g.rotation.x = c.pitch; c.g.rotation.z = c.roll + clamp(-c.yawRate * vF * 0.004, -0.06, 0.06);
 }
 // vertical physics: gravity, terrain following, natural jumps over crests/ramps, spring suspension

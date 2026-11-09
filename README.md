@@ -174,7 +174,7 @@ Pełna kwota tylko za pierwszym razem. Kolejny przejazd zapisuje rekord i daje *
 - Zapis w `localStorage` (`gtatbg_save`, wersja 3). Zapis v1/v2 (gotówka, ukończone misje, garaż, tuning, statystyki, rekordy) jest przenoszony. Dochodzą `claimed` (jednorazowe nagrody wyzwań) i `tut` (samouczek). Stary zapis dostaje Kropkę, jeśli garaż był pusty.
 
 ## 🏁 Jazda (v3)
-- **Dźwięk silnika** generowany na żywo (Web Audio): obroty, biegi z „przegazówką” przy zmianie, inna barwa dla każdego auta, pisk opon przy poślizgu.
+- **Nadwozia (komiks):** Każde auto dostaje lusterka. Dodatkowo Kropka ma spojler na dachu, Leliwa krawędź klapy, Siarka GT progi i wydechy, a Interceptor szerszą atrapę nad chromem. To dodatkowe pudełka w tej samej siatce co karoseria — bez nowego światła na auto. Koła (styl komiks) mają oponę, jasną felgę i pięć ramion na boku; kręcą się jak dotąd, przednie skręcają. Nocą reflektory i tylne lampy świecą emisją. Hamulec i ręczny rozjaśniają tył; auta z ruchu robią to samo, gdy zwalniają, i tylko póki widać nadwozie (niska jakość ~85 m, średnia ~115 m, wysoka ~145 m). Koła znikają wcześniej (niska 60 m, średnia 90 m, wysoka 120 m). Lakier w garażu maluje karoserię i krawędź klapy Leliwy, nie atrapę, lusterka ani felgi.
 - **Drift:** ręczny (Spacja / RĘCZNY) + skręt – tył ucieka, licznik DRIFT z mnożnikiem do ×2. Po wyjściu z driftu punkty zamieniają się w złotówki; uderzenie przerywa drift.
 - **Ślady opon i dym** (pula obiektów, 1 wywołanie rysowania na typ; liczba zależna od jakości: 200 / 420 / 800 śladów), w terenie zamiast dymu – kurz.
 - **Kolizje:** iskry, dźwięk zgniatania blachy, wstrząs kamery, wibracja.
@@ -242,6 +242,7 @@ python3 tools/build_release.py
 - Styl komiksowy (pełny) jest cięższy dla słabych telefonów – na telefonach domyślnie włącza się wariant lekki.
 - Drzwi, balkony i kominy są umownym rysunkiem dopasowanym do typu budynku z OSM (albo do powierzchni, gdy typ to `yes`). Nie odwzorowują konkretnej kamienicy ani sklepu.
 - Dźwięk silnika i efektów startuje dopiero po pierwszym dotknięciu/kliknięciu (zasada przeglądarek). Fizyka driftu jest zręcznościowa (uproszczona), auta AI z niej nie korzystają.
+- Felgi i lampy są komiksowe, nie odwzorowują konkretnych felg z Tarnobrzega. Ruch uliczny nie dostaje osobnych reflektorów-spotów — tylko jaśniejszy materiał lamp.
 - Ślady opon to pula (200–800 odcinków) – najstarsze znikają. Na bardzo niskim ekranie (< 500 px wysokości) karty w Salonie chowają paski statystyk, żeby zmieścić przyciski.
 - GPS nie zgaduje drogi przez wodę ani przez bryłę budynku. Środek jeziora nie dostaje trasy. Punkt w środku zabudowy (np. zamek, część placów) prowadzi ulicami do ostatniego czystego miejsca, a resztę opisuje tekst („ulica się kończy”).
 - Z tras off-road nie ma przejazdu ulicami do miasta: powrót to przycisk przy starcie ścieżki. Z miasta linia urywa się przed strefą jeziora; dalej jest teleport przy pomniku Głowackiego albo wjazd od plaży.
