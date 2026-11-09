@@ -91,7 +91,7 @@ function carHitEvent(other, v) {
 function initPolice() {
   ensureHud();
   for (let i = 0; i < 7; i++) { const c = new Car(scene, 0xffffff, 0, -99999, 0, { police: true }); c.g.visible = false; c.pooled = true; POL.pool.push(c); POL.cars.push(c); }
-  for (let i = 0; i < 4; i++) { const w = makeWalker({ shirt: 0x24489c, pants: 0x1a2340, cap: 0x1a2340, belt: 0x111111 }); w.visible = false; scene.add(w); POL.foot.push({ w, on: false, x: 0, z: 0, h: 0, y: 0 }); }
+  for (let i = 0; i < 4; i++) { const w = makeWalker({ shirt: 0x24489c, pants: 0x1a2340, hairStyle: 'cap', cap: 0x1a2340, belt: 0x111111, jacket: 0x1c3f8a }); w.visible = false; scene.add(w); POL.foot.push({ w, on: false, x: 0, z: 0, h: 0, y: 0 }); }
   // paint-shop markers
   for (const s of PLACES.shops) {
     const [x, z] = findFree(s.x, s.z, 3.5); s.x = x; s.z = z;

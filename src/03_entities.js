@@ -7,34 +7,62 @@ function box(w, h, d, color, x, y, z, mat) {
   if (TOON && !box.noHull) { addHdir(geo); const hl = new THREE.Mesh(geo, hullMats().small); m.add(hl); }
   return m;
 }
+let walkerMatV = null;
+function walkerMat() {
+  if (!walkerMatV) walkerMatV = TOON ? mkMat({ vertexColors: true }) : new THREE.MeshLambertMaterial({ vertexColors: true });
+  return walkerMatV;
+}
+function walkerMesh(specs) {
+  const geo = mergeBoxes(specs);
+  const m = new THREE.Mesh(geo, walkerMat()); m.castShadow = true;
+  if (TOON) m.add(new THREE.Mesh(geo, hullMats().small));
+  return m;
+}
 function makeWalker(opt = {}) {
   const g = new THREE.Group();
-  const skin = mkMat({ color: opt.skin || 0xe2b08c });
-  const shirt = mkMat({ color: opt.shirt || 0xf2c218 });
-  const pants = mkMat({ color: opt.pants || 0x2c3e66 });
-  const shoes = mkMat({ color: 0x222222 });
-  const hair = mkMat({ color: opt.hair || 0x3a2a1c });
+  const shirt = opt.shirt || 0xf2c218, pants = opt.pants || 0x2c3e66, skin = opt.skin || 0xe2b08c;
+  const hair = opt.hair || 0x3a2a1c, belt = opt.belt || 0x1f5fbf, shoe = 0x2a211c;
+  const style = opt.hairStyle || (opt.cap ? 'cap' : 'short');
+  const accent = opt.cap || opt.accent || 0xe8503a;
   const body = new THREE.Group(); g.add(body);
-  body.add(box(0.5, 0.62, 0.28, 0, 0, 1.22, 0, shirt));
-  body.add(box(0.51, 0.1, 0.29, 0, 0, 1.2, 0, mkMat({ color: opt.belt || 0x1f5fbf })));
-  const head = new THREE.Group(); head.position.set(0, 1.68, 0); body.add(head);
-  head.add(box(0.3, 0.32, 0.3, 0, 0, 0, 0, skin)); head.add(box(0.32, 0.1, 0.32, 0, 0, 0.15, 0.0, opt.cap ? mkMat({ color: opt.cap }) : hair));
-  box.noHull = true; head.add(box(0.06, 0.05, 0.02, 0, -0.07, 0.03, 0.155, shoes)); head.add(box(0.06, 0.05, 0.02, 0, 0.07, 0.03, 0.155, shoes)); box.noHull = false;
-  const limb = (w, h, mat, x, y) => { const p = new THREE.Group(); p.position.set(x, y, 0); const m = box(w, h, w, 0, 0, -h / 2, 0, mat); p.add(m); body.add(p); return p; };
-  const armL = limb(0.14, 0.6, shirt, -0.33, 1.5), armR = limb(0.14, 0.6, shirt, 0.33, 1.5);
-  armL.children[0].add(box(0.13, 0.14, 0.13, 0, 0, -0.33, 0, skin)); armR.children[0].add(box(0.13, 0.14, 0.13, 0, 0, -0.33, 0, skin));
-  const legL = limb(0.19, 0.88, pants, -0.13, 0.9), legR = limb(0.19, 0.88, pants, 0.13, 0.9);
-  legL.children[0].add(box(0.2, 0.1, 0.3, 0, 0, -0.44, 0.05, shoes)); legR.children[0].add(box(0.2, 0.1, 0.3, 0, 0, -0.44, 0.05, shoes));
-  g.userData = { body, armL, armR, legL, legR, phase: 0 };
+  const specs = [
+    [0.5, 0.62, 0.28, 0, 1.22, 0, shirt],
+    [0.52, 0.08, 0.3, 0, 1.16, 0, belt],
+    [0.3, 0.32, 0.3, 0, 1.68, 0, skin],
+    [0.06, 0.045, 0.02, -0.07, 1.71, 0.155, shoe],
+    [0.06, 0.045, 0.02, 0.07, 1.71, 0.155, shoe],
+  ];
+  if (style === 'long') specs.push([0.36, 0.38, 0.36, 0, 1.72, -0.03, hair], [0.22, 0.42, 0.14, 0, 1.4, -0.18, hair]);
+  else if (style === 'bun') specs.push([0.32, 0.1, 0.32, 0, 1.86, 0, hair], [0.16, 0.14, 0.16, 0, 2.02, -0.04, hair]);
+  else if (style === 'pony') specs.push([0.32, 0.12, 0.32, 0, 1.88, 0, hair], [0.12, 0.34, 0.12, 0, 1.5, -0.18, hair]);
+  else if (style === 'cap') specs.push([0.28, 0.06, 0.28, 0, 1.84, 0, hair], [0.42, 0.1, 0.46, 0, 1.96, 0.06, accent]);
+  else specs.push([0.34, 0.16, 0.34, 0, 1.9, 0, hair]);
+  if (opt.jacket) specs.push([0.58, 0.48, 0.34, 0, 1.26, 0.02, opt.jacket]);
+  if (opt.skirt) specs.push([0.56, 0.36, 0.4, 0, 0.9, 0, pants]);
+  if (opt.bag) specs.push([0.24, 0.3, 0.14, 0, 1.28, -0.22, opt.bag === true ? accent : opt.bag]);
+  body.add(walkerMesh(specs));
+  const limb = (x, y, parts) => { const p = new THREE.Group(); p.position.set(x, y, 0); p.add(walkerMesh(parts)); body.add(p); return p; };
+  const arm = [[0.14, 0.5, 0.14, 0, -0.25, 0, shirt], [0.13, 0.13, 0.13, 0, -0.56, 0, skin]];
+  const leg = [[0.18, 0.74, 0.18, 0, -0.37, 0, pants], [0.2, 0.1, 0.3, 0, -0.78, 0.05, shoe]];
+  const armL = limb(-0.33, 1.5, arm), armR = limb(0.33, 1.5, arm);
+  const legL = limb(-0.13, 0.9, leg), legR = limb(0.13, 0.9, leg);
+  g.userData = { body, armL, armR, legL, legR, phase: Math.random() * 6 };
   return g;
 }
 function animateWalker(w, speed, dt, air) {
   const u = w.userData;
-  if (air) { u.armL.rotation.x = -2.6; u.armR.rotation.x = -2.6; u.legL.rotation.x = 0.5; u.legR.rotation.x = -0.3; return; }
-  if (speed > 0.2) u.phase += dt * speed * 1.9; else u.phase *= 0.85;
-  const a = Math.sin(u.phase) * Math.min(1, speed / 4) * 0.9;
-  u.legL.rotation.x = a; u.legR.rotation.x = -a; u.armL.rotation.x = -a * 0.8; u.armR.rotation.x = a * 0.8;
-  u.body.position.y = Math.abs(Math.sin(u.phase)) * 0.05 * Math.min(1, speed / 4);
+  if (air) { u.armL.rotation.x = -2.6; u.armR.rotation.x = -2.6; u.legL.rotation.x = 0.5; u.legR.rotation.x = -0.3; u.body.position.y = 0; return; }
+  if (speed > 0.2) {
+    u.phase += dt * Math.max(speed, 1.2) * 2.05;
+    const a = Math.sin(u.phase) * Math.min(1, speed / 3.2) * 0.95;
+    u.legL.rotation.x = a; u.legR.rotation.x = -a; u.armL.rotation.x = -a * 0.82; u.armR.rotation.x = a * 0.82;
+    u.body.position.y = Math.abs(Math.sin(u.phase)) * 0.055 * Math.min(1, speed / 3);
+  } else {
+    u.phase += dt * 1.7;
+    const a = Math.sin(u.phase) * 0.07;
+    u.armL.rotation.x = a; u.armR.rotation.x = -a * 0.65; u.legL.rotation.x = 0; u.legR.rotation.x = 0;
+    u.body.position.y = Math.abs(Math.sin(u.phase * 0.5)) * 0.012;
+  }
 }
 
 const CAR_COLORS = [0xc0392b, 0x2e86c1, 0xf1c40f, 0x27ae60, 0xecf0f1, 0x34495e, 0xe67e22, 0x8e44ad];

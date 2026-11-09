@@ -239,31 +239,73 @@ function carjack(c) {
   return true;
 }
 
-// ---------------- pedestrians (one instanced mesh for all body parts + outline hull)
-const PED_PARTS = [ // [w,h,d, x,y,z, colorSlot, pivot] slots: 0 shirt 1 pants 2 skin 3 hair 4 shoes
-  [0.5, 0.62, 0.28, 0, 1.22, 0, 0, 0], [0.3, 0.32, 0.3, 0, 1.68, 0, 2, 0], [0.32, 0.1, 0.32, 0, 1.83, 0, 3, 0],
-  [0.14, 0.6, 0.14, -0.33, 1.2, 0, 0, 1], [0.14, 0.6, 0.14, 0.33, 1.2, 0, 0, 2], [0.19, 0.88, 0.19, -0.13, 0.46, 0, 1, 3], [0.19, 0.88, 0.19, 0.13, 0.46, 0, 1, 4],
+// ---------------- pedestrians (one instanced box for every body part + shared outline)
+// slots: 0 torso 1 head 2 hair 3 armL 4 armR 5 legL 6 legR 7 shoeL 8 shoeR 9 hat 10 extra 11 cloth 12 shinL 13 shinR
+const PED_N = 14;
+const PED_LOOKS = [
+  { hair: [0.34, 0.16, 0.34, 0, 1.9, 0] },
+  { hair: [0.36, 0.36, 0.36, 0, 1.74, -0.02], extra: [0.22, 0.4, 0.14, 0, 1.42, -0.18] },
+  { hair: [0.3, 0.08, 0.3, 0, 1.84, 0], hat: [0.42, 0.1, 0.48, 0, 1.98, 0.06] },
+  { hair: [0.32, 0.1, 0.32, 0, 1.86, 0], extra: [0.18, 0.16, 0.18, 0, 2.04, -0.04] },
+  { hair: [0.32, 0.12, 0.32, 0, 1.88, 0], extra: [0.14, 0.34, 0.14, 0, 1.52, -0.2] },
+];
+const PED_FITS = [
+  {},
+  { cloth: [0.58, 0.5, 0.34, 0, 1.26, 0.03], slot: 4 },
+  { cloth: [0.56, 0.36, 0.4, 0, 0.9, 0], slot: 1 },
+  { cloth: [0.24, 0.3, 0.14, 0, 1.28, -0.22], slot: 4 },
 ];
 const PED_SHIRTS = ['#e8503a', '#3d8fe0', '#f6c431', '#45b65a', '#a66bd0', '#f08a2c', '#4fc3c8', '#f4f1ea', '#e86fa0'].map((c) => new THREE.Color(c));
 const PED_PANTS = ['#2c3e66', '#3a3a3a', '#6b4a32', '#24508a', '#5a5a64'].map((c) => new THREE.Color(c));
 const PED_SKIN = ['#e2b08c', '#c98f6a', '#f1c9a5', '#8d5a3c'].map((c) => new THREE.Color(c));
 const PED_HAIR = ['#3a2a1c', '#1d1d1d', '#c79a4a', '#8a3b1e', '#d8d2c8'].map((c) => new THREE.Color(c));
+const PED_ACCENT = ['#2a211c', '#f4f1ea', '#e8503a', '#3d8fe0', '#f6c431', '#1a1a1a'].map((c) => new THREE.Color(c));
+const PED_SHOE = new THREE.Color('#2a211c');
+const pedMT = new THREE.Matrix4(), pedMR = new THREE.Matrix4(), pedMS = new THREE.Matrix4(), pedMA = new THREE.Matrix4(), pedMB = new THREE.Matrix4();
+const pedZ = new THREE.Matrix4().makeScale(0, 0, 0);
 function pedMax() { return { low: 12, med: 20, high: 30 }[settings.quality] || 20; }
+function pedRange() {
+  const q = settings.quality;
+  if (q === 'low') return { despawn: 150, far: 55, detail: 36 };
+  if (q === 'high') return { despawn: 260, far: 150, detail: 110 };
+  return { despawn: 210, far: 100, detail: 70 };
+}
 function initPeds() {
-  const MAXP = 30, NP = PED_PARTS.length;
+  const MAXP = 30;
   const geo = addHdir(new THREE.BoxGeometry(1, 1, 1));
-  TR.pedMesh = new THREE.InstancedMesh(geo, mkMat({ color: 0xffffff }), MAXP * NP); TR.pedMesh.castShadow = true;
+  TR.pedMesh = new THREE.InstancedMesh(geo, mkMat({ color: 0xffffff }), MAXP * PED_N); TR.pedMesh.castShadow = true;
   TR.pedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); TR.pedMesh.frustumCulled = false;
-  const z = new THREE.Matrix4().makeScale(0, 0, 0);
-  for (let i = 0; i < MAXP * NP; i++) { TR.pedMesh.setMatrixAt(i, z); TR.pedMesh.setColorAt(i, PED_SHIRTS[0]); }
+  for (let i = 0; i < MAXP * PED_N; i++) { TR.pedMesh.setMatrixAt(i, pedZ); TR.pedMesh.setColorAt(i, PED_SHIRTS[0]); }
   scene.add(TR.pedMesh);
-  if (TOON) { TR.pedHull = new THREE.InstancedMesh(geo, hullMats().small, MAXP * NP); TR.pedHull.instanceMatrix = TR.pedMesh.instanceMatrix; TR.pedHull.frustumCulled = false; scene.add(TR.pedHull); }
+  if (TOON) { TR.pedHull = new THREE.InstancedMesh(geo, hullMats().small, MAXP * PED_N); TR.pedHull.instanceMatrix = TR.pedMesh.instanceMatrix; TR.pedHull.frustumCulled = false; scene.add(TR.pedHull); }
   for (let i = 0; i < MAXP; i++) TR.peds.push({ on: false, i, x: 0, z: 0, h: 0, v: 0, phase: Math.random() * 6, state: 'walk', t: 0 });
 }
 function pedColors(p) {
-  const r = Math.random; const cs = [PED_SHIRTS[Math.floor(r() * PED_SHIRTS.length)], PED_PANTS[Math.floor(r() * PED_PANTS.length)], PED_SKIN[Math.floor(r() * PED_SKIN.length)], PED_HAIR[Math.floor(r() * PED_HAIR.length)]];
-  PED_PARTS.forEach((pp, k) => TR.pedMesh.setColorAt(p.i * PED_PARTS.length + k, cs[pp[6]]));
+  const r = Math.random;
+  p.look = Math.floor(r() * PED_LOOKS.length); p.fit = Math.floor(r() * PED_FITS.length);
+  p.cs = [PED_SHIRTS[Math.floor(r() * PED_SHIRTS.length)], PED_PANTS[Math.floor(r() * PED_PANTS.length)], PED_SKIN[Math.floor(r() * PED_SKIN.length)], PED_HAIR[Math.floor(r() * PED_HAIR.length)], PED_ACCENT[Math.floor(r() * PED_ACCENT.length)]];
+  const base = p.i * PED_N; const fit = PED_FITS[p.fit];
+  const col = (k) => (k === 11 ? p.cs[fit.slot || 4] : k === 9 ? p.cs[4] : (k === 7 || k === 8) ? PED_SHOE : p.cs[[0, 2, 3, 0, 0, 1, 1, 5, 5, 4, 3, 4, 1, 1][k]]);
+  for (let k = 0; k < PED_N; k++) TR.pedMesh.setColorAt(base + k, col(k));
   TR.pedMesh.instanceColor.needsUpdate = true;
+}
+function pedPut(idx, root, x, y, z, w, h, d) {
+  if (!(w > 0)) { TR.pedMesh.setMatrixAt(idx, pedZ); return; }
+  pedMT.makeTranslation(x, y, z); pedMS.makeScale(w, h, d); pedMA.multiplyMatrices(pedMT, pedMS); pedMA.premultiply(root);
+  TR.pedMesh.setMatrixAt(idx, pedMA);
+}
+function pedLimb(idx, root, jx, jy, jz, rot, x, y, z, w, h, d) {
+  if (!(w > 0)) { TR.pedMesh.setMatrixAt(idx, pedZ); return; }
+  pedMT.makeTranslation(jx, jy, jz); pedMR.makeRotationX(rot); pedMA.multiplyMatrices(pedMT, pedMR);
+  pedMT.makeTranslation(x - jx, y - jy, z - jz); pedMS.makeScale(w, h, d); pedMB.multiplyMatrices(pedMT, pedMS); pedMA.multiply(pedMB); pedMA.premultiply(root);
+  TR.pedMesh.setMatrixAt(idx, pedMA);
+}
+function pedShin(idx, root, jx, jy, jz, thigh, thighLen, shin, w, h, d, zf) {
+  if (!(w > 0)) { TR.pedMesh.setMatrixAt(idx, pedZ); return; }
+  pedMT.makeTranslation(jx, jy, jz); pedMR.makeRotationX(thigh); pedMA.multiplyMatrices(pedMT, pedMR);
+  pedMT.makeTranslation(0, -thighLen, 0); pedMA.multiply(pedMT); pedMR.makeRotationX(shin); pedMA.multiply(pedMR);
+  pedMT.makeTranslation(0, -h / 2, zf || 0); pedMS.makeScale(w, h, d); pedMB.multiplyMatrices(pedMT, pedMS); pedMA.multiply(pedMB); pedMA.premultiply(root);
+  TR.pedMesh.setMatrixAt(idx, pedMA);
 }
 function spawnPedAt(x, z) {
   const p = TR.peds.find((q) => !q.on); if (!p) return null;
@@ -282,14 +324,14 @@ function spawnPedWalker(f) {
 }
 const pm4 = new THREE.Matrix4(), pm4b = new THREE.Matrix4(), pq = new THREE.Quaternion(), pe = new THREE.Euler(), pv3 = new THREE.Vector3(), ps3 = new THREE.Vector3();
 function updatePeds(dt) {
-  const f = focusPos(); const max = pedMax(); let active = 0;
+  const f = focusPos(); const max = pedMax(); const rng = pedRange(); let active = 0;
   for (const p of TR.peds) if (p.on) active++;
   TR.pedT -= dt; if (TR.pedT <= 0) { TR.pedT = 0.5; if (active < max && !inOffZone(f.x, f.z)) spawnPedWalker(f); }
-  const NP = PED_PARTS.length; const zero = new THREE.Matrix4().makeScale(0, 0, 0); const camP = camera.position;
+  const camP = camera.position;
   for (const p of TR.peds) {
     if (!p.on) continue;
     const d = Math.hypot(p.x - f.x, p.z - f.z);
-    if (d > 260 || (active > max + 3 && d > 80)) { p.on = false; active--; for (let k = 0; k < NP; k++) TR.pedMesh.setMatrixAt(p.i * NP + k, zero); continue; }
+    if (d > rng.despawn || (active > max + 3 && d > 80)) { p.on = false; active--; for (let k = 0; k < PED_N; k++) TR.pedMesh.setMatrixAt(p.i * PED_N + k, pedZ); continue; }
     // hit by any moving car
     if (p.state !== 'fall') for (const c of cars) {
       if (!c.g.visible || Math.abs(c.x - p.x) > 4 || Math.abs(c.z - p.z) > 4) continue;
@@ -319,19 +361,42 @@ function updatePeds(dt) {
       const tx = smp.x - Math.cos(smp.h) * off, tz = smp.z + Math.sin(smp.h) * off; p.h = Math.atan2(tx - p.x, tz - p.z) || p.h;
       if (Math.hypot(tx - p.x, tz - p.z) > 6) { p.x = tx; p.z = tz; } else { p.x = tx; p.z = tz; }
     } else { p.v = 0.8; const nx = p.x + Math.sin(p.h) * p.v * dt, nz = p.z + Math.cos(p.h) * p.v * dt; collideCircle(nx, nz, 0.35, col, true); if (col.hit) p.h += 1.5; p.x = col.x; p.z = col.z; }
-    if (p.state !== 'fall') { p.phase += dt * (run ? 6.5 : p.v) * 2.6; swing = Math.sin(p.phase) * (run ? 0.9 : 0.55); }
-    // matrices
-    const far = Math.hypot(p.x - camP.x, p.z - camP.z) > 160;
-    pe.set(pitch, p.h, 0, 'YXZ'); pq.setFromEuler(pe); pv3.set(p.x, groundH(p.x, p.z), p.z); ps3.set(1, 1, 1); pm4.compose(pv3, pq, ps3);
-    PED_PARTS.forEach((pp, k) => {
-      if (far && k > 1) { TR.pedMesh.setMatrixAt(p.i * NP + k, zero); return; }
-      const piv = pp[7]; let rot = 0; if (piv === 1 || piv === 4) rot = swing; else if (piv === 2 || piv === 3) rot = -swing;
-      if (piv) { // limb rotates about its top
-        const top = pp[4] + pp[1] / 2; pm4b.makeTranslation(pp[3], top, pp[5]); const r = new THREE.Matrix4().makeRotationX(rot); pm4b.multiply(r); pm4b.multiply(new THREE.Matrix4().makeTranslation(0, -pp[1] / 2, 0));
-      } else pm4b.makeTranslation(pp[3], pp[4], pp[5]);
-      pm4b.multiply(new THREE.Matrix4().makeScale(pp[0], pp[1], pp[2])); pm4b.premultiply(pm4);
-      TR.pedMesh.setMatrixAt(p.i * NP + k, pm4b);
-    });
+    if (p.state !== 'fall') { p.phase += dt * (run ? 7.2 : Math.max(p.v, 0.8)) * 2.5; swing = Math.sin(p.phase) * (run ? 0.85 : 0.62); }
+    const camD = Math.hypot(p.x - camP.x, p.z - camP.z);
+    const far = camD > rng.far; const dress = !far && camD < rng.detail; const bones = dress && settings.quality !== 'low';
+    const bob = p.state === 'fall' ? 0 : Math.abs(Math.sin(p.phase)) * (run ? 0.055 : 0.03);
+    pe.set(pitch + (p.state === 'fall' ? 0 : run ? 0.12 : 0.04), p.h, 0, 'YXZ'); pq.setFromEuler(pe);
+    pv3.set(p.x, groundH(p.x, p.z) + bob, p.z); ps3.set(1, 1, 1); pm4.compose(pv3, pq, ps3);
+    const b = p.i * PED_N; const look = PED_LOOKS[p.look] || PED_LOOKS[0]; const fit = PED_FITS[p.fit] || PED_FITS[0];
+    pedPut(b, pm4, 0, 1.22, 0, 0.5, 0.62, 0.28);
+    pedPut(b + 1, pm4, 0, 1.68, 0, far ? 0.34 : 0.3, far ? 0.34 : 0.32, far ? 0.34 : 0.3);
+    if (far) {
+      for (let k = 2; k < PED_N; k++) TR.pedMesh.setMatrixAt(b + k, pedZ);
+    } else {
+      const hair = look.hair; pedPut(b + 2, pm4, hair[3], hair[4], hair[5], hair[0], hair[1], hair[2]);
+      const arm = swing * 0.8, hipY = 0.9, shY = 1.5;
+      pedLimb(b + 3, pm4, -0.4, shY, 0, -arm, -0.4, shY - 0.26, 0, 0.16, 0.52, 0.16);
+      pedLimb(b + 4, pm4, 0.4, shY, 0, arm, 0.4, shY - 0.26, 0, 0.16, 0.52, 0.16);
+      const thigh = 0.42, shin = 0.34;
+      if (bones) {
+        pedLimb(b + 5, pm4, -0.13, hipY, 0, swing, -0.13, hipY - thigh / 2, 0, 0.18, thigh, 0.18);
+        pedLimb(b + 6, pm4, 0.13, hipY, 0, -swing, 0.13, hipY - thigh / 2, 0, 0.18, thigh, 0.18);
+        const bL = Math.max(0, swing) * 1.15, bR = Math.max(0, -swing) * 1.15;
+        pedShin(b + 12, pm4, -0.13, hipY, 0, swing, thigh, bL, 0.16, shin, 0.16, 0.02);
+        pedShin(b + 13, pm4, 0.13, hipY, 0, -swing, thigh, bR, 0.16, shin, 0.16, 0.02);
+        pedShin(b + 7, pm4, -0.13, hipY, 0, swing, thigh + shin, bL, 0.2, 0.1, 0.28, 0.08);
+        pedShin(b + 8, pm4, 0.13, hipY, 0, -swing, thigh + shin, bR, 0.2, 0.1, 0.28, 0.08);
+      } else {
+        pedLimb(b + 5, pm4, -0.13, hipY, 0, swing, -0.13, hipY - 0.4, 0, 0.18, 0.8, 0.18);
+        pedLimb(b + 6, pm4, 0.13, hipY, 0, -swing, 0.13, hipY - 0.4, 0, 0.18, 0.8, 0.18);
+        pedLimb(b + 7, pm4, -0.13, hipY, 0, swing, -0.13, hipY - 0.84, 0.05, 0.2, 0.1, 0.3);
+        pedLimb(b + 8, pm4, 0.13, hipY, 0, -swing, 0.13, hipY - 0.84, 0.05, 0.2, 0.1, 0.3);
+        TR.pedMesh.setMatrixAt(b + 12, pedZ); TR.pedMesh.setMatrixAt(b + 13, pedZ);
+      }
+      if (dress && look.hat) pedPut(b + 9, pm4, look.hat[3], look.hat[4], look.hat[5], look.hat[0], look.hat[1], look.hat[2]); else TR.pedMesh.setMatrixAt(b + 9, pedZ);
+      if (dress && look.extra) pedPut(b + 10, pm4, look.extra[3], look.extra[4], look.extra[5], look.extra[0], look.extra[1], look.extra[2]); else TR.pedMesh.setMatrixAt(b + 10, pedZ);
+      if (dress && fit.cloth) pedPut(b + 11, pm4, fit.cloth[3], fit.cloth[4], fit.cloth[5], fit.cloth[0], fit.cloth[1], fit.cloth[2]); else TR.pedMesh.setMatrixAt(b + 11, pedZ);
+    }
   }
   TR.pedMesh.instanceMatrix.needsUpdate = true;
 }

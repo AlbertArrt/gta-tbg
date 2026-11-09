@@ -285,7 +285,7 @@ function initMissions() {
   MIS.list = MDEF.map((d) => ({ ...d, done: !!SAVE.done[d.id] }));
   for (const m of MIS.list) {
     let gx, gz; if (m.id === 'offroad') { gx = EGG.mon.x + 5; gz = EGG.mon.z + 5; } else { gx = m.giver[0]; gz = m.giver[1]; }
-    const p = misPlace(gx + (m.id === 'taxi' ? 12 : 0), gz + (m.id === 'taxi' ? 9 : 0), 1.2); m.gx = p.x; m.gz = p.z; m.cool = Math.hypot(player.x - p.x, player.z - p.z) < 12; m.obj3 = makeGiver(p.x, p.z, m.col, m.who);
+    const p = misPlace(gx + (m.id === 'taxi' ? 12 : 0), gz + (m.id === 'taxi' ? 9 : 0), 1.2); m.gx = p.x; m.gz = p.z; m.cool = Math.hypot(player.x - p.x, player.z - p.z) < 12; m.obj3 = makeGiver(p.x, p.z, m.col, m.who, m.id);
   }
   MIS.tgt = makeTarget();
   const hud = $('hud'); const mh = document.createElement('div'); mh.id = 'mhud'; mh.className = 'hidden';
@@ -297,12 +297,29 @@ function initMissions() {
   $('dlgYes').onclick = () => dialogAction(); $('dlgNo').onclick = () => dialogClose();
   for (const id of ['dialog', 'shopMenu']) { $(id).addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true }); $(id).addEventListener('mousedown', (e) => e.stopPropagation()); }
 }
-function makeGiver(x, z, col, who) {
+const GIVER_LOOK = {
+  taxi: { hairStyle: 'cap', cap: 0x2a211c, jacket: 0xf6c431 },
+  pizza: { hairStyle: 'short', jacket: 0xff7a2a },
+  race: { hairStyle: 'pony', bag: 0x2a211c },
+  escape: { hairStyle: 'bun', jacket: 0x5a3d80 },
+  steal: { hairStyle: 'cap', cap: 0x6b4a32 },
+  offroad: { hairStyle: 'long' },
+  courier: { hairStyle: 'bun', skirt: true, bag: 0xf4f1ea },
+  final: { hairStyle: 'short', jacket: 0x3a3a3a },
+  kursy: { hairStyle: 'cap', cap: 0x2a211c, jacket: 0xf6c431 },
+  targ: { hairStyle: 'long', skirt: true },
+  uliczna: { hairStyle: 'pony', jacket: 0xff3b3b },
+  jezioro: { hairStyle: 'short', bag: 0x1a6a8a },
+  drift: { hairStyle: 'cap', cap: 0x222222, jacket: 0x2a211c },
+  tort: { hairStyle: 'bun', skirt: true, jacket: 0xffd0e0 },
+};
+function makeGiver(x, z, col, who, id) {
   const g = new THREE.Group(); g.position.set(x, groundH(x, z), z);
   const c = new THREE.Color(col);
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 26, 16, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })); beam.position.y = 13; g.add(beam);
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.9, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.9, depthWrite: false })); ring.position.y = 0.22; g.add(ring);
-  const w = makeWalker({ shirt: c.getHex(), cap: 0x2a211c }); g.add(w);
+  const look = GIVER_LOOK[id] || { hairStyle: 'short' };
+  const w = makeWalker({ shirt: c.getHex(), ...look }); g.add(w);
   const ex = labelSprite('!', col, 1.6); ex.position.y = 3.2; g.add(ex);
   const lab = labelSprite(who, col, 6); lab.position.y = 4.4; lab.visible = false; g.add(lab);
   scene.add(g); return { g, beam, ring, w, ex, lab };
@@ -397,6 +414,7 @@ function updateMissions(dt) {
     const o = m.obj3; const show = giverOpen(m); o.g.visible = show; if (!show) continue;
     const d = Math.hypot(f.x - m.gx, f.z - m.gz); o.beam.material.opacity = 0.16 + 0.1 * Math.sin(tt + m.gx); o.ex.position.y = 3.2 + Math.sin(tt * 1.5) * 0.25; o.lab.visible = d < 40;
     o.w.rotation.y = Math.atan2(f.x - m.gx, f.z - m.gz);
+    if (d < 80) animateWalker(o.w, 0, dt, false);
     if (m.cool && d > 9) m.cool = false;
     if (!m.cool && !MIS.dlg && d < (G.mode === 'car' ? 6 : 3) && (G.mode === 'foot' || activeCar.speed < 3) && !G.cut) dialogOpen(m);
   }

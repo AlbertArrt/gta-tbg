@@ -1555,34 +1555,62 @@ function box(w, h, d, color, x, y, z, mat) {
   if (TOON && !box.noHull) { addHdir(geo); const hl = new THREE.Mesh(geo, hullMats().small); m.add(hl); }
   return m;
 }
+let walkerMatV = null;
+function walkerMat() {
+  if (!walkerMatV) walkerMatV = TOON ? mkMat({ vertexColors: true }) : new THREE.MeshLambertMaterial({ vertexColors: true });
+  return walkerMatV;
+}
+function walkerMesh(specs) {
+  const geo = mergeBoxes(specs);
+  const m = new THREE.Mesh(geo, walkerMat()); m.castShadow = true;
+  if (TOON) m.add(new THREE.Mesh(geo, hullMats().small));
+  return m;
+}
 function makeWalker(opt = {}) {
   const g = new THREE.Group();
-  const skin = mkMat({ color: opt.skin || 0xe2b08c });
-  const shirt = mkMat({ color: opt.shirt || 0xf2c218 });
-  const pants = mkMat({ color: opt.pants || 0x2c3e66 });
-  const shoes = mkMat({ color: 0x222222 });
-  const hair = mkMat({ color: opt.hair || 0x3a2a1c });
+  const shirt = opt.shirt || 0xf2c218, pants = opt.pants || 0x2c3e66, skin = opt.skin || 0xe2b08c;
+  const hair = opt.hair || 0x3a2a1c, belt = opt.belt || 0x1f5fbf, shoe = 0x2a211c;
+  const style = opt.hairStyle || (opt.cap ? 'cap' : 'short');
+  const accent = opt.cap || opt.accent || 0xe8503a;
   const body = new THREE.Group(); g.add(body);
-  body.add(box(0.5, 0.62, 0.28, 0, 0, 1.22, 0, shirt));
-  body.add(box(0.51, 0.1, 0.29, 0, 0, 1.2, 0, mkMat({ color: opt.belt || 0x1f5fbf })));
-  const head = new THREE.Group(); head.position.set(0, 1.68, 0); body.add(head);
-  head.add(box(0.3, 0.32, 0.3, 0, 0, 0, 0, skin)); head.add(box(0.32, 0.1, 0.32, 0, 0, 0.15, 0.0, opt.cap ? mkMat({ color: opt.cap }) : hair));
-  box.noHull = true; head.add(box(0.06, 0.05, 0.02, 0, -0.07, 0.03, 0.155, shoes)); head.add(box(0.06, 0.05, 0.02, 0, 0.07, 0.03, 0.155, shoes)); box.noHull = false;
-  const limb = (w, h, mat, x, y) => { const p = new THREE.Group(); p.position.set(x, y, 0); const m = box(w, h, w, 0, 0, -h / 2, 0, mat); p.add(m); body.add(p); return p; };
-  const armL = limb(0.14, 0.6, shirt, -0.33, 1.5), armR = limb(0.14, 0.6, shirt, 0.33, 1.5);
-  armL.children[0].add(box(0.13, 0.14, 0.13, 0, 0, -0.33, 0, skin)); armR.children[0].add(box(0.13, 0.14, 0.13, 0, 0, -0.33, 0, skin));
-  const legL = limb(0.19, 0.88, pants, -0.13, 0.9), legR = limb(0.19, 0.88, pants, 0.13, 0.9);
-  legL.children[0].add(box(0.2, 0.1, 0.3, 0, 0, -0.44, 0.05, shoes)); legR.children[0].add(box(0.2, 0.1, 0.3, 0, 0, -0.44, 0.05, shoes));
-  g.userData = { body, armL, armR, legL, legR, phase: 0 };
+  const specs = [
+    [0.5, 0.62, 0.28, 0, 1.22, 0, shirt],
+    [0.52, 0.08, 0.3, 0, 1.16, 0, belt],
+    [0.3, 0.32, 0.3, 0, 1.68, 0, skin],
+    [0.06, 0.045, 0.02, -0.07, 1.71, 0.155, shoe],
+    [0.06, 0.045, 0.02, 0.07, 1.71, 0.155, shoe],
+  ];
+  if (style === 'long') specs.push([0.36, 0.38, 0.36, 0, 1.72, -0.03, hair], [0.22, 0.42, 0.14, 0, 1.4, -0.18, hair]);
+  else if (style === 'bun') specs.push([0.32, 0.1, 0.32, 0, 1.86, 0, hair], [0.16, 0.14, 0.16, 0, 2.02, -0.04, hair]);
+  else if (style === 'pony') specs.push([0.32, 0.12, 0.32, 0, 1.88, 0, hair], [0.12, 0.34, 0.12, 0, 1.5, -0.18, hair]);
+  else if (style === 'cap') specs.push([0.28, 0.06, 0.28, 0, 1.84, 0, hair], [0.42, 0.1, 0.46, 0, 1.96, 0.06, accent]);
+  else specs.push([0.34, 0.16, 0.34, 0, 1.9, 0, hair]);
+  if (opt.jacket) specs.push([0.58, 0.48, 0.34, 0, 1.26, 0.02, opt.jacket]);
+  if (opt.skirt) specs.push([0.56, 0.36, 0.4, 0, 0.9, 0, pants]);
+  if (opt.bag) specs.push([0.24, 0.3, 0.14, 0, 1.28, -0.22, opt.bag === true ? accent : opt.bag]);
+  body.add(walkerMesh(specs));
+  const limb = (x, y, parts) => { const p = new THREE.Group(); p.position.set(x, y, 0); p.add(walkerMesh(parts)); body.add(p); return p; };
+  const arm = [[0.14, 0.5, 0.14, 0, -0.25, 0, shirt], [0.13, 0.13, 0.13, 0, -0.56, 0, skin]];
+  const leg = [[0.18, 0.74, 0.18, 0, -0.37, 0, pants], [0.2, 0.1, 0.3, 0, -0.78, 0.05, shoe]];
+  const armL = limb(-0.33, 1.5, arm), armR = limb(0.33, 1.5, arm);
+  const legL = limb(-0.13, 0.9, leg), legR = limb(0.13, 0.9, leg);
+  g.userData = { body, armL, armR, legL, legR, phase: Math.random() * 6 };
   return g;
 }
 function animateWalker(w, speed, dt, air) {
   const u = w.userData;
-  if (air) { u.armL.rotation.x = -2.6; u.armR.rotation.x = -2.6; u.legL.rotation.x = 0.5; u.legR.rotation.x = -0.3; return; }
-  if (speed > 0.2) u.phase += dt * speed * 1.9; else u.phase *= 0.85;
-  const a = Math.sin(u.phase) * Math.min(1, speed / 4) * 0.9;
-  u.legL.rotation.x = a; u.legR.rotation.x = -a; u.armL.rotation.x = -a * 0.8; u.armR.rotation.x = a * 0.8;
-  u.body.position.y = Math.abs(Math.sin(u.phase)) * 0.05 * Math.min(1, speed / 4);
+  if (air) { u.armL.rotation.x = -2.6; u.armR.rotation.x = -2.6; u.legL.rotation.x = 0.5; u.legR.rotation.x = -0.3; u.body.position.y = 0; return; }
+  if (speed > 0.2) {
+    u.phase += dt * Math.max(speed, 1.2) * 2.05;
+    const a = Math.sin(u.phase) * Math.min(1, speed / 3.2) * 0.95;
+    u.legL.rotation.x = a; u.legR.rotation.x = -a; u.armL.rotation.x = -a * 0.82; u.armR.rotation.x = a * 0.82;
+    u.body.position.y = Math.abs(Math.sin(u.phase)) * 0.055 * Math.min(1, speed / 3);
+  } else {
+    u.phase += dt * 1.7;
+    const a = Math.sin(u.phase) * 0.07;
+    u.armL.rotation.x = a; u.armR.rotation.x = -a * 0.65; u.legL.rotation.x = 0; u.legR.rotation.x = 0;
+    u.body.position.y = Math.abs(Math.sin(u.phase * 0.5)) * 0.012;
+  }
 }
 
 const CAR_COLORS = [0xc0392b, 0x2e86c1, 0xf1c40f, 0x27ae60, 0xecf0f1, 0x34495e, 0xe67e22, 0x8e44ad];
@@ -1848,7 +1876,7 @@ async function init() {
   sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -130; sc.right = 130; sc.top = 130; sc.bottom = -130; sc.near = 10; sc.far = 600; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.05;
   headlight = new THREE.SpotLight(0xfff2d0, 0, 90, 0.55, 0.5, 1.2); scene.add(headlight); scene.add(headlight.target);
 
-  player = { x: 0, z: 0, y: 0, vy: 0, h: 0, mesh: makeWalker(), speed: 0, onGround: true };
+  player = { x: 0, z: 0, y: 0, vy: 0, h: 0, mesh: makeWalker({ hairStyle: 'short', bag: 0xe8503a }), speed: 0, onGround: true };
   scene.add(player.mesh);
   spawnAtRynek();
   spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions(); initGarages(); initDriveFx();
@@ -2726,31 +2754,73 @@ function carjack(c) {
   return true;
 }
 
-// ---------------- pedestrians (one instanced mesh for all body parts + outline hull)
-const PED_PARTS = [ // [w,h,d, x,y,z, colorSlot, pivot] slots: 0 shirt 1 pants 2 skin 3 hair 4 shoes
-  [0.5, 0.62, 0.28, 0, 1.22, 0, 0, 0], [0.3, 0.32, 0.3, 0, 1.68, 0, 2, 0], [0.32, 0.1, 0.32, 0, 1.83, 0, 3, 0],
-  [0.14, 0.6, 0.14, -0.33, 1.2, 0, 0, 1], [0.14, 0.6, 0.14, 0.33, 1.2, 0, 0, 2], [0.19, 0.88, 0.19, -0.13, 0.46, 0, 1, 3], [0.19, 0.88, 0.19, 0.13, 0.46, 0, 1, 4],
+// ---------------- pedestrians (one instanced box for every body part + shared outline)
+// slots: 0 torso 1 head 2 hair 3 armL 4 armR 5 legL 6 legR 7 shoeL 8 shoeR 9 hat 10 extra 11 cloth 12 shinL 13 shinR
+const PED_N = 14;
+const PED_LOOKS = [
+  { hair: [0.34, 0.16, 0.34, 0, 1.9, 0] },
+  { hair: [0.36, 0.36, 0.36, 0, 1.74, -0.02], extra: [0.22, 0.4, 0.14, 0, 1.42, -0.18] },
+  { hair: [0.3, 0.08, 0.3, 0, 1.84, 0], hat: [0.42, 0.1, 0.48, 0, 1.98, 0.06] },
+  { hair: [0.32, 0.1, 0.32, 0, 1.86, 0], extra: [0.18, 0.16, 0.18, 0, 2.04, -0.04] },
+  { hair: [0.32, 0.12, 0.32, 0, 1.88, 0], extra: [0.14, 0.34, 0.14, 0, 1.52, -0.2] },
+];
+const PED_FITS = [
+  {},
+  { cloth: [0.58, 0.5, 0.34, 0, 1.26, 0.03], slot: 4 },
+  { cloth: [0.56, 0.36, 0.4, 0, 0.9, 0], slot: 1 },
+  { cloth: [0.24, 0.3, 0.14, 0, 1.28, -0.22], slot: 4 },
 ];
 const PED_SHIRTS = ['#e8503a', '#3d8fe0', '#f6c431', '#45b65a', '#a66bd0', '#f08a2c', '#4fc3c8', '#f4f1ea', '#e86fa0'].map((c) => new THREE.Color(c));
 const PED_PANTS = ['#2c3e66', '#3a3a3a', '#6b4a32', '#24508a', '#5a5a64'].map((c) => new THREE.Color(c));
 const PED_SKIN = ['#e2b08c', '#c98f6a', '#f1c9a5', '#8d5a3c'].map((c) => new THREE.Color(c));
 const PED_HAIR = ['#3a2a1c', '#1d1d1d', '#c79a4a', '#8a3b1e', '#d8d2c8'].map((c) => new THREE.Color(c));
+const PED_ACCENT = ['#2a211c', '#f4f1ea', '#e8503a', '#3d8fe0', '#f6c431', '#1a1a1a'].map((c) => new THREE.Color(c));
+const PED_SHOE = new THREE.Color('#2a211c');
+const pedMT = new THREE.Matrix4(), pedMR = new THREE.Matrix4(), pedMS = new THREE.Matrix4(), pedMA = new THREE.Matrix4(), pedMB = new THREE.Matrix4();
+const pedZ = new THREE.Matrix4().makeScale(0, 0, 0);
 function pedMax() { return { low: 12, med: 20, high: 30 }[settings.quality] || 20; }
+function pedRange() {
+  const q = settings.quality;
+  if (q === 'low') return { despawn: 150, far: 55, detail: 36 };
+  if (q === 'high') return { despawn: 260, far: 150, detail: 110 };
+  return { despawn: 210, far: 100, detail: 70 };
+}
 function initPeds() {
-  const MAXP = 30, NP = PED_PARTS.length;
+  const MAXP = 30;
   const geo = addHdir(new THREE.BoxGeometry(1, 1, 1));
-  TR.pedMesh = new THREE.InstancedMesh(geo, mkMat({ color: 0xffffff }), MAXP * NP); TR.pedMesh.castShadow = true;
+  TR.pedMesh = new THREE.InstancedMesh(geo, mkMat({ color: 0xffffff }), MAXP * PED_N); TR.pedMesh.castShadow = true;
   TR.pedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); TR.pedMesh.frustumCulled = false;
-  const z = new THREE.Matrix4().makeScale(0, 0, 0);
-  for (let i = 0; i < MAXP * NP; i++) { TR.pedMesh.setMatrixAt(i, z); TR.pedMesh.setColorAt(i, PED_SHIRTS[0]); }
+  for (let i = 0; i < MAXP * PED_N; i++) { TR.pedMesh.setMatrixAt(i, pedZ); TR.pedMesh.setColorAt(i, PED_SHIRTS[0]); }
   scene.add(TR.pedMesh);
-  if (TOON) { TR.pedHull = new THREE.InstancedMesh(geo, hullMats().small, MAXP * NP); TR.pedHull.instanceMatrix = TR.pedMesh.instanceMatrix; TR.pedHull.frustumCulled = false; scene.add(TR.pedHull); }
+  if (TOON) { TR.pedHull = new THREE.InstancedMesh(geo, hullMats().small, MAXP * PED_N); TR.pedHull.instanceMatrix = TR.pedMesh.instanceMatrix; TR.pedHull.frustumCulled = false; scene.add(TR.pedHull); }
   for (let i = 0; i < MAXP; i++) TR.peds.push({ on: false, i, x: 0, z: 0, h: 0, v: 0, phase: Math.random() * 6, state: 'walk', t: 0 });
 }
 function pedColors(p) {
-  const r = Math.random; const cs = [PED_SHIRTS[Math.floor(r() * PED_SHIRTS.length)], PED_PANTS[Math.floor(r() * PED_PANTS.length)], PED_SKIN[Math.floor(r() * PED_SKIN.length)], PED_HAIR[Math.floor(r() * PED_HAIR.length)]];
-  PED_PARTS.forEach((pp, k) => TR.pedMesh.setColorAt(p.i * PED_PARTS.length + k, cs[pp[6]]));
+  const r = Math.random;
+  p.look = Math.floor(r() * PED_LOOKS.length); p.fit = Math.floor(r() * PED_FITS.length);
+  p.cs = [PED_SHIRTS[Math.floor(r() * PED_SHIRTS.length)], PED_PANTS[Math.floor(r() * PED_PANTS.length)], PED_SKIN[Math.floor(r() * PED_SKIN.length)], PED_HAIR[Math.floor(r() * PED_HAIR.length)], PED_ACCENT[Math.floor(r() * PED_ACCENT.length)]];
+  const base = p.i * PED_N; const fit = PED_FITS[p.fit];
+  const col = (k) => (k === 11 ? p.cs[fit.slot || 4] : k === 9 ? p.cs[4] : (k === 7 || k === 8) ? PED_SHOE : p.cs[[0, 2, 3, 0, 0, 1, 1, 5, 5, 4, 3, 4, 1, 1][k]]);
+  for (let k = 0; k < PED_N; k++) TR.pedMesh.setColorAt(base + k, col(k));
   TR.pedMesh.instanceColor.needsUpdate = true;
+}
+function pedPut(idx, root, x, y, z, w, h, d) {
+  if (!(w > 0)) { TR.pedMesh.setMatrixAt(idx, pedZ); return; }
+  pedMT.makeTranslation(x, y, z); pedMS.makeScale(w, h, d); pedMA.multiplyMatrices(pedMT, pedMS); pedMA.premultiply(root);
+  TR.pedMesh.setMatrixAt(idx, pedMA);
+}
+function pedLimb(idx, root, jx, jy, jz, rot, x, y, z, w, h, d) {
+  if (!(w > 0)) { TR.pedMesh.setMatrixAt(idx, pedZ); return; }
+  pedMT.makeTranslation(jx, jy, jz); pedMR.makeRotationX(rot); pedMA.multiplyMatrices(pedMT, pedMR);
+  pedMT.makeTranslation(x - jx, y - jy, z - jz); pedMS.makeScale(w, h, d); pedMB.multiplyMatrices(pedMT, pedMS); pedMA.multiply(pedMB); pedMA.premultiply(root);
+  TR.pedMesh.setMatrixAt(idx, pedMA);
+}
+function pedShin(idx, root, jx, jy, jz, thigh, thighLen, shin, w, h, d, zf) {
+  if (!(w > 0)) { TR.pedMesh.setMatrixAt(idx, pedZ); return; }
+  pedMT.makeTranslation(jx, jy, jz); pedMR.makeRotationX(thigh); pedMA.multiplyMatrices(pedMT, pedMR);
+  pedMT.makeTranslation(0, -thighLen, 0); pedMA.multiply(pedMT); pedMR.makeRotationX(shin); pedMA.multiply(pedMR);
+  pedMT.makeTranslation(0, -h / 2, zf || 0); pedMS.makeScale(w, h, d); pedMB.multiplyMatrices(pedMT, pedMS); pedMA.multiply(pedMB); pedMA.premultiply(root);
+  TR.pedMesh.setMatrixAt(idx, pedMA);
 }
 function spawnPedAt(x, z) {
   const p = TR.peds.find((q) => !q.on); if (!p) return null;
@@ -2769,14 +2839,14 @@ function spawnPedWalker(f) {
 }
 const pm4 = new THREE.Matrix4(), pm4b = new THREE.Matrix4(), pq = new THREE.Quaternion(), pe = new THREE.Euler(), pv3 = new THREE.Vector3(), ps3 = new THREE.Vector3();
 function updatePeds(dt) {
-  const f = focusPos(); const max = pedMax(); let active = 0;
+  const f = focusPos(); const max = pedMax(); const rng = pedRange(); let active = 0;
   for (const p of TR.peds) if (p.on) active++;
   TR.pedT -= dt; if (TR.pedT <= 0) { TR.pedT = 0.5; if (active < max && !inOffZone(f.x, f.z)) spawnPedWalker(f); }
-  const NP = PED_PARTS.length; const zero = new THREE.Matrix4().makeScale(0, 0, 0); const camP = camera.position;
+  const camP = camera.position;
   for (const p of TR.peds) {
     if (!p.on) continue;
     const d = Math.hypot(p.x - f.x, p.z - f.z);
-    if (d > 260 || (active > max + 3 && d > 80)) { p.on = false; active--; for (let k = 0; k < NP; k++) TR.pedMesh.setMatrixAt(p.i * NP + k, zero); continue; }
+    if (d > rng.despawn || (active > max + 3 && d > 80)) { p.on = false; active--; for (let k = 0; k < PED_N; k++) TR.pedMesh.setMatrixAt(p.i * PED_N + k, pedZ); continue; }
     // hit by any moving car
     if (p.state !== 'fall') for (const c of cars) {
       if (!c.g.visible || Math.abs(c.x - p.x) > 4 || Math.abs(c.z - p.z) > 4) continue;
@@ -2806,19 +2876,42 @@ function updatePeds(dt) {
       const tx = smp.x - Math.cos(smp.h) * off, tz = smp.z + Math.sin(smp.h) * off; p.h = Math.atan2(tx - p.x, tz - p.z) || p.h;
       if (Math.hypot(tx - p.x, tz - p.z) > 6) { p.x = tx; p.z = tz; } else { p.x = tx; p.z = tz; }
     } else { p.v = 0.8; const nx = p.x + Math.sin(p.h) * p.v * dt, nz = p.z + Math.cos(p.h) * p.v * dt; collideCircle(nx, nz, 0.35, col, true); if (col.hit) p.h += 1.5; p.x = col.x; p.z = col.z; }
-    if (p.state !== 'fall') { p.phase += dt * (run ? 6.5 : p.v) * 2.6; swing = Math.sin(p.phase) * (run ? 0.9 : 0.55); }
-    // matrices
-    const far = Math.hypot(p.x - camP.x, p.z - camP.z) > 160;
-    pe.set(pitch, p.h, 0, 'YXZ'); pq.setFromEuler(pe); pv3.set(p.x, groundH(p.x, p.z), p.z); ps3.set(1, 1, 1); pm4.compose(pv3, pq, ps3);
-    PED_PARTS.forEach((pp, k) => {
-      if (far && k > 1) { TR.pedMesh.setMatrixAt(p.i * NP + k, zero); return; }
-      const piv = pp[7]; let rot = 0; if (piv === 1 || piv === 4) rot = swing; else if (piv === 2 || piv === 3) rot = -swing;
-      if (piv) { // limb rotates about its top
-        const top = pp[4] + pp[1] / 2; pm4b.makeTranslation(pp[3], top, pp[5]); const r = new THREE.Matrix4().makeRotationX(rot); pm4b.multiply(r); pm4b.multiply(new THREE.Matrix4().makeTranslation(0, -pp[1] / 2, 0));
-      } else pm4b.makeTranslation(pp[3], pp[4], pp[5]);
-      pm4b.multiply(new THREE.Matrix4().makeScale(pp[0], pp[1], pp[2])); pm4b.premultiply(pm4);
-      TR.pedMesh.setMatrixAt(p.i * NP + k, pm4b);
-    });
+    if (p.state !== 'fall') { p.phase += dt * (run ? 7.2 : Math.max(p.v, 0.8)) * 2.5; swing = Math.sin(p.phase) * (run ? 0.85 : 0.62); }
+    const camD = Math.hypot(p.x - camP.x, p.z - camP.z);
+    const far = camD > rng.far; const dress = !far && camD < rng.detail; const bones = dress && settings.quality !== 'low';
+    const bob = p.state === 'fall' ? 0 : Math.abs(Math.sin(p.phase)) * (run ? 0.055 : 0.03);
+    pe.set(pitch + (p.state === 'fall' ? 0 : run ? 0.12 : 0.04), p.h, 0, 'YXZ'); pq.setFromEuler(pe);
+    pv3.set(p.x, groundH(p.x, p.z) + bob, p.z); ps3.set(1, 1, 1); pm4.compose(pv3, pq, ps3);
+    const b = p.i * PED_N; const look = PED_LOOKS[p.look] || PED_LOOKS[0]; const fit = PED_FITS[p.fit] || PED_FITS[0];
+    pedPut(b, pm4, 0, 1.22, 0, 0.5, 0.62, 0.28);
+    pedPut(b + 1, pm4, 0, 1.68, 0, far ? 0.34 : 0.3, far ? 0.34 : 0.32, far ? 0.34 : 0.3);
+    if (far) {
+      for (let k = 2; k < PED_N; k++) TR.pedMesh.setMatrixAt(b + k, pedZ);
+    } else {
+      const hair = look.hair; pedPut(b + 2, pm4, hair[3], hair[4], hair[5], hair[0], hair[1], hair[2]);
+      const arm = swing * 0.8, hipY = 0.9, shY = 1.5;
+      pedLimb(b + 3, pm4, -0.4, shY, 0, -arm, -0.4, shY - 0.26, 0, 0.16, 0.52, 0.16);
+      pedLimb(b + 4, pm4, 0.4, shY, 0, arm, 0.4, shY - 0.26, 0, 0.16, 0.52, 0.16);
+      const thigh = 0.42, shin = 0.34;
+      if (bones) {
+        pedLimb(b + 5, pm4, -0.13, hipY, 0, swing, -0.13, hipY - thigh / 2, 0, 0.18, thigh, 0.18);
+        pedLimb(b + 6, pm4, 0.13, hipY, 0, -swing, 0.13, hipY - thigh / 2, 0, 0.18, thigh, 0.18);
+        const bL = Math.max(0, swing) * 1.15, bR = Math.max(0, -swing) * 1.15;
+        pedShin(b + 12, pm4, -0.13, hipY, 0, swing, thigh, bL, 0.16, shin, 0.16, 0.02);
+        pedShin(b + 13, pm4, 0.13, hipY, 0, -swing, thigh, bR, 0.16, shin, 0.16, 0.02);
+        pedShin(b + 7, pm4, -0.13, hipY, 0, swing, thigh + shin, bL, 0.2, 0.1, 0.28, 0.08);
+        pedShin(b + 8, pm4, 0.13, hipY, 0, -swing, thigh + shin, bR, 0.2, 0.1, 0.28, 0.08);
+      } else {
+        pedLimb(b + 5, pm4, -0.13, hipY, 0, swing, -0.13, hipY - 0.4, 0, 0.18, 0.8, 0.18);
+        pedLimb(b + 6, pm4, 0.13, hipY, 0, -swing, 0.13, hipY - 0.4, 0, 0.18, 0.8, 0.18);
+        pedLimb(b + 7, pm4, -0.13, hipY, 0, swing, -0.13, hipY - 0.84, 0.05, 0.2, 0.1, 0.3);
+        pedLimb(b + 8, pm4, 0.13, hipY, 0, -swing, 0.13, hipY - 0.84, 0.05, 0.2, 0.1, 0.3);
+        TR.pedMesh.setMatrixAt(b + 12, pedZ); TR.pedMesh.setMatrixAt(b + 13, pedZ);
+      }
+      if (dress && look.hat) pedPut(b + 9, pm4, look.hat[3], look.hat[4], look.hat[5], look.hat[0], look.hat[1], look.hat[2]); else TR.pedMesh.setMatrixAt(b + 9, pedZ);
+      if (dress && look.extra) pedPut(b + 10, pm4, look.extra[3], look.extra[4], look.extra[5], look.extra[0], look.extra[1], look.extra[2]); else TR.pedMesh.setMatrixAt(b + 10, pedZ);
+      if (dress && fit.cloth) pedPut(b + 11, pm4, fit.cloth[3], fit.cloth[4], fit.cloth[5], fit.cloth[0], fit.cloth[1], fit.cloth[2]); else TR.pedMesh.setMatrixAt(b + 11, pedZ);
+    }
   }
   TR.pedMesh.instanceMatrix.needsUpdate = true;
 }
@@ -2916,7 +3009,7 @@ function carHitEvent(other, v) {
 function initPolice() {
   ensureHud();
   for (let i = 0; i < 7; i++) { const c = new Car(scene, 0xffffff, 0, -99999, 0, { police: true }); c.g.visible = false; c.pooled = true; POL.pool.push(c); POL.cars.push(c); }
-  for (let i = 0; i < 4; i++) { const w = makeWalker({ shirt: 0x24489c, pants: 0x1a2340, cap: 0x1a2340, belt: 0x111111 }); w.visible = false; scene.add(w); POL.foot.push({ w, on: false, x: 0, z: 0, h: 0, y: 0 }); }
+  for (let i = 0; i < 4; i++) { const w = makeWalker({ shirt: 0x24489c, pants: 0x1a2340, hairStyle: 'cap', cap: 0x1a2340, belt: 0x111111, jacket: 0x1c3f8a }); w.visible = false; scene.add(w); POL.foot.push({ w, on: false, x: 0, z: 0, h: 0, y: 0 }); }
   // paint-shop markers
   for (const s of PLACES.shops) {
     const [x, z] = findFree(s.x, s.z, 3.5); s.x = x; s.z = z;
@@ -3534,7 +3627,7 @@ function initMissions() {
   MIS.list = MDEF.map((d) => ({ ...d, done: !!SAVE.done[d.id] }));
   for (const m of MIS.list) {
     let gx, gz; if (m.id === 'offroad') { gx = EGG.mon.x + 5; gz = EGG.mon.z + 5; } else { gx = m.giver[0]; gz = m.giver[1]; }
-    const p = misPlace(gx + (m.id === 'taxi' ? 12 : 0), gz + (m.id === 'taxi' ? 9 : 0), 1.2); m.gx = p.x; m.gz = p.z; m.cool = Math.hypot(player.x - p.x, player.z - p.z) < 12; m.obj3 = makeGiver(p.x, p.z, m.col, m.who);
+    const p = misPlace(gx + (m.id === 'taxi' ? 12 : 0), gz + (m.id === 'taxi' ? 9 : 0), 1.2); m.gx = p.x; m.gz = p.z; m.cool = Math.hypot(player.x - p.x, player.z - p.z) < 12; m.obj3 = makeGiver(p.x, p.z, m.col, m.who, m.id);
   }
   MIS.tgt = makeTarget();
   const hud = $('hud'); const mh = document.createElement('div'); mh.id = 'mhud'; mh.className = 'hidden';
@@ -3546,12 +3639,29 @@ function initMissions() {
   $('dlgYes').onclick = () => dialogAction(); $('dlgNo').onclick = () => dialogClose();
   for (const id of ['dialog', 'shopMenu']) { $(id).addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true }); $(id).addEventListener('mousedown', (e) => e.stopPropagation()); }
 }
-function makeGiver(x, z, col, who) {
+const GIVER_LOOK = {
+  taxi: { hairStyle: 'cap', cap: 0x2a211c, jacket: 0xf6c431 },
+  pizza: { hairStyle: 'short', jacket: 0xff7a2a },
+  race: { hairStyle: 'pony', bag: 0x2a211c },
+  escape: { hairStyle: 'bun', jacket: 0x5a3d80 },
+  steal: { hairStyle: 'cap', cap: 0x6b4a32 },
+  offroad: { hairStyle: 'long' },
+  courier: { hairStyle: 'bun', skirt: true, bag: 0xf4f1ea },
+  final: { hairStyle: 'short', jacket: 0x3a3a3a },
+  kursy: { hairStyle: 'cap', cap: 0x2a211c, jacket: 0xf6c431 },
+  targ: { hairStyle: 'long', skirt: true },
+  uliczna: { hairStyle: 'pony', jacket: 0xff3b3b },
+  jezioro: { hairStyle: 'short', bag: 0x1a6a8a },
+  drift: { hairStyle: 'cap', cap: 0x222222, jacket: 0x2a211c },
+  tort: { hairStyle: 'bun', skirt: true, jacket: 0xffd0e0 },
+};
+function makeGiver(x, z, col, who, id) {
   const g = new THREE.Group(); g.position.set(x, groundH(x, z), z);
   const c = new THREE.Color(col);
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 26, 16, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })); beam.position.y = 13; g.add(beam);
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.9, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.9, depthWrite: false })); ring.position.y = 0.22; g.add(ring);
-  const w = makeWalker({ shirt: c.getHex(), cap: 0x2a211c }); g.add(w);
+  const look = GIVER_LOOK[id] || { hairStyle: 'short' };
+  const w = makeWalker({ shirt: c.getHex(), ...look }); g.add(w);
   const ex = labelSprite('!', col, 1.6); ex.position.y = 3.2; g.add(ex);
   const lab = labelSprite(who, col, 6); lab.position.y = 4.4; lab.visible = false; g.add(lab);
   scene.add(g); return { g, beam, ring, w, ex, lab };
@@ -3646,6 +3756,7 @@ function updateMissions(dt) {
     const o = m.obj3; const show = giverOpen(m); o.g.visible = show; if (!show) continue;
     const d = Math.hypot(f.x - m.gx, f.z - m.gz); o.beam.material.opacity = 0.16 + 0.1 * Math.sin(tt + m.gx); o.ex.position.y = 3.2 + Math.sin(tt * 1.5) * 0.25; o.lab.visible = d < 40;
     o.w.rotation.y = Math.atan2(f.x - m.gx, f.z - m.gz);
+    if (d < 80) animateWalker(o.w, 0, dt, false);
     if (m.cool && d > 9) m.cool = false;
     if (!m.cool && !MIS.dlg && d < (G.mode === 'car' ? 6 : 3) && (G.mode === 'foot' || activeCar.speed < 3) && !G.cut) dialogOpen(m);
   }
@@ -5225,7 +5336,7 @@ function initMenu() {
 Object.assign(G, {
   teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE,
   radioStep, radioPower, radioPlay, radioStop, setStars, crime, busted, wasted, damageCar, missionStart: (id) => missionStart(MIS.list.find((m) => m.id === id)), missionEnd, addMoney,
-  traffic: () => ({ agents: TR.agents.length, pool: TR.pool.length, peds: TR.peds.filter((p) => p.on).length, nodes: TR.nodes.length, edges: TR.edges.length, zebras: W.zebras || 0, moved: TR.stats.moved, spawned: TR.stats.spawned, cars: cars.length,
+  traffic: () => ({ agents: TR.agents.length, pool: TR.pool.length, peds: TR.peds.filter((p) => p.on).length, pedList: TR.peds.filter((p) => p.on).map((p) => ({ x: p.x, z: p.z, h: p.h, look: p.look, fit: p.fit })), nodes: TR.nodes.length, edges: TR.edges.length, zebras: W.zebras || 0, moved: TR.stats.moved, spawned: TR.stats.spawned, cars: cars.length,
     list: TR.agents.map((c) => ({ x: c.x, z: c.z, h: c.h, v: c.ai ? c.ai.v : 0, e: c.ai ? c.ai.e : -1, mode: c.ai ? c.ai.mode : '' })) }),
   police: () => ({ stars: WANT.stars, seen: WANT.seen, evade: WANT.evade, chasers: chasers().length, blocks: POL.blocks.length, foot: POL.foot.filter((p) => p.on).length, bustT: POL.bustT, busted: G.bustedN || 0, footList: POL.foot.filter((p) => p.on).map((p) => Math.round(Math.hypot(p.x - focusXZ().x, p.z - focusXZ().z))), wasted: G.wastedN || 0, cut: !!G.cut, events: POL.events.slice(-10), siren: G.sirenVol || 0,
     list: POL.cars.filter((c) => c.g.visible).map((c) => ({ x: c.x, z: c.z, sp: c.speed, chase: !!c.pai, block: !!c.block, patrol: !!c.patrol, wrecked: !!c.wrecked, hp: Math.round(c.hp || 0), h: c.h, pi: c.pai ? c.pai.pi : -1, pl: c.pai && c.pai.path ? c.pai.path.length / 2 : 0, rev: c.pai ? +(c.pai.rev || 0).toFixed(1) : 0, srch: !!(c.pai && c.pai.search) })) }),
