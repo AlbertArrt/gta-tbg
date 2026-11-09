@@ -142,6 +142,7 @@ function initInput() {
     if (G.tutor) { tutorKey(e.code); return; }
     if (G.journalOpen) { if (e.code === 'Escape' || e.code === 'KeyJ') closeJournal(); return; }
     if (G.dialogOpen) { if (e.code === 'KeyE' || e.code === 'Enter') dialogAction(); else if (e.code === 'Escape') dialogClose(); return; }
+    if (G.inRange) { if (e.code === 'Escape' || e.code === 'KeyE') { if (typeof rangeExit === 'function') rangeExit(); } return; }
     if (G.inGarage) { garageKey(e.code); return; }
     if (POL.shop) { if (e.code === 'Digit1') { shopBuy('paint'); return; } if (e.code === 'Digit2') { shopBuy('fix'); return; } if (e.code === 'Escape' || e.code === 'Digit3') { shopClose(); return; } }
     if (e.code === 'Space' && G.mode === 'foot') G.jumpReq = true;
@@ -154,7 +155,7 @@ function initInput() {
       else { navClear(); toast('GPS wyłączony', 1200); }
     }
     else if (e.code === 'KeyH') {
-      if (G.mapOpen || G.journalOpen || G.dialogOpen || G.inGarage || G.tutor || (POL && POL.shop)) return;
+      if (G.mapOpen || G.journalOpen || G.dialogOpen || G.inGarage || G.inRange || G.tutor || (POL && POL.shop)) return;
       e.preventDefault(); objToggle();
     }
     else if (e.code === 'KeyR' || e.code === 'Period') radioStep(1);
@@ -167,12 +168,12 @@ function initInput() {
   addEventListener('keyup', (e) => G.keys.delete(e.code));
   addEventListener('blur', () => G.keys.clear());
   const canvas = $('c');
-  canvas.addEventListener('click', () => { if (G.started && !G.paused && !isTouch && canvas.requestPointerLock) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* unsupported */ } } });
+  canvas.addEventListener('click', () => { if (G.inRange) return; if (G.started && !G.paused && !isTouch && canvas.requestPointerLock) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* unsupported */ } } });
   let drag = null;
   canvas.addEventListener('mousedown', (e) => { drag = { x: e.clientX, y: e.clientY }; });
   addEventListener('mouseup', () => { drag = null; G.mouseLooking = false; });
   addEventListener('mousemove', (e) => {
-    if (!G.started || G.paused) return;
+    if (!G.started || G.paused || G.inRange) return;
     let dx = 0, dy = 0;
     if (document.pointerLockElement === canvas) { dx = e.movementX; dy = e.movementY; }
     else if (drag) { dx = e.clientX - drag.x; dy = e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY }; }

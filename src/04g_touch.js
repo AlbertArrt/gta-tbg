@@ -51,6 +51,7 @@ function tDown(e) {
   try { $('touch').setPointerCapture(id); } catch (err) { /* ignore */ }
   const b = btnAt(x, y);
   if (b) { TP.ptrs.set(id, { t: 'btn', b }); bPress(b); return; }
+  if (G.inRange && typeof rangeAimEvent === 'function') { rangeAimEvent(e); TP.ptrs.set(id, { t: 'aim' }); return; }
   if (!TP.joy && joyLeftSide(x) && y > innerHeight * 0.25) {
     TP.joy = { id, ox: x, oy: y }; TP.ptrs.set(id, { t: 'joy' });
     const base = $('joy'); base.classList.add('on'); base.style.left = x + 'px'; base.style.top = y + 'px'; base.style.right = 'auto'; base.style.bottom = 'auto';
@@ -74,6 +75,7 @@ function tMove(e) {
   const p = TP.ptrs.get(e.pointerId); if (!p) return; if (e.cancelable) e.preventDefault();
   const x = e.clientX, y = e.clientY;
   if (p.t === 'joy') joySet(x, y);
+  else if (p.t === 'aim' && typeof rangeAimEvent === 'function') rangeAimEvent(e);
   else if (p.t === 'look') {
     const L = TP.look; const dx = x - L.x, dy = y - L.y; L.x = x; L.y = y;
     const acc = 1 + Math.min(1, Math.hypot(dx, dy) / 30) * 0.6; // delikatne przyspieszenie przy szybkich ruchach

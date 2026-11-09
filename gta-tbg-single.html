@@ -209,6 +209,23 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 .tb.small{grid-column:3;height:calc(var(--tbs) * .62)}
 .tb.active{background:var(--sun)!important;transform:translateY(3px) scale(.94);box-shadow:0 0 0 var(--ink)!important}
 #touch.lefty #tbtns{right:auto;left:calc(14px + env(safe-area-inset-left))}
+#touch.range #tbtns,#touch.range #joy{visibility:hidden}
+#rangeHud{position:fixed;inset:0;z-index:12;pointer-events:none;color:var(--ink)}
+#rangeHud button{pointer-events:auto}
+#rangeTop{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:var(--cream);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);border-radius:16px;padding:6px 16px;display:flex;gap:14px;align-items:center;font-weight:700;max-width:70vw}
+#rangeScore{font-size:22px;font-weight:700}
+#rangeAmmo,#rangeCombo{position:absolute;right:16px;font-weight:700;background:var(--cream);border:3px solid var(--ink);border-radius:12px;padding:4px 10px}
+#rangeAmmo{top:104px}#rangeCombo{top:148px}
+#rangeCross{position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border:3px solid var(--ink);border-radius:50%;box-shadow:0 0 0 2px #fff}
+#rangeCross:before,#rangeCross:after{content:"";position:absolute;background:var(--ink)}
+#rangeCross:before{left:50%;top:3px;bottom:3px;width:2px;margin-left:-1px}
+#rangeCross:after{top:50%;left:3px;right:3px;height:2px;margin-top:-1px}
+#rangeFire{position:absolute;right:18px;bottom:24px;min-width:96px;min-height:64px;font-size:20px;font-weight:800;background:var(--sun);color:var(--ink)}
+#rangeOut{position:absolute;left:18px;bottom:24px;min-height:48px;background:var(--cream);color:var(--ink)}
+#rangeEnd{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,92vw);background:var(--cream);color:var(--ink);border:3px solid var(--ink);box-shadow:0 6px 0 var(--ink);border-radius:18px;padding:16px;text-align:center;pointer-events:auto}
+#rangeEnd .row{display:flex;gap:10px;justify-content:center;margin-top:10px}
+#rangeEnd button{min-height:48px}
+@media (pointer:coarse){#rangeFire{min-width:120px;min-height:72px}}
 #touch.lefty #joy{left:auto;right:calc(24px + var(--tbs) * 1.1);transform:translate(50%,50%)}
 #touch.lefty #joy.on{right:auto;transform:translate(-50%,-50%)}
 /* ===================== GARAŻ, DRIFT, NITRO, ZATRZYMANIE ===================== */
@@ -1881,7 +1898,7 @@ async function init() {
   spawnAtRynek();
   spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions(); initGarages(); initDriveFx();
   applyTime(); applyQuality();
-  initMinimap(); initBigMap(); initInput(); initRadio(); initMenu(); initNav();
+  initMinimap(); initBigMap(); initInput(); initRadio(); initMenu(); initNav(); if (typeof initRange === 'function') initRange();
   window.addEventListener('resize', onResize); onResize();
   setLoad(1, 'Gotowe!');
   $('loading').classList.add('hidden'); $('menu').classList.remove('hidden');
@@ -2165,12 +2182,13 @@ function loop() {
   const rawDt = clock.getDelta(); let dt = Math.min(0.05, rawDt); const tU = performance.now();
   if (G.started && !G.paused) {
     G.gameT = (G.gameT || 0) + dt;
-    if (G.cut) { G.cut.t -= dt; if (G.mode === 'car') updateCar(activeCar, dt, { thr: 0, steer: 0, hand: true }); if (G.cut.t <= 0) { const f = G.cut.fn; G.cut = null; f(); } }
+    if (G.inRange) { /* stanowisko trzyma kamerę; miasto dalej żyje */ }
+    else if (G.cut) { G.cut.t -= dt; if (G.mode === 'car') updateCar(activeCar, dt, { thr: 0, steer: 0, hand: true }); if (G.cut.t <= 0) { const f = G.cut.fn; G.cut = null; f(); } }
     else if (G.mode === 'foot') updateFoot(dt); else updateCar(activeCar, dt, true);
     updateParked(dt);
     updateTraffic(dt); updatePolice(dt); updateDamage(dt); updateShops(dt);
-    updateEgg(dt); updateMissions(dt); updateNav(dt); updateGarages(dt); updateDriveFx(dt);
-    const eh = eggHint() || missionHint() || garageHint() || shopHint();
+    updateEgg(dt); updateMissions(dt); updateNav(dt); updateGarages(dt); updateDriveFx(dt); if (typeof updateRange === 'function') updateRange(dt);
+    const eh = G.inRange ? null : (eggHint() || missionHint() || (typeof rangeHint === 'function' ? rangeHint() : null) || garageHint() || shopHint());
     const near = G.mode === 'foot' && cars.some((c) => Math.hypot(c.x - player.x, c.z - player.z) < 3.8);
     hint(eh || (near ? (isTouch ? 'Naciśnij WSIĄDŹ' : 'Naciśnij E, aby wsiąść') : ''));
     if (G.mode === 'foot') { const lbl = eh ? (nearEggButton() ? 'TELEPORT' : 'AKCJA') : 'WSIĄDŹ'; if (G.tLbl !== lbl) { G.tLbl = lbl; $('tEnter').textContent = lbl; } } else G.tLbl = '';
@@ -2454,7 +2472,7 @@ function nearEggButton() {
   if (Math.hypot(player.x - EGG.back.x, player.z - EGG.back.z) < 2.6) return 'back';
   return null;
 }
-function actionE() { if (G.cut) return false; if (typeof dialogAction === 'function' && dialogAction()) return true; const b = nearEggButton(); if (b === 'go') return eggGo(); if (b === 'back') return eggBack(); if (missionAction()) return true; if (typeof garageAction === "function" && garageAction()) return true; if (shopAction()) return true; return enterExit(); }
+function actionE() { if (G.cut) return false; if (G.inRange && typeof rangeAction === 'function') return rangeAction(); if (typeof dialogAction === 'function' && dialogAction()) return true; const b = nearEggButton(); if (b === 'go') return eggGo(); if (b === 'back') return eggBack(); if (missionAction()) return true; if (typeof rangeAction === 'function' && rangeAction()) return true; if (typeof garageAction === "function" && garageAction()) return true; if (shopAction()) return true; return enterExit(); }
 function eggGo() {
   discover('trails'); const j = EGG.jeep, s = EGG.jeepSpot;
   j.x = s.x; j.z = s.z; j.h = s.h; j.vx = j.vz = 0; j.y = groundH(j.x, j.z); j.vy = 0; j.sync();
@@ -3676,7 +3694,7 @@ function makeTarget() {
 function storyDoneCount() { return MIS.list.filter((q) => q.done && !q.side && q.id !== 'final').length; }
 function giverOpen(m) { return !MIS.active && !m.busy && (!m.needs || storyDoneCount() >= m.needs); }
 function nearGiver() {
-  const f = focusXZ(); for (const m of MIS.list) if (giverOpen(m) && Math.hypot(f.x - m.gx, f.z - m.gz) < (G.mode === 'car' ? 7 : 3.6)) return m; return null;
+  const f = focusXZ(); for (const m of MIS.list) if (!m.range && giverOpen(m) && Math.hypot(f.x - m.gx, f.z - m.gz) < (G.mode === 'car' ? 7 : 3.6)) return m; return null;
 }
 function missionHint() {
   if (MIS.active) return null; const m = nearGiver(); if (!m) return null;
@@ -3753,7 +3771,7 @@ function missionEvent(ev) { /* hook: 'lost' when police chase ends */ MIS.lastEv
 function updateMissions(dt) {
   const f = focusXZ(); const tt = performance.now() * 0.003;
   for (const m of MIS.list) {
-    const o = m.obj3; const show = giverOpen(m); o.g.visible = show; if (!show) continue;
+    const o = m.obj3; if (!o) continue; const show = giverOpen(m); o.g.visible = show; if (!show) continue;
     const d = Math.hypot(f.x - m.gx, f.z - m.gz); o.beam.material.opacity = 0.16 + 0.1 * Math.sin(tt + m.gx); o.ex.position.y = 3.2 + Math.sin(tt * 1.5) * 0.25; o.lab.visible = d < 40;
     o.w.rotation.y = Math.atan2(f.x - m.gx, f.z - m.gz);
     if (d < 80) animateWalker(o.w, 0, dt, false);
@@ -3771,7 +3789,8 @@ function updateMissions(dt) {
 }
 function drawMissionMinimap(g, sc) {
   g.lineWidth = 2 / sc; g.strokeStyle = '#2a211c';
-  for (const m of MIS.list) { if (!giverOpen(m)) continue; g.fillStyle = m.col; g.beginPath(); g.arc(m.gx, m.gz, 8 / sc, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#2a211c'; g.font = 'bold ' + (11 / sc) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', m.gx, m.gz + 0.5 / sc); }
+  for (const m of MIS.list) { if (m.range || !giverOpen(m)) continue; g.fillStyle = m.col; g.beginPath(); g.arc(m.gx, m.gz, 8 / sc, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#2a211c'; g.font = 'bold ' + (11 / sc) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', m.gx, m.gz + 0.5 / sc); }
+  if (typeof drawRangeMinimap === 'function') drawRangeMinimap(g, sc);
   const T = MIS.active && MIS.active.target; if (T && T !== activeCar) { g.fillStyle = '#ffd21f'; g.beginPath(); g.moveTo(T.x, T.z - 11 / sc); g.lineTo(T.x + 8 / sc, T.z); g.lineTo(T.x, T.z + 11 / sc); g.lineTo(T.x - 8 / sc, T.z); g.closePath(); g.fill(); g.stroke(); }
   if (MIS.active && MIS.active.cps) { g.fillStyle = '#ff3b3b'; for (const r of MIS.active.rivals || []) { g.beginPath(); g.arc(r.x, r.z, 5 / sc, 0, 7); g.fill(); } }
   for (const c of POL.cars) if (c.g.visible && c !== activeCar && (c.pai || c.block || c.patrol)) { const b = Math.floor(performance.now() / 250) % 2; g.fillStyle = c.patrol ? '#3d6fe0' : (b ? '#ff2a2a' : '#2a5cff'); g.beginPath(); g.arc(c.x, c.z, 6 / sc, 0, 7); g.fill(); g.stroke(); }
@@ -3914,6 +3933,7 @@ function tDown(e) {
   try { $('touch').setPointerCapture(id); } catch (err) { /* ignore */ }
   const b = btnAt(x, y);
   if (b) { TP.ptrs.set(id, { t: 'btn', b }); bPress(b); return; }
+  if (G.inRange && typeof rangeAimEvent === 'function') { rangeAimEvent(e); TP.ptrs.set(id, { t: 'aim' }); return; }
   if (!TP.joy && joyLeftSide(x) && y > innerHeight * 0.25) {
     TP.joy = { id, ox: x, oy: y }; TP.ptrs.set(id, { t: 'joy' });
     const base = $('joy'); base.classList.add('on'); base.style.left = x + 'px'; base.style.top = y + 'px'; base.style.right = 'auto'; base.style.bottom = 'auto';
@@ -3937,6 +3957,7 @@ function tMove(e) {
   const p = TP.ptrs.get(e.pointerId); if (!p) return; if (e.cancelable) e.preventDefault();
   const x = e.clientX, y = e.clientY;
   if (p.t === 'joy') joySet(x, y);
+  else if (p.t === 'aim' && typeof rangeAimEvent === 'function') rangeAimEvent(e);
   else if (p.t === 'look') {
     const L = TP.look; const dx = x - L.x, dy = y - L.y; L.x = x; L.y = y;
     const acc = 1 + Math.min(1, Math.hypot(dx, dy) / 30) * 0.6; // delikatne przyspieszenie przy szybkich ruchach
@@ -4998,7 +5019,7 @@ function bestLabel(m) {
   return m.bestLow ? ('rekord ' + fmtT(SAVE.best[m.bestKey])) : ('rekord ' + Math.round(SAVE.best[m.bestKey]) + ' pkt');
 }
 function openJournal() {
-  if (!G.started || G.tutor || G.dialogOpen || G.inGarage || (typeof POL !== 'undefined' && POL.shop)) return;
+  if (!G.started || G.tutor || G.dialogOpen || G.inGarage || G.inRange || (typeof POL !== 'undefined' && POL.shop)) return;
   if (G.mapOpen) closeMap();
   G.journalOpen = true; G.paused = true; if (document.pointerLockElement) document.exitPointerLock();
   $('journal').classList.remove('hidden'); renderJournal();
@@ -5034,7 +5055,7 @@ function journalCard(m) {
   const who = document.createElement('div'); who.className = 'jWho'; who.textContent = m.who + (m.where ? ' · ' + m.where : ''); card.appendChild(who);
   const rec = document.createElement('div'); rec.className = 'jPay';
   const paid = m.side && SAVE.claimed[m.id];
-  rec.textContent = 'Nagroda: ' + m.reward + ' zł' + (m.side ? (paid ? ' · już odebrana (zostaje premia za rekord)' : ' · pierwszy raz') : ' · można powtarzać') + (bestLabel(m) ? ' · ' + bestLabel(m) : '');
+  rec.textContent = m.range ? ('Wypłata za przebieg, zwykle 150–250 zł' + (bestLabel(m) ? ' · ' + bestLabel(m) : '')) : ('Nagroda: ' + m.reward + ' zł' + (m.side ? (paid ? ' · już odebrana (zostaje premia za rekord)' : ' · pierwszy raz') : ' · można powtarzać') + (bestLabel(m) ? ' · ' + bestLabel(m) : ''));
   card.appendChild(rec);
   if (m.steps && m.steps.length) { const ol = document.createElement('ol'); for (const s of m.steps) { const li = document.createElement('li'); li.textContent = s; ol.appendChild(li); } card.appendChild(ol); }
   else { const p = document.createElement('p'); p.textContent = m.text; card.appendChild(p); }
@@ -5053,7 +5074,7 @@ function journalCard(m) {
     const r = document.createElement('button'); r.type = 'button'; r.textContent = 'Od nowa';
     r.onclick = () => { missionCancel(); missionStart(m); closeJournal(); };
     btns.appendChild(r); btns.appendChild(c);
-  } else if (!MIS.active) {
+  } else if (!MIS.active && !m.range) {
     const go = document.createElement('button'); go.type = 'button'; go.textContent = m.done ? 'Jedź ponownie' : 'Przyjmij';
     go.onclick = () => { closeJournal(); missionStart(m); };
     btns.appendChild(go);
@@ -5102,6 +5123,333 @@ function bindMapGps() {
   const mode = $('mapGpsMode'); const clr = $('mapGpsClear');
   if (mode) mode.onclick = () => { BM.gpsClick = !BM.gpsClick; mode.textContent = BM.gpsClick ? 'Klik: GPS' : 'Klik: teleport'; mode.classList.toggle('on', !!BM.gpsClick); };
   if (clr) clr.onclick = () => { navClear(); toast('GPS wyłączony', 1200); if (BM.c) drawBigMap(); };
+}
+
+// ======================= STRZELNICA ZWIERZYNIEC =======================
+// Osobna minigra przy Lesie Zwierzyniec (ul. Borów). W mieście nie ma broni.
+const RANGE = {
+  x: 2375, z: -1694, h: Math.PI,
+  on: false, phase: 'idle', t: 0, score: 0, hits: 0, shots: 0, combo: 0, bestCombo: 0,
+  mag: 5, reserve: 10, reload: 0, spawnT: 0, ax: 0, ay: 0, cool: 0,
+};
+const RANGE_KINDS = {
+  pumpkin: { pts: 12, r: 0.46, col: 0xe07a1f },
+  melon: { pts: 22, r: 0.32, col: 0x6fbf45 },
+  water: { pts: 36, r: 0.4, col: 0x218a45 },
+  gold: { pts: 55, r: 0.34, col: 0xf6c431 },
+};
+const RANGE_WAVES = [
+  { t0: 0, t1: 15, name: 'Rozgrzewka', kinds: ['pumpkin'], modes: ['rail'], speed: 0.55 },
+  { t0: 17, t1: 34, name: 'Tory i wahadła', kinds: ['pumpkin', 'melon', 'melon'], modes: ['rail', 'swing'], speed: 0.95 },
+  { t0: 36, t1: 50, name: 'Wyskakujące', kinds: ['melon', 'water', 'water'], modes: ['pop', 'rail'], speed: 1.35 },
+  { t0: 50, t1: 60, name: 'Złote owoce', kinds: ['gold'], modes: ['rail', 'pop'], speed: 1.15 },
+];
+const rangeV = new THREE.Vector3(), rangeV2 = new THREE.Vector3();
+const rangeRay = new THREE.Raycaster();
+let rangeStand = null, rangeBack = null, rangeRifle = null, rangeLive = [], rangeDebris = [], rangeHoles = [], rangeHoleN = 0;
+
+function rangeSimple() { return settings.quality === 'low'; }
+function rangeCap() { return settings.quality === 'low' ? 2 : (settings.quality === 'high' ? 4 : 3); }
+function rangeWave(t) {
+  for (const w of RANGE_WAVES) if (t >= w.t0 && t < w.t1) return w;
+  return null;
+}
+function rangeReloading(t) { return (t >= 15 && t < 17) || (t >= 34 && t < 36) || RANGE.reload > 0; }
+
+function initRange() {
+  const g = new THREE.Group(); g.position.set(RANGE.x, 0, RANGE.z); g.rotation.y = RANGE.h; rangeStand = g;
+  const wood = 0xd7b07a, ink = 0x2a211c, roofC = 0xc4553a, metal = 0x8d97a3;
+  const add = (w, h, d, x, y, z, col) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mkMat({ color: col })); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
+  add(6.4, 0.16, 1.5, 0, 2.72, -1.85, roofC);
+  add(0.18, 2.5, 0.18, -3.0, 1.25, -1.8, ink); add(0.18, 2.5, 0.18, 3.0, 1.25, -1.8, ink);
+  add(0.18, 2.5, 0.18, -3.0, 1.25, 1.1, ink); add(0.18, 2.5, 0.18, 3.0, 1.25, 1.1, ink);
+  add(4.6, 0.9, 0.55, 0, 0.85, 0.15, 0xf4f1ea);
+  add(4.4, 0.08, 0.5, 0, 1.32, 0.15, wood);
+  for (const x of [-1.7, 0, 1.7]) add(0.06, 0.06, 10.2, x, 1.05, 6.4, metal);
+  rangeBack = add(7.2, 3.3, 0.32, 0, 1.65, 12.35, wood);
+  add(0.16, 3.3, 0.2, -3.55, 1.65, 6.2, ink); add(0.16, 3.3, 0.2, 3.55, 1.65, 6.2, ink);
+  const sign = rangeSign(); sign.position.set(0, 3.2, -2.15); g.add(sign);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(2.4, 3.1, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xe8503a, transparent: true, opacity: 0.85, depthWrite: false }));
+  ring.position.set(0, 0.08, -4.4); g.add(ring); RANGE.ring = ring;
+  scene.add(g); g.updateMatrixWorld(true);
+  rangeV.set(0, 0, -4.4).applyMatrix4(g.matrixWorld); RANGE.px = rangeV.x; RANGE.pz = rangeV.z;
+  const simple = rangeSimple();
+  const seg = simple ? 6 : 10;
+  RANGE.geos = {};
+  for (const k in RANGE_KINDS) RANGE.geos[k] = new THREE.SphereGeometry(RANGE_KINDS[k].r, seg, seg);
+  for (let i = 0; i < 16; i++) {
+    const h = new THREE.Mesh(new THREE.CircleGeometry(0.07, 8), new THREE.MeshBasicMaterial({ color: 0x2a211c }));
+    h.visible = false; h.renderOrder = 2; rangeBack.add(h); rangeHoles.push(h);
+  }
+  for (let i = 0; i < (simple ? 8 : 16); i++) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.07, 5, 4), mkMat({ color: 0xfff1ea }));
+    m.visible = false; scene.add(m); rangeDebris.push({ m, v: new THREE.Vector3(), t: 0, life: 0 });
+  }
+  buildRangeHud();
+  if (W.travel) W.travel.push(['🎯 Strzelnica Zwierzyniec', RANGE.px, RANGE.pz]);
+  if (typeof MIS !== 'undefined') {
+    MIS.list.push({
+      id: 'strzelnica', name: 'Strzelnica Zwierzyniec', who: 'Strzelnica', where: 'Las Zwierzyniec, ul. Borów',
+      reward: 200, side: true, range: true, bestKey: 'strzelnica', bestLow: false, col: '#e8503a',
+      text: 'Wiatrówka sportowa, trzy tory i tylko owoce: dynie, melony, arbuzy. Minuta, 15 nabojów. Wynik z celności, serii i czasu. Przyzwoity przebieg to około 150–250 zł. W mieście nie ma strzelania.',
+      gx: RANGE.px, gz: RANGE.pz, done: !!(SAVE.done && SAVE.done.strzelnica), obj3: null, cool: false,
+    });
+  }
+  Object.assign(G, {
+    rangeEnter, rangeExit, rangeFire, rangeAimWorld,
+    rangeState: () => ({ on: RANGE.on, phase: RANGE.phase, t: +RANGE.t.toFixed(2), score: RANGE.score, hits: RANGE.hits, shots: RANGE.shots, mag: RANGE.mag, reserve: RANGE.reserve, combo: RANGE.combo, pay: rangePay(RANGE.score), best: SAVE.best.strzelnica || 0, n: rangeLive.filter((q) => q.on).length, x: RANGE.px, z: RANGE.pz, targets: rangeLive.filter((q) => q.on && q.up).map((q) => { const p = q.g.getWorldPosition(new THREE.Vector3()); return { x: p.x, y: p.y, z: p.z, kind: q.kind }; }) }),
+  });
+}
+function buildRangeHud() {
+  const el = document.createElement('div'); el.id = 'rangeHud'; el.className = 'hidden';
+  el.innerHTML = '<div id="rangeTop"><b id="rangeWave">Strzelnica</b><span id="rangeTime">1:00</span><span id="rangeScore">0 pkt</span></div><div id="rangeAmmo">5 · 10</div><div id="rangeCombo"></div><div id="rangeCross"></div><div id="rangeEnd" class="hidden"><b id="rangeEndTitle">Koniec przebiegu</b><p id="rangeEndText"></p><div class="row"><button type="button" id="rangeAgain">Jeszcze raz</button><button type="button" id="rangeLeave" class="sec">Wyjdź</button></div></div><button type="button" id="rangeFire">STRZAŁ</button><button type="button" id="rangeOut">Wyjdź</button>';
+  document.body.appendChild(el);
+  $('rangeFire').onclick = (e) => { e.stopPropagation(); rangeFire(); };
+  $('rangeOut').onclick = (e) => { e.stopPropagation(); rangeExit(); };
+  $('rangeLeave').onclick = (e) => { e.stopPropagation(); rangeExit(); };
+  $('rangeAgain').onclick = (e) => { e.stopPropagation(); rangeBegin(); };
+  for (const id of ['rangeFire', 'rangeOut', 'rangeLeave', 'rangeAgain', 'rangeHud']) {
+    const n = $(id); if (!n) continue;
+    n.addEventListener('pointerdown', (e) => e.stopPropagation());
+  }
+}
+function rangeNear() {
+  if (!rangeStand) return false;
+  const f = focusXZ(); return Math.hypot(f.x - RANGE.px, f.z - RANGE.pz) < (G.mode === 'car' ? 8 : 5.5);
+}
+function rangeHint() {
+  if (!rangeStand || RANGE.on) return null;
+  if (!rangeNear()) return null;
+  if (WANT.stars) return 'Strzelnica zamknięta, dopóki ściga cię policja';
+  if (G.mode === 'car') return 'Strzelnica Zwierzyniec: wysiądź, potem ' + (isTouch ? 'AKCJA' : 'E');
+  return (isTouch ? 'AKCJA' : 'E') + ': Strzelnica Zwierzyniec – wiatrówka, tylko owoce';
+}
+function rangeAction() {
+  if (RANGE.on) { rangeExit(); return true; }
+  if (!rangeNear() || G.cut) return false;
+  if (RANGE.cool > 0) return true;
+  if (WANT.stars) { toast('Najpierw zgub policję. Na strzelnicy nie ma kryjówki.', 1800); return true; }
+  if (G.mode !== 'foot') { toast('Wysiądź – na stanowisko wchodzisz pieszo.', 1600); return true; }
+  rangeEnter(); return true;
+}
+function rangeEnter() {
+  if (RANGE.on) return;
+  RANGE.on = true; G.inRange = true; RANGE.backX = player.x; RANGE.backZ = player.z; RANGE.backH = player.h;
+  player.mesh.visible = false; player.vx = 0; player.vz = 0;
+  if (document.pointerLockElement) document.exitPointerLock();
+  rangeStand.updateMatrixWorld(true);
+  if (!rangeRifle) {
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.07, 0.32), mkMat({ color: 0x8a5a32 }));
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, 0.46), mkMat({ color: 0x2a211c })); barrel.position.set(0, 0.045, -0.28);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.05), mkMat({ color: 0x6b4228 })); grip.position.set(0, -0.04, 0.02);
+    rangeRifle = new THREE.Group(); rangeRifle.add(stock, barrel, grip); camera.add(rangeRifle);
+  }
+  rangeRifle.visible = true; rangeRifle.position.set(0.42, -0.16, -0.85); rangeRifle.scale.setScalar(1.7);
+  $('rangeHud').classList.remove('hidden');
+  $('touch').classList.add('range');
+  rangeBegin();
+}
+function rangeBegin() {
+  for (const t of rangeLive) { t.g.visible = false; rangeStand.remove(t.g); }
+  rangeLive.length = 0;
+  for (const h of rangeHoles) h.visible = false;
+  for (const d of rangeDebris) d.m.visible = false;
+  rangeHoleN = 0;
+  Object.assign(RANGE, { phase: 'intro', t: 0, score: 0, hits: 0, shots: 0, combo: 0, bestCombo: 0, mag: 5, reserve: 10, reload: 0, spawnT: 0.4, ax: 0, ay: 0, did1: false, did2: false });
+  $('rangeEnd').classList.add('hidden');
+  rangeHud();
+}
+function rangeExit() {
+  if (!RANGE.on) return;
+  RANGE.on = false; G.inRange = false; RANGE.phase = 'idle';
+  player.mesh.visible = true;
+  player.x = RANGE.backX; player.z = RANGE.backZ; player.h = RANGE.backH; player.y = groundH(player.x, player.z);
+  player.mesh.position.set(player.x, player.y, player.z); player.mesh.rotation.y = player.h;
+  G.camOverride = null; if (typeof applyFog === 'function') applyFog();
+  if (rangeRifle) rangeRifle.visible = false;
+  $('rangeHud').classList.add('hidden'); $('touch').classList.remove('range');
+  G.keys.clear(); RANGE.cool = 1.2;
+}
+function rangeSign() {
+  const cv = document.createElement('canvas'); cv.width = 768; cv.height = 128; const c = cv.getContext('2d');
+  c.fillStyle = '#2a211c'; c.fillRect(0, 0, 768, 128); c.fillStyle = '#ffd21f';
+  c.font = 'bold 52px Fredoka, system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('STRZELNICA ZWIERZYNIEC', 384, 66);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false, fog: false })); s.scale.set(8.4, 1.4, 1); return s;
+}
+function rangePay(score) { return clamp(Math.round(score * 0.82), 0, 280); }
+function rangeFinish() {
+  if (RANGE.phase === 'done') return;
+  RANGE.phase = 'done';
+  const acc = RANGE.shots ? RANGE.hits / RANGE.shots : 0;
+  RANGE.score += Math.round(acc * 60);
+  const pay = rangePay(RANGE.score);
+  const prev = SAVE.best.strzelnica;
+  const improved = prev == null || RANGE.score > prev + 0.5;
+  if (improved) SAVE.best.strzelnica = Math.round(RANGE.score);
+  const m = MIS.list.find((q) => q.id === 'strzelnica');
+  if (m) { m.done = true; SAVE.done.strzelnica = true; }
+  if (SAVE.claimed) SAVE.claimed.strzelnica = true;
+  if (pay) addMoney(pay, 'strzelnica');
+  else saveGame();
+  const rec = improved ? ' Nowy rekord!' : (prev != null ? ' Rekord: ' + Math.round(prev) + ' pkt.' : '');
+  $('rangeEndTitle').textContent = improved ? 'Nowy rekord!' : 'Koniec przebiegu';
+  $('rangeEndText').textContent = 'Trafienia ' + RANGE.hits + '/' + Math.max(RANGE.shots, RANGE.hits) + ' · najlepsza seria ' + RANGE.bestCombo + ' · ' + RANGE.score + ' pkt · ' + pay + ' zł.' + rec;
+  $('rangeEnd').classList.remove('hidden');
+  rangeHud();
+}
+function rangeHud() {
+  const left = RANGE.phase === 'play' ? Math.max(0, 60 - RANGE.t) : (RANGE.phase === 'intro' ? 60 : 0);
+  const w = rangeWave(RANGE.t);
+  $('rangeWave').textContent = RANGE.phase === 'intro' ? 'Gotowi…' : (RANGE.phase === 'done' ? 'Wynik' : (rangeReloading(RANGE.t) && RANGE.phase === 'play' ? 'Przeładowanie' : (w ? w.name : 'Strzelnica')));
+  $('rangeTime').textContent = '0:' + String(Math.ceil(left)).padStart(2, '0');
+  $('rangeScore').textContent = RANGE.score + ' pkt';
+  $('rangeAmmo').textContent = RANGE.phase === 'done' ? '' : ('naboje ' + RANGE.mag + ' · ' + RANGE.reserve);
+  $('rangeCombo').textContent = RANGE.combo > 1 ? ('seria ×' + RANGE.combo) : '';
+  const c = $('c').getBoundingClientRect();
+  const cross = $('rangeCross');
+  cross.style.left = ((RANGE.ax * 0.5 + 0.5) * c.width) + 'px';
+  cross.style.top = ((-RANGE.ay * 0.5 + 0.5) * c.height) + 'px';
+  if (rangeRifle) { rangeRifle.rotation.set(0.12 - RANGE.ay * 0.1, -0.08 - RANGE.ax * 0.15, 0); }
+}
+function rangeAimEvent(e) {
+  const r = $('c').getBoundingClientRect();
+  RANGE.ax = clamp(((e.clientX - r.left) / r.width) * 2 - 1, -0.82, 0.82);
+  RANGE.ay = clamp(-(((e.clientY - r.top) / r.height) * 2 - 1), -0.62, 0.48);
+  rangeHud();
+}
+function rangeAimWorld(x, y, z) {
+  rangeStand.updateMatrixWorld(true);
+  rangeV.set(x, y, z).project(camera);
+  RANGE.ax = clamp(rangeV.x, -0.82, 0.82); RANGE.ay = clamp(rangeV.y, -0.62, 0.48); rangeHud();
+}
+function rangeSpawn(kind, mode) {
+  const lane = Math.floor(Math.random() * 3) - 1;
+  const g = new THREE.Group();
+  const geo = RANGE.geos[kind];
+  const mat = mkMat({ color: RANGE_KINDS[kind].col, emissive: kind === 'gold' ? 0xf6c431 : 0x000000, emissiveIntensity: kind === 'gold' ? 0.45 : 0 });
+  const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; g.add(mesh);
+  if (TOON && !rangeSimple()) { const h = new THREE.Mesh(geo, hullMats().small); g.add(h); }
+  if (!rangeSimple() && kind === 'pumpkin') { const s = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.14, 0.08), mkMat({ color: 0x3d6b32 })); s.position.y = RANGE_KINDS[kind].r; g.add(s); }
+  if (!rangeSimple() && kind === 'water') { const s = new THREE.Mesh(new THREE.BoxGeometry(RANGE_KINDS[kind].r * 1.8, 0.08, RANGE_KINDS[kind].r * 1.8), mkMat({ color: 0xb7e38a })); g.add(s); }
+  rangeStand.add(g);
+  const t = { g, mesh, kind, mode, lane, on: true, up: true, age: 0, phase: Math.random() * 6.28, r: RANGE_KINDS[kind].r };
+  rangeLive.push(t); return t;
+}
+function rangePlace(t, dt) {
+  t.age += dt;
+  const w = rangeWave(Math.min(59.9, RANGE.t)) || RANGE_WAVES[0];
+  const sp = w.speed;
+  const x = t.lane * 1.7 + Math.sin(t.phase + t.age * sp) * (t.mode === 'rail' || t.mode === 'swing' ? 1.15 : 0.35);
+  let y = 1.15 + RANGE_KINDS[t.kind].r;
+  if (t.mode === 'swing') y += Math.sin(t.phase * 1.3 + t.age * sp * 1.4) * 0.42;
+  if (t.mode === 'pop') { const cyc = (t.age % 1.8); t.up = cyc < 1.15; y = t.up ? y : 0.4; }
+  else t.up = true;
+  const z = 4.2 + (t.lane + 1) * 1.6;
+  t.g.position.set(x, y, z); t.g.visible = t.on && t.up;
+  t.g.rotation.y += dt * 0.6;
+}
+function rangeBurst(pos, col) {
+  const n = rangeSimple() ? 4 : 8;
+  let used = 0;
+  for (const d of rangeDebris) {
+    if (d.m.visible) continue;
+    d.m.visible = true; d.m.material.color.setHex(col); d.m.position.copy(pos);
+    d.v.set((Math.random() - 0.5) * 3.2, 1.5 + Math.random() * 2.2, (Math.random() - 0.5) * 2.2);
+    d.t = 0; d.life = 0.55; used++; if (used >= n) break;
+  }
+}
+function rangeHole(hit) {
+  rangeBack.updateMatrixWorld(true);
+  const local = rangeBack.worldToLocal(hit.clone());
+  const h = rangeHoles[rangeHoleN % rangeHoles.length]; rangeHoleN++;
+  h.visible = true; h.position.set(clamp(local.x, -3.3, 3.3), clamp(local.y, -1.4, 1.4), -0.18);
+}
+function rangeFire() {
+  if (!RANGE.on || RANGE.phase !== 'play' || rangeReloading(RANGE.t) || RANGE.mag <= 0) return false;
+  RANGE.mag--; RANGE.shots++; RANGE.reload = 0;
+  rangeRay.setFromCamera(new THREE.Vector2(RANGE.ax, RANGE.ay), camera);
+  let best = null, bd = 1e9, hp = null;
+  for (const t of rangeLive) {
+    if (!t.on || !t.up) continue;
+    t.g.getWorldPosition(rangeV);
+    const ocx = rangeV.x - rangeRay.ray.origin.x, ocy = rangeV.y - rangeRay.ray.origin.y, ocz = rangeV.z - rangeRay.ray.origin.z;
+    const b = ocx * rangeRay.ray.direction.x + ocy * rangeRay.ray.direction.y + ocz * rangeRay.ray.direction.z;
+    const c = ocx * ocx + ocy * ocy + ocz * ocz - t.r * t.r;
+    const disc = b * b - c;
+    if (disc > 0 && b > 0) { const dist = b - Math.sqrt(disc); if (dist < bd) { bd = dist; best = t; hp = rangeV.clone(); } }
+  }
+  if (best) {
+    best.on = false; best.g.visible = false;
+    RANGE.hits++; RANGE.combo++; RANGE.bestCombo = Math.max(RANGE.bestCombo, RANGE.combo);
+    const left = Math.max(0, 60 - RANGE.t);
+    const mul = 1 + left / 120;
+    RANGE.score += Math.round(RANGE_KINDS[best.kind].pts * mul + Math.max(0, RANGE.combo - 1) * 4);
+    rangeBurst(hp || best.g.getWorldPosition(rangeV2), RANGE_KINDS[best.kind].col);
+    if (settings.vibrate && isTouch) buzz(12);
+  } else {
+    RANGE.combo = 0;
+    const planeZ = new THREE.Vector3(); rangeBack.getWorldPosition(planeZ);
+    const n = new THREE.Vector3(0, 0, 1).applyQuaternion(rangeStand.quaternion);
+    const denom = rangeRay.ray.direction.dot(n);
+    if (Math.abs(denom) > 1e-4) {
+      const tt = planeZ.clone().sub(rangeRay.ray.origin).dot(n) / denom;
+      if (tt > 0) rangeHole(rangeRay.ray.origin.clone().addScaledVector(rangeRay.ray.direction, tt));
+    }
+  }
+  if (RANGE.mag <= 0 && RANGE.reserve <= 0) rangeFinish();
+  else if (RANGE.mag <= 0) RANGE.reload = 1.5;
+  rangeHud(); return true;
+}
+function updateRange(dt) {
+  if (RANGE.cool > 0) RANGE.cool -= dt;
+  if (!RANGE.on) {
+    if (RANGE.ring) RANGE.ring.material.opacity = 0.45 + 0.35 * Math.sin(performance.now() * 0.004);
+    return;
+  }
+  rangeStand.updateMatrixWorld(true);
+  const eye = rangeV.set(0, 1.55, -1.45).applyMatrix4(rangeStand.matrixWorld);
+  const look = rangeV2.set(0, 1.28, 8).applyMatrix4(rangeStand.matrixWorld);
+  G.camOverride = [eye.x, eye.y, eye.z, look.x, look.y, look.z];
+  if (RANGE.phase === 'intro') {
+    RANGE.t += dt; if (RANGE.t > 1.3) { RANGE.phase = 'play'; RANGE.t = 0; }
+    rangeHud(); return;
+  }
+  if (RANGE.phase !== 'play') { rangeHud(); return; }
+  RANGE.t += dt;
+  const top = () => { const take = Math.min(5 - RANGE.mag, RANGE.reserve); RANGE.mag += take; RANGE.reserve -= take; };
+  if (RANGE.t >= 17 && !RANGE.did1) { RANGE.did1 = true; top(); }
+  if (RANGE.t >= 36 && !RANGE.did2) { RANGE.did2 = true; top(); }
+  if (RANGE.reload > 0) { RANGE.reload -= dt; if (RANGE.reload <= 0) top(); }
+  const w = rangeWave(RANGE.t);
+  if (w && !rangeReloading(RANGE.t)) {
+    RANGE.spawnT -= dt;
+    if (RANGE.spawnT <= 0 && rangeLive.filter((t) => t.on).length < rangeCap()) {
+      RANGE.spawnT = rangeSimple() ? 1.55 : 1.15;
+      const kind = w.kinds[Math.floor(Math.random() * w.kinds.length)];
+      const mode = w.modes[Math.floor(Math.random() * w.modes.length)];
+      rangeSpawn(kind, mode);
+    }
+  }
+  for (const t of rangeLive) if (t.on) rangePlace(t, dt);
+  for (const d of rangeDebris) {
+    if (!d.m.visible) continue; d.t += dt; d.v.y -= 9 * dt; d.m.position.addScaledVector(d.v, dt);
+    if (d.t > d.life) d.m.visible = false;
+  }
+  if (RANGE.t >= 60) rangeFinish();
+  rangeHud();
+}
+addEventListener('pointermove', (e) => { if (G.inRange && !isTouch) rangeAimEvent(e); });
+addEventListener('pointerdown', (e) => {
+  if (!G.inRange || isTouch || RANGE.phase === 'done') return;
+  if (e.target && e.target.closest && e.target.closest('button')) return;
+  rangeFire();
+});
+function drawRangeMinimap(g, sc) {
+  if (!rangeStand) return;
+  g.fillStyle = '#e8503a'; g.fillRect(RANGE.px - 7 / sc, RANGE.pz - 5 / sc, 14 / sc, 10 / sc); g.strokeRect(RANGE.px - 7 / sc, RANGE.pz - 5 / sc, 14 / sc, 10 / sc);
+  g.fillStyle = '#2a211c'; g.font = 'bold ' + (9 / sc) + 'px sans-serif'; g.textAlign = 'center'; g.fillText('S', RANGE.px, RANGE.pz + 1 / sc);
 }
 
 
@@ -5248,6 +5596,7 @@ function initInput() {
     if (G.tutor) { tutorKey(e.code); return; }
     if (G.journalOpen) { if (e.code === 'Escape' || e.code === 'KeyJ') closeJournal(); return; }
     if (G.dialogOpen) { if (e.code === 'KeyE' || e.code === 'Enter') dialogAction(); else if (e.code === 'Escape') dialogClose(); return; }
+    if (G.inRange) { if (e.code === 'Escape' || e.code === 'KeyE') { if (typeof rangeExit === 'function') rangeExit(); } return; }
     if (G.inGarage) { garageKey(e.code); return; }
     if (POL.shop) { if (e.code === 'Digit1') { shopBuy('paint'); return; } if (e.code === 'Digit2') { shopBuy('fix'); return; } if (e.code === 'Escape' || e.code === 'Digit3') { shopClose(); return; } }
     if (e.code === 'Space' && G.mode === 'foot') G.jumpReq = true;
@@ -5260,7 +5609,7 @@ function initInput() {
       else { navClear(); toast('GPS wyłączony', 1200); }
     }
     else if (e.code === 'KeyH') {
-      if (G.mapOpen || G.journalOpen || G.dialogOpen || G.inGarage || G.tutor || (POL && POL.shop)) return;
+      if (G.mapOpen || G.journalOpen || G.dialogOpen || G.inGarage || G.inRange || G.tutor || (POL && POL.shop)) return;
       e.preventDefault(); objToggle();
     }
     else if (e.code === 'KeyR' || e.code === 'Period') radioStep(1);
@@ -5273,12 +5622,12 @@ function initInput() {
   addEventListener('keyup', (e) => G.keys.delete(e.code));
   addEventListener('blur', () => G.keys.clear());
   const canvas = $('c');
-  canvas.addEventListener('click', () => { if (G.started && !G.paused && !isTouch && canvas.requestPointerLock) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* unsupported */ } } });
+  canvas.addEventListener('click', () => { if (G.inRange) return; if (G.started && !G.paused && !isTouch && canvas.requestPointerLock) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* unsupported */ } } });
   let drag = null;
   canvas.addEventListener('mousedown', (e) => { drag = { x: e.clientX, y: e.clientY }; });
   addEventListener('mouseup', () => { drag = null; G.mouseLooking = false; });
   addEventListener('mousemove', (e) => {
-    if (!G.started || G.paused) return;
+    if (!G.started || G.paused || G.inRange) return;
     let dx = 0, dy = 0;
     if (document.pointerLockElement === canvas) { dx = e.movementX; dy = e.movementY; }
     else if (drag) { dx = e.clientX - drag.x; dy = e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY }; }

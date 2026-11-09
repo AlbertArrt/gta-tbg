@@ -66,7 +66,7 @@ async function init() {
   spawnAtRynek();
   spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions(); initGarages(); initDriveFx();
   applyTime(); applyQuality();
-  initMinimap(); initBigMap(); initInput(); initRadio(); initMenu(); initNav();
+  initMinimap(); initBigMap(); initInput(); initRadio(); initMenu(); initNav(); if (typeof initRange === 'function') initRange();
   window.addEventListener('resize', onResize); onResize();
   setLoad(1, 'Gotowe!');
   $('loading').classList.add('hidden'); $('menu').classList.remove('hidden');
@@ -350,12 +350,13 @@ function loop() {
   const rawDt = clock.getDelta(); let dt = Math.min(0.05, rawDt); const tU = performance.now();
   if (G.started && !G.paused) {
     G.gameT = (G.gameT || 0) + dt;
-    if (G.cut) { G.cut.t -= dt; if (G.mode === 'car') updateCar(activeCar, dt, { thr: 0, steer: 0, hand: true }); if (G.cut.t <= 0) { const f = G.cut.fn; G.cut = null; f(); } }
+    if (G.inRange) { /* stanowisko trzyma kamerę; miasto dalej żyje */ }
+    else if (G.cut) { G.cut.t -= dt; if (G.mode === 'car') updateCar(activeCar, dt, { thr: 0, steer: 0, hand: true }); if (G.cut.t <= 0) { const f = G.cut.fn; G.cut = null; f(); } }
     else if (G.mode === 'foot') updateFoot(dt); else updateCar(activeCar, dt, true);
     updateParked(dt);
     updateTraffic(dt); updatePolice(dt); updateDamage(dt); updateShops(dt);
-    updateEgg(dt); updateMissions(dt); updateNav(dt); updateGarages(dt); updateDriveFx(dt);
-    const eh = eggHint() || missionHint() || garageHint() || shopHint();
+    updateEgg(dt); updateMissions(dt); updateNav(dt); updateGarages(dt); updateDriveFx(dt); if (typeof updateRange === 'function') updateRange(dt);
+    const eh = G.inRange ? null : (eggHint() || missionHint() || (typeof rangeHint === 'function' ? rangeHint() : null) || garageHint() || shopHint());
     const near = G.mode === 'foot' && cars.some((c) => Math.hypot(c.x - player.x, c.z - player.z) < 3.8);
     hint(eh || (near ? (isTouch ? 'Naciśnij WSIĄDŹ' : 'Naciśnij E, aby wsiąść') : ''));
     if (G.mode === 'foot') { const lbl = eh ? (nearEggButton() ? 'TELEPORT' : 'AKCJA') : 'WSIĄDŹ'; if (G.tLbl !== lbl) { G.tLbl = lbl; $('tEnter').textContent = lbl; } } else G.tLbl = '';

@@ -197,6 +197,23 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 .tb.small{grid-column:3;height:calc(var(--tbs) * .62)}
 .tb.active{background:var(--sun)!important;transform:translateY(3px) scale(.94);box-shadow:0 0 0 var(--ink)!important}
 #touch.lefty #tbtns{right:auto;left:calc(14px + env(safe-area-inset-left))}
+#touch.range #tbtns,#touch.range #joy{visibility:hidden}
+#rangeHud{position:fixed;inset:0;z-index:12;pointer-events:none;color:var(--ink)}
+#rangeHud button{pointer-events:auto}
+#rangeTop{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:var(--cream);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);border-radius:16px;padding:6px 16px;display:flex;gap:14px;align-items:center;font-weight:700;max-width:70vw}
+#rangeScore{font-size:22px;font-weight:700}
+#rangeAmmo,#rangeCombo{position:absolute;right:16px;font-weight:700;background:var(--cream);border:3px solid var(--ink);border-radius:12px;padding:4px 10px}
+#rangeAmmo{top:104px}#rangeCombo{top:148px}
+#rangeCross{position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border:3px solid var(--ink);border-radius:50%;box-shadow:0 0 0 2px #fff}
+#rangeCross:before,#rangeCross:after{content:"";position:absolute;background:var(--ink)}
+#rangeCross:before{left:50%;top:3px;bottom:3px;width:2px;margin-left:-1px}
+#rangeCross:after{top:50%;left:3px;right:3px;height:2px;margin-top:-1px}
+#rangeFire{position:absolute;right:18px;bottom:24px;min-width:96px;min-height:64px;font-size:20px;font-weight:800;background:var(--sun);color:var(--ink)}
+#rangeOut{position:absolute;left:18px;bottom:24px;min-height:48px;background:var(--cream);color:var(--ink)}
+#rangeEnd{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,92vw);background:var(--cream);color:var(--ink);border:3px solid var(--ink);box-shadow:0 6px 0 var(--ink);border-radius:18px;padding:16px;text-align:center;pointer-events:auto}
+#rangeEnd .row{display:flex;gap:10px;justify-content:center;margin-top:10px}
+#rangeEnd button{min-height:48px}
+@media (pointer:coarse){#rangeFire{min-width:120px;min-height:72px}}
 #touch.lefty #joy{left:auto;right:calc(24px + var(--tbs) * 1.1);transform:translate(50%,50%)}
 #touch.lefty #joy.on{right:auto;transform:translate(-50%,-50%)}
 /* ===================== GARAŻ, DRIFT, NITRO, ZATRZYMANIE ===================== */
