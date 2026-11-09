@@ -209,6 +209,46 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 .tb.small{grid-column:3;height:calc(var(--tbs) * .62)}
 .tb.active{background:var(--sun)!important;transform:translateY(3px) scale(.94);box-shadow:0 0 0 var(--ink)!important}
 #touch.lefty #tbtns{right:auto;left:calc(14px + env(safe-area-inset-left))}
+#touch.range #tbtns,#touch.range #joy{visibility:hidden}
+#hud.rangeHide{visibility:hidden}
+#rangeHud{position:fixed;inset:0;z-index:14;pointer-events:none;color:var(--ink);font-weight:700}
+#rangeHud button{pointer-events:auto}
+#rangeTop{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:var(--cream);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);border-radius:16px;padding:8px 14px;display:flex;gap:12px;align-items:center;max-width:min(560px,92vw)}
+#rangeWave{font-size:16px}#rangeTime{font-variant-numeric:tabular-nums}#rangeScore{color:#1f7a34}
+#rangeAmmo{position:absolute;left:16px;bottom:22px;background:var(--cream);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);border-radius:14px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;min-width:132px}
+#rangePips{display:flex;gap:6px}
+#rangePips i{width:18px;height:18px;border:3px solid var(--ink);border-radius:50%;background:#fff}
+#rangePips i.on{background:var(--sun)}
+#rangeLeft{font-size:13px}
+#rangeCombo{position:absolute;left:50%;top:64px;transform:translateX(-50%);background:var(--sun);border:3px solid var(--ink);border-radius:12px;padding:2px 10px;min-height:0}
+#rangeCombo:empty{display:none}
+#rangeCross{position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;border:4px solid var(--ink);border-radius:50%;box-shadow:0 0 0 3px #fff}
+#rangeCross.hit{border-color:#1f7a34;box-shadow:0 0 0 3px #d8ffb0}
+#rangeCross.miss{border-color:#c0392b;box-shadow:0 0 0 3px #ffd0c8}
+#rangeCross:before,#rangeCross:after{content:"";position:absolute;background:var(--ink)}
+#rangeCross:before{left:50%;top:5px;bottom:5px;width:3px;margin-left:-1.5px}
+#rangeCross:after{top:50%;left:5px;right:5px;height:3px;margin-top:-1.5px}
+#rangePop{position:absolute;margin:-46px 0 0 -20px;font-size:26px;color:var(--ink);-webkit-text-stroke:4px #fff;paint-order:stroke fill;pointer-events:none}
+#rangePop.bad{color:#c0392b}
+#rangeFire{position:absolute;right:16px;bottom:18px;min-width:112px;min-height:64px;font-size:22px;font-weight:800;background:var(--sun);color:var(--ink)}
+#rangeOut{position:absolute;right:16px;bottom:96px;min-height:48px;min-width:112px;background:var(--cream);color:var(--ink)}
+#rangeHud.done #rangeFire,#rangeHud.done #rangeOut,#rangeHud.done #rangeAmmo,#rangeHud.done #rangeCross,#rangeHud.done #rangePop{display:none}
+#rangeEnd{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:min(380px,92vw);background:var(--cream);color:var(--ink);border:4px solid var(--ink);box-shadow:0 8px 0 var(--ink);border-radius:18px;padding:16px 18px 14px;text-align:left;pointer-events:auto}
+#rangeEnd b{display:block;text-align:center;font-size:22px;margin-bottom:8px}
+#rangeEnd ul{list-style:none;margin:0;padding:0}
+#rangeEnd li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:2px solid #eadfca;font-size:16px}
+#rangeEnd li b{margin:0;font-size:16px}
+#rangeEndNote{margin:8px 0 0;text-align:center;font-size:14px}
+#rangeEnd .row{display:flex;gap:10px;justify-content:center;margin-top:12px}
+#rangeEnd button{min-height:48px;min-width:120px}
+@media (max-width:900px),(max-height:520px){
+  #rangeTop{top:8px;padding:6px 10px;gap:8px;font-size:14px}
+  #rangeCombo{top:52px}
+  #rangeAmmo{left:8px;bottom:10px;min-width:118px}
+  #rangeFire{right:8px;bottom:10px;min-width:104px;min-height:64px}
+  #rangeOut{right:8px;bottom:84px}
+  #rangeEnd{top:42%;padding:12px}
+}
 #touch.lefty #joy{left:auto;right:calc(24px + var(--tbs) * 1.1);transform:translate(50%,50%)}
 #touch.lefty #joy.on{right:auto;transform:translate(-50%,-50%)}
 /* ===================== GARAŻ, DRIFT, NITRO, ZATRZYMANIE ===================== */
@@ -1881,7 +1921,7 @@ async function init() {
   spawnAtRynek();
   spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions(); initGarages(); initDriveFx();
   applyTime(); applyQuality();
-  initMinimap(); initBigMap(); initInput(); initRadio(); initMenu(); initNav();
+  initMinimap(); initBigMap(); initInput(); initRadio(); initMenu(); initNav(); if (typeof initRange === 'function') initRange();
   window.addEventListener('resize', onResize); onResize();
   setLoad(1, 'Gotowe!');
   $('loading').classList.add('hidden'); $('menu').classList.remove('hidden');
@@ -2165,12 +2205,13 @@ function loop() {
   const rawDt = clock.getDelta(); let dt = Math.min(0.05, rawDt); const tU = performance.now();
   if (G.started && !G.paused) {
     G.gameT = (G.gameT || 0) + dt;
-    if (G.cut) { G.cut.t -= dt; if (G.mode === 'car') updateCar(activeCar, dt, { thr: 0, steer: 0, hand: true }); if (G.cut.t <= 0) { const f = G.cut.fn; G.cut = null; f(); } }
+    if (G.inRange) { /* stanowisko trzyma kamerę; miasto dalej żyje */ }
+    else if (G.cut) { G.cut.t -= dt; if (G.mode === 'car') updateCar(activeCar, dt, { thr: 0, steer: 0, hand: true }); if (G.cut.t <= 0) { const f = G.cut.fn; G.cut = null; f(); } }
     else if (G.mode === 'foot') updateFoot(dt); else updateCar(activeCar, dt, true);
     updateParked(dt);
     updateTraffic(dt); updatePolice(dt); updateDamage(dt); updateShops(dt);
-    updateEgg(dt); updateMissions(dt); updateNav(dt); updateGarages(dt); updateDriveFx(dt);
-    const eh = eggHint() || missionHint() || garageHint() || shopHint();
+    updateEgg(dt); updateMissions(dt); updateNav(dt); updateGarages(dt); updateDriveFx(dt); if (typeof updateRange === 'function') updateRange(dt);
+    const eh = G.inRange ? null : (eggHint() || missionHint() || (typeof rangeHint === 'function' ? rangeHint() : null) || garageHint() || shopHint());
     const near = G.mode === 'foot' && cars.some((c) => Math.hypot(c.x - player.x, c.z - player.z) < 3.8);
     hint(eh || (near ? (isTouch ? 'Naciśnij WSIĄDŹ' : 'Naciśnij E, aby wsiąść') : ''));
     if (G.mode === 'foot') { const lbl = eh ? (nearEggButton() ? 'TELEPORT' : 'AKCJA') : 'WSIĄDŹ'; if (G.tLbl !== lbl) { G.tLbl = lbl; $('tEnter').textContent = lbl; } } else G.tLbl = '';
@@ -2454,7 +2495,7 @@ function nearEggButton() {
   if (Math.hypot(player.x - EGG.back.x, player.z - EGG.back.z) < 2.6) return 'back';
   return null;
 }
-function actionE() { if (G.cut) return false; if (typeof dialogAction === 'function' && dialogAction()) return true; const b = nearEggButton(); if (b === 'go') return eggGo(); if (b === 'back') return eggBack(); if (missionAction()) return true; if (typeof garageAction === "function" && garageAction()) return true; if (shopAction()) return true; return enterExit(); }
+function actionE() { if (G.cut) return false; if (G.inRange && typeof rangeAction === 'function') return rangeAction(); if (typeof dialogAction === 'function' && dialogAction()) return true; const b = nearEggButton(); if (b === 'go') return eggGo(); if (b === 'back') return eggBack(); if (missionAction()) return true; if (typeof rangeAction === 'function' && rangeAction()) return true; if (typeof garageAction === "function" && garageAction()) return true; if (shopAction()) return true; return enterExit(); }
 function eggGo() {
   discover('trails'); const j = EGG.jeep, s = EGG.jeepSpot;
   j.x = s.x; j.z = s.z; j.h = s.h; j.vx = j.vz = 0; j.y = groundH(j.x, j.z); j.vy = 0; j.sync();
@@ -3676,7 +3717,7 @@ function makeTarget() {
 function storyDoneCount() { return MIS.list.filter((q) => q.done && !q.side && q.id !== 'final').length; }
 function giverOpen(m) { return !MIS.active && !m.busy && (!m.needs || storyDoneCount() >= m.needs); }
 function nearGiver() {
-  const f = focusXZ(); for (const m of MIS.list) if (giverOpen(m) && Math.hypot(f.x - m.gx, f.z - m.gz) < (G.mode === 'car' ? 7 : 3.6)) return m; return null;
+  const f = focusXZ(); for (const m of MIS.list) if (!m.range && giverOpen(m) && Math.hypot(f.x - m.gx, f.z - m.gz) < (G.mode === 'car' ? 7 : 3.6)) return m; return null;
 }
 function missionHint() {
   if (MIS.active) return null; const m = nearGiver(); if (!m) return null;
@@ -3753,7 +3794,7 @@ function missionEvent(ev) { /* hook: 'lost' when police chase ends */ MIS.lastEv
 function updateMissions(dt) {
   const f = focusXZ(); const tt = performance.now() * 0.003;
   for (const m of MIS.list) {
-    const o = m.obj3; const show = giverOpen(m); o.g.visible = show; if (!show) continue;
+    const o = m.obj3; if (!o) continue; const show = giverOpen(m); o.g.visible = show; if (!show) continue;
     const d = Math.hypot(f.x - m.gx, f.z - m.gz); o.beam.material.opacity = 0.16 + 0.1 * Math.sin(tt + m.gx); o.ex.position.y = 3.2 + Math.sin(tt * 1.5) * 0.25; o.lab.visible = d < 40;
     o.w.rotation.y = Math.atan2(f.x - m.gx, f.z - m.gz);
     if (d < 80) animateWalker(o.w, 0, dt, false);
@@ -3771,7 +3812,8 @@ function updateMissions(dt) {
 }
 function drawMissionMinimap(g, sc) {
   g.lineWidth = 2 / sc; g.strokeStyle = '#2a211c';
-  for (const m of MIS.list) { if (!giverOpen(m)) continue; g.fillStyle = m.col; g.beginPath(); g.arc(m.gx, m.gz, 8 / sc, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#2a211c'; g.font = 'bold ' + (11 / sc) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', m.gx, m.gz + 0.5 / sc); }
+  for (const m of MIS.list) { if (m.range || !giverOpen(m)) continue; g.fillStyle = m.col; g.beginPath(); g.arc(m.gx, m.gz, 8 / sc, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#2a211c'; g.font = 'bold ' + (11 / sc) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', m.gx, m.gz + 0.5 / sc); }
+  if (typeof drawRangeMinimap === 'function') drawRangeMinimap(g, sc);
   const T = MIS.active && MIS.active.target; if (T && T !== activeCar) { g.fillStyle = '#ffd21f'; g.beginPath(); g.moveTo(T.x, T.z - 11 / sc); g.lineTo(T.x + 8 / sc, T.z); g.lineTo(T.x, T.z + 11 / sc); g.lineTo(T.x - 8 / sc, T.z); g.closePath(); g.fill(); g.stroke(); }
   if (MIS.active && MIS.active.cps) { g.fillStyle = '#ff3b3b'; for (const r of MIS.active.rivals || []) { g.beginPath(); g.arc(r.x, r.z, 5 / sc, 0, 7); g.fill(); } }
   for (const c of POL.cars) if (c.g.visible && c !== activeCar && (c.pai || c.block || c.patrol)) { const b = Math.floor(performance.now() / 250) % 2; g.fillStyle = c.patrol ? '#3d6fe0' : (b ? '#ff2a2a' : '#2a5cff'); g.beginPath(); g.arc(c.x, c.z, 6 / sc, 0, 7); g.fill(); g.stroke(); }
@@ -3914,6 +3956,7 @@ function tDown(e) {
   try { $('touch').setPointerCapture(id); } catch (err) { /* ignore */ }
   const b = btnAt(x, y);
   if (b) { TP.ptrs.set(id, { t: 'btn', b }); bPress(b); return; }
+  if (G.inRange && typeof rangeAimEvent === 'function') { rangeAimEvent(e); TP.ptrs.set(id, { t: 'aim' }); return; }
   if (!TP.joy && joyLeftSide(x) && y > innerHeight * 0.25) {
     TP.joy = { id, ox: x, oy: y }; TP.ptrs.set(id, { t: 'joy' });
     const base = $('joy'); base.classList.add('on'); base.style.left = x + 'px'; base.style.top = y + 'px'; base.style.right = 'auto'; base.style.bottom = 'auto';
@@ -3937,6 +3980,7 @@ function tMove(e) {
   const p = TP.ptrs.get(e.pointerId); if (!p) return; if (e.cancelable) e.preventDefault();
   const x = e.clientX, y = e.clientY;
   if (p.t === 'joy') joySet(x, y);
+  else if (p.t === 'aim' && typeof rangeAimEvent === 'function') rangeAimEvent(e);
   else if (p.t === 'look') {
     const L = TP.look; const dx = x - L.x, dy = y - L.y; L.x = x; L.y = y;
     const acc = 1 + Math.min(1, Math.hypot(dx, dy) / 30) * 0.6; // delikatne przyspieszenie przy szybkich ruchach
@@ -4998,7 +5042,7 @@ function bestLabel(m) {
   return m.bestLow ? ('rekord ' + fmtT(SAVE.best[m.bestKey])) : ('rekord ' + Math.round(SAVE.best[m.bestKey]) + ' pkt');
 }
 function openJournal() {
-  if (!G.started || G.tutor || G.dialogOpen || G.inGarage || (typeof POL !== 'undefined' && POL.shop)) return;
+  if (!G.started || G.tutor || G.dialogOpen || G.inGarage || G.inRange || (typeof POL !== 'undefined' && POL.shop)) return;
   if (G.mapOpen) closeMap();
   G.journalOpen = true; G.paused = true; if (document.pointerLockElement) document.exitPointerLock();
   $('journal').classList.remove('hidden'); renderJournal();
@@ -5034,7 +5078,7 @@ function journalCard(m) {
   const who = document.createElement('div'); who.className = 'jWho'; who.textContent = m.who + (m.where ? ' · ' + m.where : ''); card.appendChild(who);
   const rec = document.createElement('div'); rec.className = 'jPay';
   const paid = m.side && SAVE.claimed[m.id];
-  rec.textContent = 'Nagroda: ' + m.reward + ' zł' + (m.side ? (paid ? ' · już odebrana (zostaje premia za rekord)' : ' · pierwszy raz') : ' · można powtarzać') + (bestLabel(m) ? ' · ' + bestLabel(m) : '');
+  rec.textContent = m.range ? ('Wypłata za przebieg, zwykle 150–250 zł' + (bestLabel(m) ? ' · ' + bestLabel(m) : '')) : ('Nagroda: ' + m.reward + ' zł' + (m.side ? (paid ? ' · już odebrana (zostaje premia za rekord)' : ' · pierwszy raz') : ' · można powtarzać') + (bestLabel(m) ? ' · ' + bestLabel(m) : ''));
   card.appendChild(rec);
   if (m.steps && m.steps.length) { const ol = document.createElement('ol'); for (const s of m.steps) { const li = document.createElement('li'); li.textContent = s; ol.appendChild(li); } card.appendChild(ol); }
   else { const p = document.createElement('p'); p.textContent = m.text; card.appendChild(p); }
@@ -5053,7 +5097,7 @@ function journalCard(m) {
     const r = document.createElement('button'); r.type = 'button'; r.textContent = 'Od nowa';
     r.onclick = () => { missionCancel(); missionStart(m); closeJournal(); };
     btns.appendChild(r); btns.appendChild(c);
-  } else if (!MIS.active) {
+  } else if (!MIS.active && !m.range) {
     const go = document.createElement('button'); go.type = 'button'; go.textContent = m.done ? 'Jedź ponownie' : 'Przyjmij';
     go.onclick = () => { closeJournal(); missionStart(m); };
     btns.appendChild(go);
@@ -5102,6 +5146,419 @@ function bindMapGps() {
   const mode = $('mapGpsMode'); const clr = $('mapGpsClear');
   if (mode) mode.onclick = () => { BM.gpsClick = !BM.gpsClick; mode.textContent = BM.gpsClick ? 'Klik: GPS' : 'Klik: teleport'; mode.classList.toggle('on', !!BM.gpsClick); };
   if (clr) clr.onclick = () => { navClear(); toast('GPS wyłączony', 1200); if (BM.c) drawBigMap(); };
+}
+
+// ======================= STRZELNICA ZWIERZYNIEC =======================
+// Osobna minigra przy Lesie Zwierzyniec (ul. Borów). W mieście nie ma broni.
+const RANGE = {
+  x: 2375, z: -1694, h: Math.PI,
+  on: false, phase: 'idle', t: 0, score: 0, hits: 0, shots: 0, combo: 0, bestCombo: 0,
+  mag: 5, reserve: 10, reload: 0, spawnT: 0, ax: 0, ay: 0, cool: 0, kick: 0, flash: 0, pop: 0, wave: null,
+};
+const RANGE_KINDS = {
+  pumpkin: { pts: 12, r: 0.48, col: 0xe07a1f, rib: 0xc45e12 },
+  melon: { pts: 22, r: 0.36, col: 0xc6e07a, rib: 0x6a9a32 },
+  water: { pts: 36, r: 0.44, col: 0x2f9a48, rib: 0x145c28 },
+  gold: { pts: 55, r: 0.36, col: 0xf6c431, rib: 0xfff1a8 },
+};
+const RANGE_WAVES = [
+  { id: 1, t0: 0, t1: 15, name: 'Rozgrzewka', kinds: ['pumpkin'], modes: ['rail'], speed: 0.9 },
+  { id: 2, t0: 17, t1: 34, name: 'Tory i wahadła', kinds: ['pumpkin', 'melon', 'melon'], modes: ['rail', 'swing'], speed: 1.35 },
+  { id: 3, t0: 36, t1: 50, name: 'Wyskakujące', kinds: ['melon', 'water', 'water'], modes: ['pop', 'swing'], speed: 1.8 },
+  { id: 4, t0: 50, t1: 60, name: 'Złote owoce', kinds: ['gold'], modes: ['rail', 'pop'], speed: 1.5 },
+];
+const rangeV = new THREE.Vector3(), rangeV2 = new THREE.Vector3();
+const rangeRay = new THREE.Raycaster();
+let rangeStand = null, rangeBack = null, rangeRifle = null, rangeMuzzle = null;
+let rangeLive = [], rangeDebris = [], rangeHoles = [], rangeHoleN = 0;
+
+function rangeSimple() { return settings.quality === 'low'; }
+function rangeCap() { return settings.quality === 'low' ? 2 : (settings.quality === 'high' ? 4 : 3); }
+function rangeWave(t) { for (const w of RANGE_WAVES) if (t >= w.t0 && t < w.t1) return w; return null; }
+function rangeReloading(t) { return (t >= 15 && t < 17) || (t >= 34 && t < 36) || RANGE.reload > 0; }
+function rangeBox(g, w, h, d, x, y, z, col) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mkMat({ color: col }));
+  m.position.set(x, y, z); m.castShadow = true; g.add(m); return m;
+}
+function rangeBoard(text) {
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 192; const c = cv.getContext('2d');
+  c.fillStyle = '#2a211c'; c.fillRect(0, 0, 1024, 192); c.fillStyle = '#ffd21f';
+  c.font = 'bold 58px Fredoka, system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(text, 512, 100);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 0.95), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+  m.rotation.y = Math.PI; return m;
+}
+function rangeNum(n) {
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 128; const c = cv.getContext('2d');
+  c.fillStyle = '#ffd21f'; c.fillRect(0, 0, 128, 128); c.strokeStyle = '#2a211c'; c.lineWidth = 10; c.strokeRect(6, 6, 116, 116);
+  c.fillStyle = '#2a211c'; c.font = 'bold 78px Fredoka, system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(String(n), 64, 70);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false, fog: false }));
+  s.scale.set(0.62, 0.62, 1); return s;
+}
+
+function initRange() {
+  const g = new THREE.Group(); g.position.set(RANGE.x, 0, RANGE.z); g.rotation.y = RANGE.h; rangeStand = g;
+  const wood = 0xc4894a, dark = 0x6b3a22, roof = 0xc4553a, sand = 0xe7d3a4, hay = 0xe2c56a, ink = 0x2a211c;
+  rangeBox(g, 8.4, 0.08, 14.2, 0, 0.04, 5.2, sand);
+  rangeBox(g, 7.4, 0.16, 2.4, 0, 2.55, -1.55, roof);
+  for (let i = 0; i < 6; i++) rangeBox(g, 1.05, 0.1, 0.18, -2.6 + i * 1.05, 2.28, -0.42, i % 2 ? 0xf4f1ea : roof);
+  rangeBox(g, 0.28, 2.2, 2.6, -3.45, 1.1, -1.3, wood); rangeBox(g, 0.28, 2.2, 2.6, 3.45, 1.1, -1.3, wood);
+  rangeBox(g, 0.16, 2.2, 0.16, -3.45, 1.1, -2.5, ink); rangeBox(g, 0.16, 2.2, 0.16, 3.45, 1.1, -2.5, ink);
+  rangeBox(g, 3.4, 0.72, 0.42, 0, 0.78, -0.15, 0xf4f1ea);
+  rangeBox(g, 3.5, 0.08, 0.5, 0, 1.16, -0.12, wood);
+  rangeBox(g, 0.35, 0.7, 10.4, -3.7, 0.4, 6.2, dark); rangeBox(g, 0.35, 0.7, 10.4, 3.7, 0.4, 6.2, dark);
+  for (const x of [-1.7, 0, 1.7]) {
+    rangeBox(g, 0.08, 0.08, 10.4, x, 1.02, 6.5, 0x8d97a3);
+    rangeBox(g, 0.08, 0.55, 0.08, x, 0.72, 2.2, ink);
+    rangeBox(g, 0.08, 0.55, 0.08, x, 0.72, 11.2, ink);
+    const tag = rangeNum(x > 0 ? 1 : x < 0 ? 3 : 2); tag.position.set(x, 1.72, 2.35); g.add(tag);
+  }
+  const board = new THREE.Group(); board.position.set(0, 1.7, 12.25); g.add(board);
+  rangeBack = rangeBox(board, 7.4, 3.5, 0.26, 0, 0, 0, 0xd7b07a);
+  rangeBox(board, 7.7, 0.16, 0.32, 0, 1.83, 0, ink); rangeBox(board, 7.7, 0.16, 0.32, 0, -1.83, 0, ink);
+  rangeBox(board, 0.16, 3.7, 0.32, -3.78, 0, 0, ink); rangeBox(board, 0.16, 3.7, 0.32, 3.78, 0, 0, ink);
+  for (const x of [-1.7, 0, 1.7]) rangeBox(board, 1.7, 2.15, 0.06, x, 0.05, -0.16, 0xf6ead2);
+  for (const x of [-2.4, 0, 2.4]) rangeBox(g, 1.15, 0.42, 0.62, x, 0.28, 11.55, hay);
+  rangeBox(g, 0.85, 0.5, 0.7, -2.55, 0.32, -2.55, wood);
+  const sign = rangeBoard('STRZELNICA ZWIERZYNIEC'); sign.position.set(0, 1.62, -2.95); g.add(sign);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(2.3, 3.05, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xe8503a, transparent: true, opacity: 0.9, depthWrite: false }));
+  ring.position.set(0, 0.1, -4.6); g.add(ring); RANGE.ring = ring;
+  scene.add(g); g.updateMatrixWorld(true);
+  rangeV.set(0, 0, -4.6).applyMatrix4(g.matrixWorld); RANGE.px = rangeV.x; RANGE.pz = rangeV.z;
+  const seg = rangeSimple() ? 7 : 10;
+  RANGE.geos = {};
+  for (const k in RANGE_KINDS) RANGE.geos[k] = new THREE.SphereGeometry(RANGE_KINDS[k].r, seg, seg);
+  for (const [kind, x, y, z] of [['pumpkin', -2.15, 0.85, -2.5], ['melon', -2.55, 0.78, -2.15], ['water', -1.75, 0.78, -2.15]]) {
+    const f = rangeFruit(kind); f.position.set(x, y, z); f.scale.setScalar(0.72); g.add(f);
+  }
+  for (let i = 0; i < 20; i++) {
+    const h = new THREE.Mesh(new THREE.CircleGeometry(0.11, 10), new THREE.MeshBasicMaterial({ color: 0x2a211c }));
+    h.visible = false; rangeBack.add(h); rangeHoles.push(h);
+  }
+  for (let i = 0; i < (rangeSimple() ? 10 : 22); i++) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.08, 5, 4), mkMat({ color: 0xfff1ea }));
+    m.visible = false; scene.add(m); rangeDebris.push({ m, v: new THREE.Vector3(), t: 0, life: 0 });
+  }
+  buildRangeHud();
+  if (W.travel) W.travel.push(['🎯 Strzelnica Zwierzyniec', RANGE.px, RANGE.pz]);
+  if (typeof MIS !== 'undefined') {
+    MIS.list.push({
+      id: 'strzelnica', name: 'Strzelnica Zwierzyniec', who: 'Strzelnica', where: 'Las Zwierzyniec, ul. Borów',
+      reward: 200, side: true, range: true, bestKey: 'strzelnica', bestLow: false, col: '#e8503a',
+      text: 'Wiatrówka sportowa, trzy tory i tylko owoce: dynie, melony, arbuzy. Minuta, 15 nabojów. Wynik z celności, serii i czasu. Przyzwoity przebieg to około 150–250 zł. W mieście nie ma strzelania.',
+      gx: RANGE.px, gz: RANGE.pz, done: !!(SAVE.done && SAVE.done.strzelnica), obj3: null, cool: false,
+    });
+  }
+  Object.assign(G, {
+    rangeEnter, rangeExit, rangeFire, rangeAimWorld,
+    rangeState: () => ({ on: RANGE.on, phase: RANGE.phase, t: +RANGE.t.toFixed(2), score: RANGE.score, hits: RANGE.hits, shots: RANGE.shots, mag: RANGE.mag, reserve: RANGE.reserve, combo: RANGE.combo, pay: rangePay(RANGE.score), best: SAVE.best.strzelnica || 0, n: rangeLive.filter((q) => q.on).length, x: RANGE.px, z: RANGE.pz, targets: rangeLive.filter((q) => q.on && q.up).map((q) => { const p = q.g.getWorldPosition(new THREE.Vector3()); return { x: p.x, y: p.y, z: p.z, kind: q.kind }; }) }),
+  });
+}
+function buildRangeHud() {
+  const el = document.createElement('div'); el.id = 'rangeHud'; el.className = 'hidden';
+  el.innerHTML = '<div id="rangeTop"><b id="rangeWave">Strzelnica</b><span id="rangeTime">1:00</span><span id="rangeScore">0 pkt</span></div><div id="rangeCombo"></div><div id="rangeAmmo"><div id="rangePips"><i></i><i></i><i></i><i></i><i></i></div><span id="rangeLeft">zostało 15 / 15</span></div><div id="rangeCross"></div><div id="rangePop"></div><div id="rangeEnd" class="hidden"><b id="rangeEndTitle">Koniec przebiegu</b><ul><li><span>Trafienia</span><b id="rangeStatHits"></b></li><li><span>Najlepsza seria</span><b id="rangeStatCombo"></b></li><li><span>Punkty</span><b id="rangeStatScore"></b></li><li><span>Wypłata</span><b id="rangeStatPay"></b></li><li><span>Rekord</span><b id="rangeStatBest"></b></li></ul><p id="rangeEndNote"></p><div class="row"><button type="button" id="rangeAgain">Jeszcze raz</button><button type="button" id="rangeLeave">Wyjdź</button></div></div><button type="button" id="rangeFire">STRZAŁ</button><button type="button" id="rangeOut">Wyjdź</button>';
+  document.body.appendChild(el);
+  $('rangeFire').onclick = (e) => { e.stopPropagation(); rangeFire(); };
+  $('rangeOut').onclick = (e) => { e.stopPropagation(); rangeExit(); };
+  $('rangeLeave').onclick = (e) => { e.stopPropagation(); rangeExit(); };
+  $('rangeAgain').onclick = (e) => { e.stopPropagation(); rangeBegin(); };
+  for (const id of ['rangeFire', 'rangeOut', 'rangeLeave', 'rangeAgain', 'rangeEnd']) {
+    const n = $(id); if (!n) continue;
+    n.addEventListener('pointerdown', (e) => e.stopPropagation());
+  }
+}
+function rangeNear() {
+  if (!rangeStand) return false;
+  const f = focusXZ(); return Math.hypot(f.x - RANGE.px, f.z - RANGE.pz) < (G.mode === 'car' ? 8 : 5.5);
+}
+function rangeHint() {
+  if (!rangeStand || RANGE.on) return null;
+  if (!rangeNear()) return null;
+  if (WANT.stars) return 'Strzelnica zamknięta, dopóki ściga cię policja';
+  if (G.mode === 'car') return 'Strzelnica Zwierzyniec: wysiądź, potem ' + (isTouch ? 'AKCJA' : 'E');
+  return (isTouch ? 'AKCJA' : 'E') + ': Strzelnica Zwierzyniec – wiatrówka, tylko owoce';
+}
+function rangeAction() {
+  if (RANGE.on) { rangeExit(); return true; }
+  if (!rangeNear() || G.cut) return false;
+  if (RANGE.cool > 0) return true;
+  if (WANT.stars) { toast('Najpierw zgub policję. Na strzelnicy nie ma kryjówki.', 1800); return true; }
+  if (G.mode !== 'foot') { toast('Wysiądź – na stanowisko wchodzisz pieszo.', 1600); return true; }
+  rangeEnter(); return true;
+}
+function rangeEnter() {
+  if (RANGE.on) return;
+  RANGE.on = true; G.inRange = true; RANGE.backX = player.x; RANGE.backZ = player.z; RANGE.backH = player.h;
+  player.mesh.visible = false; player.vx = 0; player.vz = 0;
+  if (document.pointerLockElement) document.exitPointerLock();
+  rangeStand.updateMatrixWorld(true);
+  if (!rangeRifle) {
+    rangeRifle = new THREE.Group();
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.36), mkMat({ color: 0x8a5a32 }));
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.52), mkMat({ color: 0x2a211c })); barrel.position.set(0, 0.05, -0.32);
+    const fore = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.04, 0.22), mkMat({ color: 0xa56b3c })); fore.position.set(0, 0.035, -0.16);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.1, 0.05), mkMat({ color: 0x6b4228 })); grip.position.set(0, -0.04, 0.04);
+    rangeMuzzle = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 5), new THREE.MeshBasicMaterial({ color: 0xfff1c2 }));
+    rangeMuzzle.position.set(0, 0.05, -0.6); rangeMuzzle.visible = false;
+    rangeRifle.add(stock, barrel, fore, grip, rangeMuzzle); camera.add(rangeRifle);
+  }
+  rangeRifle.visible = true; rangeRifle.position.set(0.46, -0.22, -0.72); rangeRifle.scale.setScalar(1.45);
+  $('hud').classList.add('rangeHide');
+  $('rangeHud').classList.remove('hidden');
+  $('touch').classList.add('range');
+  rangeBegin();
+}
+function rangeBegin() {
+  for (const t of rangeLive) { t.g.visible = false; rangeStand.remove(t.g); }
+  rangeLive.length = 0;
+  for (const h of rangeHoles) h.visible = false;
+  for (const d of rangeDebris) d.m.visible = false;
+  rangeHoleN = 0;
+  Object.assign(RANGE, { phase: 'intro', t: 0, score: 0, hits: 0, shots: 0, combo: 0, bestCombo: 0, mag: 5, reserve: 10, reload: 0, spawnT: 0.2, ax: 0, ay: 0, did1: false, did2: false, kick: 0, flash: 0, pop: 0, wave: null });
+  $('rangeEnd').classList.add('hidden'); $('rangeHud').classList.remove('done');
+  rangeHud();
+}
+function rangeExit() {
+  if (!RANGE.on) return;
+  RANGE.on = false; G.inRange = false; RANGE.phase = 'idle';
+  player.mesh.visible = true;
+  player.x = RANGE.backX; player.z = RANGE.backZ; player.h = RANGE.backH; player.y = groundH(player.x, player.z);
+  player.mesh.position.set(player.x, player.y, player.z); player.mesh.rotation.y = player.h;
+  G.camOverride = null; if (typeof applyFog === 'function') applyFog();
+  if (rangeRifle) rangeRifle.visible = false;
+  $('hud').classList.remove('rangeHide');
+  $('rangeHud').classList.add('hidden'); $('rangeHud').classList.remove('done');
+  $('touch').classList.remove('range');
+  G.keys.clear(); RANGE.cool = 1.2;
+}
+function rangePay(score) { return clamp(Math.round(score * 0.82), 0, 280); }
+function rangeFinish() {
+  if (RANGE.phase === 'done') return;
+  RANGE.phase = 'done';
+  const acc = RANGE.shots ? RANGE.hits / RANGE.shots : 0;
+  RANGE.score += Math.round(acc * 60);
+  const pay = rangePay(RANGE.score);
+  const prev = SAVE.best.strzelnica;
+  const improved = prev == null || RANGE.score > prev + 0.5;
+  if (improved) SAVE.best.strzelnica = Math.round(RANGE.score);
+  const m = MIS.list.find((q) => q.id === 'strzelnica');
+  if (m) { m.done = true; SAVE.done.strzelnica = true; }
+  if (SAVE.claimed) SAVE.claimed.strzelnica = true;
+  if (pay) addMoney(pay, 'strzelnica');
+  else saveGame();
+  $('rangeEndTitle').textContent = improved ? 'Nowy rekord!' : 'Koniec przebiegu';
+  $('rangeStatHits').textContent = RANGE.hits + ' / ' + Math.max(RANGE.shots, RANGE.hits);
+  $('rangeStatCombo').textContent = '×' + RANGE.bestCombo;
+  $('rangeStatScore').textContent = RANGE.score + ' pkt';
+  $('rangeStatPay').textContent = pay + ' zł';
+  $('rangeStatBest').textContent = Math.round(SAVE.best.strzelnica || RANGE.score) + ' pkt';
+  $('rangeEndNote').textContent = improved ? 'Zapisane w dzienniku.' : ('Rekord bez zmian: ' + Math.round(prev) + ' pkt.');
+  $('rangeEnd').classList.remove('hidden'); $('rangeHud').classList.add('done');
+  rangeHud();
+}
+function rangeHud() {
+  const left = RANGE.phase === 'play' ? Math.max(0, 60 - RANGE.t) : (RANGE.phase === 'intro' ? 60 : 0);
+  const w = rangeWave(RANGE.t);
+  const re = rangeReloading(RANGE.t) && RANGE.phase === 'play';
+  $('rangeWave').textContent = RANGE.phase === 'intro' ? 'Gotowi…' : (RANGE.phase === 'done' ? 'Wynik' : (re ? 'Przeładowanie' : (w ? w.name : 'Strzelnica')));
+  $('rangeTime').textContent = '0:' + String(Math.ceil(left)).padStart(2, '0');
+  $('rangeScore').textContent = RANGE.score + ' pkt';
+  const pips = $('rangePips'); if (pips) for (let i = 0; i < 5; i++) pips.children[i].className = i < RANGE.mag ? 'on' : '';
+  const leftN = RANGE.mag + RANGE.reserve;
+  $('rangeLeft').textContent = re ? 'przeładowanie' : ('zostało ' + leftN + ' / 15');
+  $('rangeCombo').textContent = RANGE.combo > 1 ? ('seria ×' + RANGE.combo) : '';
+  const c = $('c').getBoundingClientRect();
+  const cross = $('rangeCross');
+  cross.style.left = ((RANGE.ax * 0.5 + 0.5) * c.width) + 'px';
+  cross.style.top = ((-RANGE.ay * 0.5 + 0.5) * c.height) + 'px';
+  const pop = $('rangePop');
+  pop.style.left = cross.style.left; pop.style.top = cross.style.top;
+  pop.style.opacity = RANGE.pop > 0 ? String(Math.min(1, RANGE.pop * 2)) : '0';
+  if (rangeRifle) {
+    const k = RANGE.kick || 0;
+    rangeRifle.position.set(0.46, -0.22, -0.72 + k * 0.12);
+    rangeRifle.rotation.set(0.08 + k * 0.25 - RANGE.ay * 0.08, -0.05 - RANGE.ax * 0.12, 0);
+  }
+  if (rangeMuzzle) rangeMuzzle.visible = RANGE.flash > 0;
+}
+function rangeAimEvent(e) {
+  const r = $('c').getBoundingClientRect();
+  RANGE.ax = clamp(((e.clientX - r.left) / r.width) * 2 - 1, -0.82, 0.82);
+  RANGE.ay = clamp(-(((e.clientY - r.top) / r.height) * 2 - 1), -0.55, 0.42);
+  rangeHud();
+}
+function rangeAimWorld(x, y, z) {
+  rangeStand.updateMatrixWorld(true);
+  rangeV.set(x, y, z).project(camera);
+  RANGE.ax = clamp(rangeV.x, -0.82, 0.82); RANGE.ay = clamp(rangeV.y, -0.55, 0.42); rangeHud();
+}
+function rangeFruit(kind) {
+  const g = new THREE.Group(); const K = RANGE_KINDS[kind]; const simple = rangeSimple();
+  const mat = mkMat({ color: K.col, emissive: kind === 'gold' ? 0xf6c431 : 0x000000, emissiveIntensity: kind === 'gold' ? 0.6 : 0 });
+  const body = new THREE.Mesh(RANGE.geos[kind], mat); body.castShadow = true;
+  if (kind === 'pumpkin') body.scale.set(1, 0.78, 1);
+  if (kind === 'melon') body.scale.set(0.9, 1.05, 0.9);
+  if (kind === 'water') body.scale.set(1.18, 0.92, 1.18);
+  g.add(body);
+  if (TOON && !simple) body.add(new THREE.Mesh(RANGE.geos[kind], hullMats().small));
+  const rib = (w, h, d, rot) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mkMat({ color: K.rib })); m.rotation.y = rot || 0; g.add(m); };
+  if (kind === 'pumpkin') {
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.07, 0.16, 5), mkMat({ color: 0x3c6b32 })); stem.position.y = K.r * 0.72; g.add(stem);
+    if (!simple) for (let i = 0; i < 4; i++) rib(0.05, K.r * 1.45, K.r * 1.85, i * Math.PI / 4);
+  } else if (kind === 'melon' && !simple) {
+    for (let i = 0; i < 3; i++) rib(K.r * 1.7, 0.035, K.r * 1.7, i * 0.5);
+  } else if (kind === 'water') {
+    const n = simple ? 3 : 5;
+    for (let i = 0; i < n; i++) rib(0.07, K.r * 1.7, K.r * 2.05, i * Math.PI / n);
+  } else if (kind === 'gold' && !simple) {
+    const crown = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 0.1), mkMat({ color: 0xfff6c8, emissive: 0xf6c431, emissiveIntensity: 0.4 }));
+    crown.position.y = K.r * 0.85; g.add(crown);
+  }
+  return g;
+}
+function rangeSpawn(kind, mode) {
+  const lane = Math.floor(Math.random() * 3) - 1;
+  const fruit = rangeFruit(kind); rangeStand.add(fruit);
+  const t = { g: fruit, kind, mode, lane, on: true, up: true, age: Math.random() * 0.4, phase: Math.random() * 6.28, r: RANGE_KINDS[kind].r * (kind === 'water' ? 1.05 : 1) };
+  rangeLive.push(t); rangePlace(t, 0); return t;
+}
+function rangePlace(t, dt) {
+  t.age += dt;
+  const w = rangeWave(Math.min(59.9, RANGE.t)) || RANGE_WAVES[0];
+  const sp = w.speed;
+  const travel = t.mode === 'pop' ? 0.45 : 1.2;
+  const x = t.lane * 1.7 + Math.sin(t.phase + t.age * sp) * travel;
+  let y = 1.22 + RANGE_KINDS[t.kind].r * 0.15;
+  if (t.mode === 'swing') y += Math.sin(t.phase * 1.7 + t.age * sp * 1.6) * 0.48;
+  if (t.mode === 'pop') { t.up = (t.age % 1.7) < 1.05; }
+  else t.up = true;
+  t.g.position.set(x, t.up ? y : 0.35, 5.4 + (t.lane + 1) * 0.15);
+  t.g.visible = t.on;
+  t.g.scale.setScalar(t.on && t.up ? 1 : 0.02);
+  if (t.on && t.up) t.g.rotation.y += dt * (t.kind === 'gold' ? 1.4 : 0.45);
+}
+function rangeBurst(pos, col) {
+  const n = rangeSimple() ? 5 : 12;
+  let used = 0;
+  for (const d of rangeDebris) {
+    if (d.m.visible) continue;
+    d.m.visible = true; d.m.material.color.setHex(used < 2 ? 0xfff6e8 : col);
+    d.m.scale.setScalar(0.7 + Math.random() * 1.3);
+    d.m.position.copy(pos);
+    d.v.set((Math.random() - 0.5) * 4.2, 2 + Math.random() * 2.4, (Math.random() - 0.5) * 2.4);
+    d.t = 0; d.life = 0.7; used++; if (used >= n) break;
+  }
+}
+function rangeHole(hit) {
+  rangeBack.updateMatrixWorld(true);
+  const local = rangeBack.worldToLocal(hit.clone());
+  const h = rangeHoles[rangeHoleN % rangeHoles.length]; rangeHoleN++;
+  h.visible = true; h.position.set(clamp(local.x, -3.4, 3.4), clamp(local.y, -1.5, 1.5), -0.2);
+}
+function rangeMark(text, good) {
+  const pop = $('rangePop'); if (!pop) return;
+  pop.textContent = text; pop.className = good ? 'good' : 'bad'; RANGE.pop = 0.65;
+  $('rangeCross').className = good ? 'hit' : 'miss';
+}
+function rangeFire() {
+  if (!RANGE.on || RANGE.phase !== 'play' || rangeReloading(RANGE.t) || RANGE.mag <= 0) return false;
+  RANGE.mag--; RANGE.shots++; RANGE.kick = 1; RANGE.flash = 0.08;
+  rangeRay.setFromCamera(new THREE.Vector2(RANGE.ax, RANGE.ay), camera);
+  let best = null, bd = 1e9, hp = null;
+  for (const t of rangeLive) {
+    if (!t.on || !t.up) continue;
+    t.g.getWorldPosition(rangeV);
+    const ocx = rangeV.x - rangeRay.ray.origin.x, ocy = rangeV.y - rangeRay.ray.origin.y, ocz = rangeV.z - rangeRay.ray.origin.z;
+    const b = ocx * rangeRay.ray.direction.x + ocy * rangeRay.ray.direction.y + ocz * rangeRay.ray.direction.z;
+    const c = ocx * ocx + ocy * ocy + ocz * ocz - t.r * t.r;
+    const disc = b * b - c;
+    if (disc > 0 && b > 0) { const dist = b - Math.sqrt(disc); if (dist < bd) { bd = dist; best = t; hp = rangeV.clone(); } }
+  }
+  if (best) {
+    best.on = false; best.g.visible = false;
+    RANGE.hits++; RANGE.combo++; RANGE.bestCombo = Math.max(RANGE.bestCombo, RANGE.combo);
+    const left = Math.max(0, 60 - RANGE.t);
+    const gained = Math.round(RANGE_KINDS[best.kind].pts * (1 + left / 120) + Math.max(0, RANGE.combo - 1) * 4);
+    RANGE.score += gained;
+    rangeBurst(hp || best.g.getWorldPosition(rangeV2), RANGE_KINDS[best.kind].col);
+    rangeMark('+' + gained, true);
+    if (settings.vibrate && isTouch) buzz(14);
+  } else {
+    RANGE.combo = 0; rangeMark('pudło', false);
+    const planeZ = new THREE.Vector3(); rangeBack.getWorldPosition(planeZ);
+    const n = new THREE.Vector3(0, 0, 1).applyQuaternion(rangeStand.quaternion);
+    const denom = rangeRay.ray.direction.dot(n);
+    if (Math.abs(denom) > 1e-4) {
+      const tt = planeZ.clone().sub(rangeRay.ray.origin).dot(n) / denom;
+      if (tt > 0) rangeHole(rangeRay.ray.origin.clone().addScaledVector(rangeRay.ray.direction, tt));
+    }
+  }
+  if (RANGE.mag <= 0 && RANGE.reserve <= 0) rangeFinish();
+  else if (RANGE.mag <= 0) RANGE.reload = 1.45;
+  rangeHud(); return true;
+}
+function rangeFill(w) {
+  let guard = 0;
+  while (rangeLive.filter((t) => t.on).length < rangeCap() && guard++ < 6) {
+    rangeSpawn(w.kinds[Math.floor(Math.random() * w.kinds.length)], w.modes[Math.floor(Math.random() * w.modes.length)]);
+  }
+}
+function updateRange(dt) {
+  if (RANGE.cool > 0) RANGE.cool -= dt;
+  if (!RANGE.on) {
+    if (RANGE.ring) RANGE.ring.material.opacity = 0.45 + 0.35 * Math.sin(performance.now() * 0.004);
+    return;
+  }
+  RANGE.kick = Math.max(0, (RANGE.kick || 0) - dt * 5);
+  RANGE.flash = Math.max(0, (RANGE.flash || 0) - dt);
+  RANGE.pop = Math.max(0, (RANGE.pop || 0) - dt);
+  if (RANGE.pop <= 0 && $('rangeCross')) $('rangeCross').className = '';
+  rangeStand.updateMatrixWorld(true);
+  const kick = RANGE.kick || 0;
+  const eye = rangeV.set(0.15, 1.62 - kick * 0.03, -1.05).applyMatrix4(rangeStand.matrixWorld);
+  const look = rangeV2.set(RANGE.ax * 0.15, 1.38 - kick * 0.08, 7.4).applyMatrix4(rangeStand.matrixWorld);
+  G.camOverride = [eye.x, eye.y, eye.z, look.x, look.y, look.z];
+  if (RANGE.phase === 'intro') {
+    RANGE.t += dt; if (RANGE.t > 1.1) { RANGE.phase = 'play'; RANGE.t = 0; RANGE.wave = null; }
+    rangeHud(); return;
+  }
+  if (RANGE.phase !== 'play') { rangeHud(); return; }
+  RANGE.t += dt;
+  const top = () => { const take = Math.min(5 - RANGE.mag, RANGE.reserve); RANGE.mag += take; RANGE.reserve -= take; };
+  if (RANGE.t >= 17 && !RANGE.did1) { RANGE.did1 = true; top(); }
+  if (RANGE.t >= 36 && !RANGE.did2) { RANGE.did2 = true; top(); }
+  if (RANGE.reload > 0) { RANGE.reload -= dt; if (RANGE.reload <= 0) top(); }
+  const w = rangeWave(RANGE.t);
+  if (w && !rangeReloading(RANGE.t)) {
+    if (RANGE.wave !== w.id) { RANGE.wave = w.id; rangeFill(w); RANGE.spawnT = 0.35; }
+    RANGE.spawnT -= dt;
+    const gap = settings.quality === 'low' ? 1.05 : (settings.quality === 'high' ? 0.55 : 0.72);
+    if (RANGE.spawnT <= 0 && rangeLive.filter((t) => t.on).length < rangeCap()) {
+      RANGE.spawnT = gap;
+      rangeSpawn(w.kinds[Math.floor(Math.random() * w.kinds.length)], w.modes[Math.floor(Math.random() * w.modes.length)]);
+    }
+  } else if (!w) RANGE.wave = null;
+  for (const t of rangeLive) if (t.on) rangePlace(t, dt);
+  for (const d of rangeDebris) {
+    if (!d.m.visible) continue; d.t += dt; d.v.y -= 11 * dt; d.m.position.addScaledVector(d.v, dt);
+    if (d.t > d.life || d.m.position.y < 0.05) d.m.visible = false;
+  }
+  if (RANGE.t >= 60) rangeFinish();
+  rangeHud();
+}
+addEventListener('pointermove', (e) => { if (G.inRange && !isTouch) rangeAimEvent(e); });
+addEventListener('pointerdown', (e) => {
+  if (!G.inRange || isTouch || RANGE.phase === 'done') return;
+  if (e.target && e.target.closest && e.target.closest('button')) return;
+  rangeFire();
+});
+function drawRangeMinimap(g, sc) {
+  if (!rangeStand) return;
+  g.fillStyle = '#e8503a'; g.fillRect(RANGE.px - 7 / sc, RANGE.pz - 5 / sc, 14 / sc, 10 / sc); g.strokeRect(RANGE.px - 7 / sc, RANGE.pz - 5 / sc, 14 / sc, 10 / sc);
+  g.fillStyle = '#2a211c'; g.font = 'bold ' + (9 / sc) + 'px sans-serif'; g.textAlign = 'center'; g.fillText('S', RANGE.px, RANGE.pz + 1 / sc);
 }
 
 
@@ -5248,6 +5705,7 @@ function initInput() {
     if (G.tutor) { tutorKey(e.code); return; }
     if (G.journalOpen) { if (e.code === 'Escape' || e.code === 'KeyJ') closeJournal(); return; }
     if (G.dialogOpen) { if (e.code === 'KeyE' || e.code === 'Enter') dialogAction(); else if (e.code === 'Escape') dialogClose(); return; }
+    if (G.inRange) { if (e.code === 'Escape' || e.code === 'KeyE') { if (typeof rangeExit === 'function') rangeExit(); } return; }
     if (G.inGarage) { garageKey(e.code); return; }
     if (POL.shop) { if (e.code === 'Digit1') { shopBuy('paint'); return; } if (e.code === 'Digit2') { shopBuy('fix'); return; } if (e.code === 'Escape' || e.code === 'Digit3') { shopClose(); return; } }
     if (e.code === 'Space' && G.mode === 'foot') G.jumpReq = true;
@@ -5260,7 +5718,7 @@ function initInput() {
       else { navClear(); toast('GPS wyłączony', 1200); }
     }
     else if (e.code === 'KeyH') {
-      if (G.mapOpen || G.journalOpen || G.dialogOpen || G.inGarage || G.tutor || (POL && POL.shop)) return;
+      if (G.mapOpen || G.journalOpen || G.dialogOpen || G.inGarage || G.inRange || G.tutor || (POL && POL.shop)) return;
       e.preventDefault(); objToggle();
     }
     else if (e.code === 'KeyR' || e.code === 'Period') radioStep(1);
@@ -5273,12 +5731,12 @@ function initInput() {
   addEventListener('keyup', (e) => G.keys.delete(e.code));
   addEventListener('blur', () => G.keys.clear());
   const canvas = $('c');
-  canvas.addEventListener('click', () => { if (G.started && !G.paused && !isTouch && canvas.requestPointerLock) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* unsupported */ } } });
+  canvas.addEventListener('click', () => { if (G.inRange) return; if (G.started && !G.paused && !isTouch && canvas.requestPointerLock) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* unsupported */ } } });
   let drag = null;
   canvas.addEventListener('mousedown', (e) => { drag = { x: e.clientX, y: e.clientY }; });
   addEventListener('mouseup', () => { drag = null; G.mouseLooking = false; });
   addEventListener('mousemove', (e) => {
-    if (!G.started || G.paused) return;
+    if (!G.started || G.paused || G.inRange) return;
     let dx = 0, dy = 0;
     if (document.pointerLockElement === canvas) { dx = e.movementX; dy = e.movementY; }
     else if (drag) { dx = e.clientX - drag.x; dy = e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY }; }

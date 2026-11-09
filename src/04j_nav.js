@@ -549,7 +549,7 @@ function bestLabel(m) {
   return m.bestLow ? ('rekord ' + fmtT(SAVE.best[m.bestKey])) : ('rekord ' + Math.round(SAVE.best[m.bestKey]) + ' pkt');
 }
 function openJournal() {
-  if (!G.started || G.tutor || G.dialogOpen || G.inGarage || (typeof POL !== 'undefined' && POL.shop)) return;
+  if (!G.started || G.tutor || G.dialogOpen || G.inGarage || G.inRange || (typeof POL !== 'undefined' && POL.shop)) return;
   if (G.mapOpen) closeMap();
   G.journalOpen = true; G.paused = true; if (document.pointerLockElement) document.exitPointerLock();
   $('journal').classList.remove('hidden'); renderJournal();
@@ -585,7 +585,7 @@ function journalCard(m) {
   const who = document.createElement('div'); who.className = 'jWho'; who.textContent = m.who + (m.where ? ' · ' + m.where : ''); card.appendChild(who);
   const rec = document.createElement('div'); rec.className = 'jPay';
   const paid = m.side && SAVE.claimed[m.id];
-  rec.textContent = 'Nagroda: ' + m.reward + ' zł' + (m.side ? (paid ? ' · już odebrana (zostaje premia za rekord)' : ' · pierwszy raz') : ' · można powtarzać') + (bestLabel(m) ? ' · ' + bestLabel(m) : '');
+  rec.textContent = m.range ? ('Wypłata za przebieg, zwykle 150–250 zł' + (bestLabel(m) ? ' · ' + bestLabel(m) : '')) : ('Nagroda: ' + m.reward + ' zł' + (m.side ? (paid ? ' · już odebrana (zostaje premia za rekord)' : ' · pierwszy raz') : ' · można powtarzać') + (bestLabel(m) ? ' · ' + bestLabel(m) : ''));
   card.appendChild(rec);
   if (m.steps && m.steps.length) { const ol = document.createElement('ol'); for (const s of m.steps) { const li = document.createElement('li'); li.textContent = s; ol.appendChild(li); } card.appendChild(ol); }
   else { const p = document.createElement('p'); p.textContent = m.text; card.appendChild(p); }
@@ -604,7 +604,7 @@ function journalCard(m) {
     const r = document.createElement('button'); r.type = 'button'; r.textContent = 'Od nowa';
     r.onclick = () => { missionCancel(); missionStart(m); closeJournal(); };
     btns.appendChild(r); btns.appendChild(c);
-  } else if (!MIS.active) {
+  } else if (!MIS.active && !m.range) {
     const go = document.createElement('button'); go.type = 'button'; go.textContent = m.done ? 'Jedź ponownie' : 'Przyjmij';
     go.onclick = () => { closeJournal(); missionStart(m); };
     btns.appendChild(go);

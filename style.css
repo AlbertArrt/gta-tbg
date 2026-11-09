@@ -197,6 +197,46 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 .tb.small{grid-column:3;height:calc(var(--tbs) * .62)}
 .tb.active{background:var(--sun)!important;transform:translateY(3px) scale(.94);box-shadow:0 0 0 var(--ink)!important}
 #touch.lefty #tbtns{right:auto;left:calc(14px + env(safe-area-inset-left))}
+#touch.range #tbtns,#touch.range #joy{visibility:hidden}
+#hud.rangeHide{visibility:hidden}
+#rangeHud{position:fixed;inset:0;z-index:14;pointer-events:none;color:var(--ink);font-weight:700}
+#rangeHud button{pointer-events:auto}
+#rangeTop{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:var(--cream);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);border-radius:16px;padding:8px 14px;display:flex;gap:12px;align-items:center;max-width:min(560px,92vw)}
+#rangeWave{font-size:16px}#rangeTime{font-variant-numeric:tabular-nums}#rangeScore{color:#1f7a34}
+#rangeAmmo{position:absolute;left:16px;bottom:22px;background:var(--cream);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);border-radius:14px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;min-width:132px}
+#rangePips{display:flex;gap:6px}
+#rangePips i{width:18px;height:18px;border:3px solid var(--ink);border-radius:50%;background:#fff}
+#rangePips i.on{background:var(--sun)}
+#rangeLeft{font-size:13px}
+#rangeCombo{position:absolute;left:50%;top:64px;transform:translateX(-50%);background:var(--sun);border:3px solid var(--ink);border-radius:12px;padding:2px 10px;min-height:0}
+#rangeCombo:empty{display:none}
+#rangeCross{position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;border:4px solid var(--ink);border-radius:50%;box-shadow:0 0 0 3px #fff}
+#rangeCross.hit{border-color:#1f7a34;box-shadow:0 0 0 3px #d8ffb0}
+#rangeCross.miss{border-color:#c0392b;box-shadow:0 0 0 3px #ffd0c8}
+#rangeCross:before,#rangeCross:after{content:"";position:absolute;background:var(--ink)}
+#rangeCross:before{left:50%;top:5px;bottom:5px;width:3px;margin-left:-1.5px}
+#rangeCross:after{top:50%;left:5px;right:5px;height:3px;margin-top:-1.5px}
+#rangePop{position:absolute;margin:-46px 0 0 -20px;font-size:26px;color:var(--ink);-webkit-text-stroke:4px #fff;paint-order:stroke fill;pointer-events:none}
+#rangePop.bad{color:#c0392b}
+#rangeFire{position:absolute;right:16px;bottom:18px;min-width:112px;min-height:64px;font-size:22px;font-weight:800;background:var(--sun);color:var(--ink)}
+#rangeOut{position:absolute;right:16px;bottom:96px;min-height:48px;min-width:112px;background:var(--cream);color:var(--ink)}
+#rangeHud.done #rangeFire,#rangeHud.done #rangeOut,#rangeHud.done #rangeAmmo,#rangeHud.done #rangeCross,#rangeHud.done #rangePop{display:none}
+#rangeEnd{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:min(380px,92vw);background:var(--cream);color:var(--ink);border:4px solid var(--ink);box-shadow:0 8px 0 var(--ink);border-radius:18px;padding:16px 18px 14px;text-align:left;pointer-events:auto}
+#rangeEnd b{display:block;text-align:center;font-size:22px;margin-bottom:8px}
+#rangeEnd ul{list-style:none;margin:0;padding:0}
+#rangeEnd li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:2px solid #eadfca;font-size:16px}
+#rangeEnd li b{margin:0;font-size:16px}
+#rangeEndNote{margin:8px 0 0;text-align:center;font-size:14px}
+#rangeEnd .row{display:flex;gap:10px;justify-content:center;margin-top:12px}
+#rangeEnd button{min-height:48px;min-width:120px}
+@media (max-width:900px),(max-height:520px){
+  #rangeTop{top:8px;padding:6px 10px;gap:8px;font-size:14px}
+  #rangeCombo{top:52px}
+  #rangeAmmo{left:8px;bottom:10px;min-width:118px}
+  #rangeFire{right:8px;bottom:10px;min-width:104px;min-height:64px}
+  #rangeOut{right:8px;bottom:84px}
+  #rangeEnd{top:42%;padding:12px}
+}
 #touch.lefty #joy{left:auto;right:calc(24px + var(--tbs) * 1.1);transform:translate(50%,50%)}
 #touch.lefty #joy.on{right:auto;transform:translate(-50%,-50%)}
 /* ===================== GARAŻ, DRIFT, NITRO, ZATRZYMANIE ===================== */
