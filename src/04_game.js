@@ -337,6 +337,7 @@ function updateVisibility(force) {
   for (const v of W.visObjects) {
     const d = Math.hypot(v.x - cx, v.z - cz) - v.r;
     if (v.near) v.obj.visible = d < TREE_NEAR && d < D + v.bias;
+    else if (v.detail) { const lim = settings.quality === 'high' ? 170 : (settings.quality === 'med' ? 130 : 0); v.obj.visible = lim > 0 && d < lim; }
     else if (v.far) v.obj.visible = d >= TREE_NEAR - 10 && d < D + v.bias;
     else if (v.edge) v.obj.visible = d < Math.min(D + v.bias, EDGE_D);
     else v.obj.visible = d < D + v.bias;
