@@ -227,23 +227,19 @@ function rangeHud() {
   const pop = $('rangePop');
   pop.style.left = cross.style.left; pop.style.top = cross.style.top;
   pop.style.opacity = RANGE.pop > 0 ? String(Math.min(1, RANGE.pop * 2)) : '0';
-  if (rangeRifle) {
-    const k = RANGE.kick || 0;
-    rangeRifle.position.set(0.46, -0.22, -0.72 + k * 0.12);
-    rangeRifle.rotation.set(0.08 + k * 0.25 - RANGE.ay * 0.08, -0.05 - RANGE.ax * 0.12, 0);
-  }
+  if (rangeRifle) rangeRifle.rotation.set(0.12 - RANGE.ay * 0.1, -0.08 - RANGE.ax * 0.15, 0);
   if (rangeMuzzle) rangeMuzzle.visible = RANGE.flash > 0;
 }
 function rangeAimEvent(e) {
   const r = $('c').getBoundingClientRect();
   RANGE.ax = clamp(((e.clientX - r.left) / r.width) * 2 - 1, -0.82, 0.82);
-  RANGE.ay = clamp(-(((e.clientY - r.top) / r.height) * 2 - 1), -0.55, 0.42);
+  RANGE.ay = clamp(-(((e.clientY - r.top) / r.height) * 2 - 1), -0.62, 0.48);
   rangeHud();
 }
 function rangeAimWorld(x, y, z) {
   rangeStand.updateMatrixWorld(true);
   rangeV.set(x, y, z).project(camera);
-  RANGE.ax = clamp(rangeV.x, -0.82, 0.82); RANGE.ay = clamp(rangeV.y, -0.55, 0.42); rangeHud();
+  RANGE.ax = clamp(rangeV.x, -0.82, 0.82); RANGE.ay = clamp(rangeV.y, -0.62, 0.48); rangeHud();
 }
 function rangeFruit(kind) {
   const g = new THREE.Group(); const K = RANGE_KINDS[kind]; const simple = rangeSimple();
@@ -315,7 +311,7 @@ function rangeMark(text, good) {
 }
 function rangeFire() {
   if (!RANGE.on || RANGE.phase !== 'play' || rangeReloading(RANGE.t) || RANGE.mag <= 0) return false;
-  RANGE.mag--; RANGE.shots++; RANGE.kick = 1; RANGE.flash = 0.08;
+  RANGE.mag--; RANGE.shots++; RANGE.flash = 0.08;
   rangeRay.setFromCamera(new THREE.Vector2(RANGE.ax, RANGE.ay), camera);
   let best = null, bd = 1e9, hp = null;
   for (const t of rangeLive) {
@@ -362,14 +358,12 @@ function updateRange(dt) {
     if (RANGE.ring) RANGE.ring.material.opacity = 0.45 + 0.35 * Math.sin(performance.now() * 0.004);
     return;
   }
-  RANGE.kick = Math.max(0, (RANGE.kick || 0) - dt * 5);
   RANGE.flash = Math.max(0, (RANGE.flash || 0) - dt);
   RANGE.pop = Math.max(0, (RANGE.pop || 0) - dt);
   if (RANGE.pop <= 0 && $('rangeCross')) $('rangeCross').className = '';
   rangeStand.updateMatrixWorld(true);
-  const kick = RANGE.kick || 0;
-  const eye = rangeV.set(0.15, 1.62 - kick * 0.03, -1.05).applyMatrix4(rangeStand.matrixWorld);
-  const look = rangeV2.set(RANGE.ax * 0.15, 1.38 - kick * 0.08, 7.4).applyMatrix4(rangeStand.matrixWorld);
+  const eye = rangeV.set(0, 1.55, -1.45).applyMatrix4(rangeStand.matrixWorld);
+  const look = rangeV2.set(0, 1.28, 8).applyMatrix4(rangeStand.matrixWorld);
   G.camOverride = [eye.x, eye.y, eye.z, look.x, look.y, look.z];
   if (RANGE.phase === 'intro') {
     RANGE.t += dt; if (RANGE.t > 1.1) { RANGE.phase = 'play'; RANGE.t = 0; RANGE.wave = null; }
