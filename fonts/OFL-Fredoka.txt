@@ -1,3 +1,9 @@
+Fredoka subset used by GTA TBG.
+This build is a Modified Version of Fredoka (weights 400, 600 and 700):
+a Latin subset plus precomposed Polish letters (ą ć ę ł ń ó ś ź ż and capitals)
+assembled from the upstream base glyphs and their combining marks.
+Source: https://fonts.google.com/specimen/Fredoka (OFL 1.1). The Reserved Font Name list is empty.
+
 Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.

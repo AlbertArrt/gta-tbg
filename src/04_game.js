@@ -94,7 +94,11 @@ function spawnCars() {
     if (insideBuilding(cx, cz, 2.2) || spots.some((s) => Math.hypot(s[0] - cx, s[1] - cz) < 8)) continue;
     spots.push([cx, cz, rp.h]);
   }
-  spots.slice(0, 14).forEach((s, i) => { cars.push(new Car(scene, CAR_COLORS[i % CAR_COLORS.length], s[0], s[1], s[2] + (rnd() < 0.5 ? 0 : Math.PI))); });
+  const roster = kitRoster(); const pal = TOON ? TOON_CAR_COLORS : CAR_COLORS;
+  spots.slice(0, 14).forEach((s, i) => {
+    const model = i < roster.parked ? roster.models[i % roster.models.length] : '';
+    cars.push(new Car(scene, pal[i % pal.length], s[0], s[1], s[2] + (rnd() < 0.5 ? 0 : Math.PI), model ? { model } : {}));
+  });
 }
 
 // ---------------- teleport / enter-exit
@@ -183,6 +187,7 @@ function updateCar(c, dt, drive) {
   let vF = c.vx * fx + c.vz * fz, vR = c.vx * rx + c.vz * rz;
   const OR = c.offroad, st = c.st; let MAXV = st ? st.maxv : (OR ? 41 : 48); let ACC = st ? st.acc : (OR ? 14 : 13); const BRK = st ? st.brk : 28;
   const GRIP = st ? st.grip : 9, STEER = st ? st.steer : 0.55;
+  if (c.bus) { MAXV = Math.min(MAXV, 30); ACC = Math.min(ACC, 7); }
   if (c.pmul && c !== activeCar) { MAXV *= c.pmul; ACC *= c.pmul; } // police slowed down at low wanted levels
   if (c.hp < 25 && !c.wrecked && !c.police) MAXV *= 0.85; // badly damaged engine
   c.nitroOn = false;
@@ -200,7 +205,7 @@ function updateCar(c, dt, drive) {
   else if (thr < 0) { if (vF > 0.5) vF -= BRK * dt; else vF = Math.max(-12, vF - 7 * dt); }
   else { vF -= Math.sign(vF) * Math.min(Math.abs(vF), (2.2 + Math.abs(vF) * 0.04) * dt); }
   if (hand) { vF -= Math.sign(vF) * Math.min(Math.abs(vF), (thr > 0 ? 5 : 9) * dt); }
-  const maxSteer = STEER / (1 + Math.abs(vF) * 0.035);
+  const maxSteer = (c.bus ? STEER * 0.62 : STEER) / (1 + Math.abs(vF) * 0.035);
   c.steer = lerp(c.steer, steerIn * maxSteer, Math.min(1, dt * (drive && G.touch.jon ? 7 : 6)));
   c.gripK = hand ? 0 : Math.min(1, (c.gripK === undefined ? 1 : c.gripK) + dt * (thr > 0 ? 1.5 : 3)); // grip comes back gradually after the handbrake → longer, controllable drifts
   const gFull = GRIP * surfGrip, gLo = Math.min(1.8, gFull);
