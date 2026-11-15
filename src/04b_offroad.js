@@ -221,7 +221,8 @@ function spawnEgg() {
   const o = W.off; const mon = (W.data.egg && W.data.egg.monument) || [W.travel[0][1], W.travel[0][2]];
   const face = Math.atan2(W.travel[0][1] - mon[0], W.travel[0][2] - mon[1]) || 0;
   EGG.mon = { x: mon[0], z: mon[1] }; EGG.monObj = makeMonument(mon[0], mon[1], face); scene.add(EGG.monObj);
-  W.props = [{ x: mon[0], z: mon[1], r: 2.4 }];
+  if (!W.props) W.props = [];
+  W.props.push({ x: mon[0], z: mon[1], r: 2.4 });
   // the glowing button stands ~4.5 m beside the monument
   let bx = mon[0] + Math.cos(face) * 4.6, bz = mon[1] - Math.sin(face) * 4.6;
   if (insideBuilding(bx, bz, 1.2)) { bx = mon[0] - Math.cos(face) * 4.6; bz = mon[1] + Math.sin(face) * 4.6; }

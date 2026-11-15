@@ -144,7 +144,7 @@ Pełna kwota tylko za pierwszym razem. Kolejny przejazd zapisuje rekord i daje *
 
   Tytuły utworów: `https://somafm.com/songs/<kanał>.json` (SomaFM) i `https://streaming.g-news.pl/api/nowplaying/leliwa` (Leliwa). Radio Paradise nie udostępnia tytułów przeglądarce (brak CORS). Wszystkie strumienie należą do ich nadawców – gra tylko je odtwarza.
 - **HUD:** prędkościomierz, minimapa z obrotem, gwiazdki, gotówka, pasek HP auta, nazwa ulicy, mapa M z szybką podróżą (niedostępna przy gwiazdkach).
-- **Grafika:** cykl dnia i nocy, chunki z ukrywaniem niewidocznych, jakość Niska / Średnia / Wysoka (z cieniami).
+- **Grafika:** cykl dnia i nocy, chunki z ukrywaniem niewidocznych, jakość Niska / Średnia / Wysoka (z cieniami). Komiks ma twardsze pasy cienia, wcześniejszą mgłę i lekką korekcję koloru (cieplej, winieta) także na niskiej jakości. Pełny styl powyżej niskiej jakości dokłada kontury z głębi. Chmury, latarnie i drobne meble uliczne są instancjami; pod autami i ludźmi leży płaska plama cienia, bez map cieni.
   Kontury budynków w stylu komiksowym rysują się tylko w pobliżu kamery (Niska 200 m, Średnia 320 m, Wysoka 500 m; w trybie lekkim 75% tego). Dalej i tak zasłania je mgła, a to mocno odciąża słabsze telefony.
 
 ## 💰 Kasa, garaże i tuning (v3)

@@ -321,6 +321,8 @@ async function buildWorld(data, scene, renderer) {
   buildTrees(QUALITY[settings.quality].trees);
   W.travel = data.travel.slice();
   W.landmarks = data.landmarks;
+  setLoad(0.92, 'Chmury i ulica…'); await nextFrame();
+  buildLook(scene);
   setLoad(0.95, 'Prawie gotowe…'); await nextFrame();
 }
 
