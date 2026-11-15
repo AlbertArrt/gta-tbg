@@ -114,8 +114,11 @@ function getEdgeMat() {
         if (a.z > nz) a = mix(b, a, (b.z - nz) / (b.z - a.z)); else if (b.z > nz) b = mix(a, b, (a.z - nz) / (a.z - b.z));
         a.xyz *= 0.9965; b.xyz *= 0.9965;
         vec4 pa = projectionMatrix * a, pb = projectionMatrix * b;
+        if (pa.w < 0.08 || pb.w < 0.08) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
         vec2 sa = pa.xy / pa.w * uRes, sb = pb.xy / pb.w * uRes;
-        vec2 d = sb - sa; float L = length(d); d = L > 1e-4 ? d / L : vec2(1.0, 0.0);
+        vec2 d = sb - sa; float L = length(d);
+        if (L > max(uRes.x, uRes.y) * 1.75) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+        d = L > 1e-4 ? d / L : vec2(1.0, 0.0);
         vec2 n = vec2(-d.y, d.x);
         float e = position.x; vec4 p = e < 0.5 ? pa : pb; vec4 mvPosition = e < 0.5 ? a : b;
         float w = uW * clamp(1.5 - (-mvPosition.z) / uFade, 0.5, 1.0);
@@ -324,6 +327,11 @@ function renderFrame() {
     renderer.setRenderTarget(POST.rt); renderer.render(scene, camera);
     G.sceneCalls = renderer.info.render.calls; G.sceneTris = renderer.info.render.triangles;
     renderer.setRenderTarget(null); renderer.render(POST.scene, POST.cam);
-  } else { renderer.render(scene, camera); G.sceneCalls = renderer.info.render.calls; G.sceneTris = renderer.info.render.triangles; }
+  } else {
+    renderer.render(scene, camera);
+    G.sceneCalls = renderer.info.render.calls; G.sceneTris = renderer.info.render.triangles;
+  }
+  G.cockpitCalls = 0; G.cockpitTris = 0;
+  if (typeof renderCockpit === 'function') renderCockpit();
 }
 const tmpSz = new THREE.Vector2();
