@@ -243,7 +243,7 @@ Object.assign(G, {
   navState: () => ({ on: NAV.on, status: NAV.status, note: NAV.note, instr: NAV.instr, dist: NAV.dist, src: NAV.src, n: NAV.pts ? NAV.pts.length / 2 : 0, plans: NAV.plans, tail: !!NAV.tail, cls: NAV.cls, name: NAV.name, dx: NAV.dx, dz: NAV.dz, sig: NAV.sig, bridges: NAV.bridges || 0, comps: NAV.comps || 0 }),
   navSet: (x, z, name, opt) => navSet(x, z, name, opt || { src: 'place' }), navClear, navAudit, openJournal, closeJournal, openTutor, closeTutor, missionCancel,
   storyDone: () => storyDoneCount(), save: () => SAVE,
-  stats: () => ({ buildings: W.buildings.length, roads: W.roads.length, trees: W.treeCount, chunks: W.chunkCount, calls: renderer.info.render.calls, tris: renderer.info.render.triangles }),
+  stats: () => ({ buildings: W.buildings.length, roads: W.roads.length, trees: W.treeCount, chunks: W.chunkCount, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, seal: W.sealStats || null }),
   garage: () => ({ open: GAR.open ? GAR.open.n : null, tab: GAR.tab, sel: GAR.sel, places: GAR.places.map((p) => ({ n: p.n, x: p.x, z: p.z, h: p.h })), cars: SAVE.garage.cars.map((r) => ({ uid: r.uid, model: r.model, color: r.color, up: { ...r.up }, st: carStats(r) })),
     own: GAR.own ? { uid: GAR.own.own.uid, model: GAR.own.model, x: GAR.own.x, z: GAR.own.z, hp: GAR.own.hp, st: GAR.own.st, nf: GAR.own.nf, inside: GAR.own === activeCar } : null, save: SAVE }),
   garageOpen: (i) => garageOpen(GAR.places[i || 0]), garageClose, garageTab: (t) => { GAR.tab = t; garageRender(); }, buyModel, upgradeCar, paintCar, spawnOwn: (uid, i) => spawnOwn(ownRec(uid), GAR.places[i || 0]), keepStolen, sellCar, storeCurrent, repairActive,

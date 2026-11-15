@@ -995,6 +995,7 @@ async function buildWorld(data, scene, renderer) {
     }
     const rec = { ring, holes, kind, area: Math.abs(ringArea(ring)) };
     if (kind === 'residential') (W.resid = W.resid || []).push(rec);
+    if (kind === 'commercial') (W.shops = W.shops || []).push(rec);
     if (kind === 'forest' || kind === 'scrub' || kind === 'orchard') W.forests.push(rec);
     if (kind === 'park' || kind === 'cemetery' || kind === 'garden' || kind === 'allotments' || kind === 'pitch' || kind === 'grass') W.parks.push(rec);
   });
@@ -1081,6 +1082,7 @@ async function buildWorld(data, scene, renderer) {
   const BLOCKY = new Set(['apartments', 'residential', 'hotel', 'office', 'school', 'public', 'hospital', 'university', 'kindergarten']);
   const SHEDS = new Set(['garage', 'garages', 'shed', 'roof', 'farm_auxiliary']);
   const PITCH = new Set(['house', 'detached', 'semidetached_house', 'terrace', 'farm_auxiliary', 'church', 'chapel']);
+  const fronts = [];
   let bi = 0;
   for (const b of data.buildings) {
     const h = b[0] / 10, kind = BK[b[1]] || 'yes', est = b[2];
@@ -1157,6 +1159,24 @@ async function buildWorld(data, scene, renderer) {
         }
         if (TOON && blockish && outer && len > 7) addBalconies(ch.detail, x1, z1, fx, fz, nx, nz, len, floors, fh, rnd);
         W.bGrid.add(x1, z1, x2, z2, bi);
+        if (outer && len > 3 && len < 46 && !SHEDS.has(kind)) {
+          const mx = (x1 + x2) * 0.5, mz = (z1 + z2) * 0.5;
+          let bestD = 17, best = null;
+          W.roadGrid.query(mx, mz, 17, (ri) => {
+            const road = W.roads[W.roadGrid.meta[ri]];
+            if (!road.drivable || road.type === 'service' || road.bridge) return;
+            const s = W.roadGrid.s;
+            closestOnSeg(mx, mz, s[ri * 4], s[ri * 4 + 1], s[ri * 4 + 2], s[ri * 4 + 3], tmpC);
+            const dx = tmpC.x - mx, dz = tmpC.z - mz, d = Math.hypot(dx, dz);
+            if (d >= bestD || d < road.width * 0.42) return;
+            const rdx = s[ri * 4 + 2] - s[ri * 4], rdz = s[ri * 4 + 3] - s[ri * 4 + 1];
+            const rl = Math.hypot(rdx, rdz) || 1;
+            if (Math.abs(fx * rdx + fz * rdz) / rl < 0.72) return;
+            if (dx * nx + dz * nz < 0.45 * d) return;
+            bestD = d; best = { d, hx: rdx / rl, hz: rdz / rl, rw: road.width };
+          });
+          if (best) fronts.push({ x1, z1, x2, z2, nx, nz, h: wallH, d: best.d, hx: best.hx, hz: best.hz, rw: best.rw, mx, mz, tile, col: wcol.getHex(), acc: acc ? acc.getHex() : -1 });
+        }
       }
     };
     addWalls(ring, true); holes.forEach((hr) => addWalls(hr, false));
@@ -1197,6 +1217,8 @@ async function buildWorld(data, scene, renderer) {
     bi++;
     if (bi % 2000 === 0) { setLoad(0.55 + 0.2 * bi / data.buildings.length); await nextFrame(); }
   }
+  setLoad(0.76, 'Pierzeje ulic…'); await nextFrame();
+  sealStreetWalls(fronts, getChunk);
   W.bGrid.finish();
 
   setLoad(0.78, 'Składanie miasta…'); await nextFrame();
@@ -1235,6 +1257,245 @@ async function buildWorld(data, scene, renderer) {
   W.travel = data.travel.slice();
   W.landmarks = data.landmarks;
   setLoad(0.95, 'Prawie gotowe…'); await nextFrame();
+}
+
+function sealStreetWalls(fronts, getChunk) {
+  const q = (typeof settings !== 'undefined' && settings.quality) || 'med';
+  const crackMax = q === 'low' ? 2 : 3;
+  const crackCap = q === 'low' ? 600 : (q === 'high' ? 2200 : 1400);
+  const doPull = q !== 'low';
+  const pullCap = q === 'high' ? 600 : 350;
+  const backMax = q === 'high' ? 24 : (q === 'med' ? 18 : 0);
+  const backCap = q === 'high' ? 280 : 180;
+  const plotCap = q === 'high' ? 48 : 0;
+  const shopCap = q === 'high' ? 18 : 0;
+  let cracks = 0, pulls = 0, backs = 0, plots = 0, tris = 0;
+  const backJobs = [];
+  const used = new Set();
+  const dense = (x, z) => Math.hypot(x + 7, z - 10) < 780 || Math.hypot(x - 1216, z + 49) < 680;
+  const nearPoi = (x, z) => {
+    const t = W.data.travel;
+    for (let i = 0; i < t.length; i++) if ((t[i][1] - x) ** 2 + (t[i][2] - z) ** 2 < 576) return true;
+    return (x - 2375) ** 2 + (z + 1694) ** 2 < 1296;
+  };
+  const blocked = (x, z) => insideBuilding(x, z) || inWater(x, z) || nearRoad(x, z, 0.85) || nearPoi(x, z);
+  const face = (x1, z1, x2, z2, nx, nz, h, colHex, tile, accHex) => {
+    const len = Math.hypot(x2 - x1, z2 - z1);
+    if (len < 0.25 || h < 2) return 0;
+    const ch = getChunk((x1 + x2) * 0.5, (z1 + z2) * 0.5);
+    const col = new THREE.Color(colHex);
+    if (TOON) ch.walls.setX(accHex < 0 ? null : new THREE.Color(accHex), tile < 0 ? 2 : tile);
+    const u1 = TOON ? (len < 1.6 ? len / 3 : Math.max(1, Math.round(len / 3))) : len / 12;
+    const v1 = TOON ? Math.max(1, Math.round(h / 3)) : h / 12;
+    ch.walls.tri(x1, 0, z1, x2, 0, z2, x2, h, z2, col, [0, 0, u1, 0, u1, v1], nx, 0, nz);
+    ch.walls.tri(x1, 0, z1, x2, h, z2, x1, h, z1, col, [0, 0, u1, v1, 0, v1], nx, 0, nz);
+    ch.walls.tri(x1, 0, z1, x2, h, z2, x2, 0, z2, col, [0, 0, u1, v1, u1, 0], -nx, 0, -nz);
+    ch.walls.tri(x1, 0, z1, x1, h, z1, x2, h, z2, col, [0, 0, 0, v1, u1, v1], -nx, 0, -nz);
+    if (TOON) {
+      ch.edges.push(x1, 0, z1, x1, h, z1, x2, 0, z2, x2, h, z2, x1, h, z1, x2, h, z2);
+      ch.walls.setX(null, -1);
+    }
+    W.bGrid.add(x1, z1, x2, z2, -1);
+    return 4;
+  };
+  const roof = (x1, z1, x2, z2, x3, z3, x4, z4, y, hex) => {
+    const ch = getChunk((x1 + x3) * 0.5, (z1 + z3) * 0.5);
+    const c = new THREE.Color(hex);
+    const abx = x2 - x1, abz = z2 - z1, bcx = x3 - x2, bcz = z3 - z2;
+    const up = abz * bcx - abx * bcz >= 0;
+    if (up) {
+      ch.roofs.tri(x1, y, z1, x2, y, z2, x3, y, z3, c, null, 0, 1, 0);
+      ch.roofs.tri(x1, y, z1, x3, y, z3, x4, y, z4, c, null, 0, 1, 0);
+    } else {
+      ch.roofs.tri(x1, y, z1, x3, y, z3, x2, y, z2, c, null, 0, 1, 0);
+      ch.roofs.tri(x1, y, z1, x4, y, z4, x3, y, z3, c, null, 0, 1, 0);
+    }
+    if (TOON) ch.edges.push(x1, y, z1, x2, y, z2, x2, y, z2, x3, y, z3, x3, y, z3, x4, y, z4, x4, y, z4, x1, y, z1);
+    return 2;
+  };
+  const occupy = (ring, h) => {
+    let cx = 0, cz = 0; const n = ring.length / 2;
+    for (let i = 0; i < ring.length; i += 2) { cx += ring[i]; cz += ring[i + 1]; }
+    cx /= n; cz /= n;
+    const id = W.buildings.length;
+    W.buildings.push({ ring, cx, cz, h, kind: 'seal' });
+    let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (let i = 0; i < ring.length; i += 2) { x0 = Math.min(x0, ring[i]); x1 = Math.max(x1, ring[i]); z0 = Math.min(z0, ring[i + 1]); z1 = Math.max(z1, ring[i + 1]); }
+    for (let ix = Math.floor(x0 / 32); ix <= Math.floor(x1 / 32); ix++) for (let iz = Math.floor(z0 / 32); iz <= Math.floor(z1 / 32); iz++) {
+      const k = ix * 100000 + iz; let a = W.bCells.get(k); if (!a) { a = []; W.bCells.set(k, a); } a.push(id);
+    }
+  };
+  const CELL = 16;
+  const buckets = new Map();
+  const addBucket = (x, z, i) => {
+    const k = (Math.floor(x / CELL) + 4000) * 8000 + Math.floor(z / CELL) + 4000;
+    let a = buckets.get(k); if (!a) { a = []; buckets.set(k, a); } a.push(i);
+  };
+  for (let i = 0; i < fronts.length; i++) { addBucket(fronts[i].x1, fronts[i].z1, i); addBucket(fronts[i].x2, fronts[i].z2, i); }
+  const keyOf = (x, z) => (Math.round(x * 2) + ',' + Math.round(z * 2));
+  const seenPair = new Set();
+  for (let i = 0; i < fronts.length; i++) {
+    const A = fronts[i];
+    const seeds = [[A.x1, A.z1], [A.x2, A.z2]];
+    for (const seed of seeds) {
+    const ix = Math.floor(seed[0] / CELL), iz = Math.floor(seed[1] / CELL);
+    for (let ox = -2; ox <= 2; ox++) for (let oz = -2; oz <= 2; oz++) {
+      const list = buckets.get((ix + ox + 4000) * 8000 + (iz + oz + 4000));
+      if (!list) continue;
+      for (let k = 0; k < list.length; k++) {
+        const j = list[k]; if (j <= i) continue;
+        const pid = i + '|' + j; if (seenPair.has(pid)) continue; seenPair.add(pid);
+        const B = fronts[j];
+        if (A.nx * B.nx + A.nz * B.nz < 0.82) continue;
+        if (Math.abs(A.d - B.d) > 14) continue;
+        if (Math.abs(A.hx * B.hx + A.hz * B.hz) < 0.75) continue;
+        let best = 1e9, ax = 0, az = 0, bx = 0, bz = 0;
+        const AE = [[A.x1, A.z1], [A.x2, A.z2]], BE = [[B.x1, B.z1], [B.x2, B.z2]];
+        for (let p = 0; p < 2; p++) for (let q = 0; q < 2; q++) {
+          const ddx = AE[p][0] - BE[q][0], ddz = AE[p][1] - BE[q][1], d2 = ddx * ddx + ddz * ddz;
+          if (d2 < best) { best = d2; ax = AE[p][0]; az = AE[p][1]; bx = BE[q][0]; bz = BE[q][1]; }
+        }
+        const gap = Math.sqrt(best);
+        if (gap < 0.4 || gap > Math.max(crackMax, backMax)) continue;
+        let gx = bx - ax, gz = bz - az, gl = gap || 1;
+        const nx = A.nx, nz = A.nz;
+        const along = Math.abs(gx * nx + gz * nz) / gl;
+        if (along > (gap <= crackMax ? 0.5 : 0.7)) continue;
+        if (gz * nx - gx * nz < 0) { const tx = ax, tz = az; ax = bx; az = bz; bx = tx; bz = tz; gx = -gx; gz = -gz; }
+        const mx = (ax + bx) * 0.5, mz = (az + bz) * 0.5;
+        const pk = keyOf(ax, az) + '|' + keyOf(bx, bz);
+        if (used.has(pk)) continue;
+        if (gap <= crackMax && Math.abs(A.d - B.d) > 2.8) continue;
+        if (gap <= crackMax && cracks < crackCap) {
+          if (blocked(mx, mz)) continue;
+          const h = Math.min(A.h, B.h, 12);
+          if (h < 2.6) continue;
+          used.add(pk);
+          tris += face(ax, az, bx, bz, nx, nz, h, A.col, A.tile, A.acc);
+          cracks++;
+        } else if (backMax && gap > crackMax && gap <= (dense(mx, mz) ? backMax : Math.min(backMax, 10))) {
+          backJobs.push({ ax, az, bx, bz, gx, gz, gl, nx, nz, gap, h: Math.min(A.h, B.h), col: A.col, tile: A.tile, acc: A.acc, dense: dense(mx, mz) ? 1 : 0, pk });
+        }
+      }
+    }
+    }
+  }
+  backJobs.sort((a, b) => b.dense - a.dense || b.gap - a.gap);
+  for (const J of backJobs) {
+    if (backs >= backCap) break;
+    if (used.has(J.pk)) continue;
+    const inset = 0.55, back = 0.4, depth = 6.4;
+    const fx = J.gx / J.gl, fz = J.gz / J.gl;
+    const span = J.gap - inset * 2;
+    if (span < 2.3) continue;
+    const f1x = J.ax + fx * inset - J.nx * back, f1z = J.az + fz * inset - J.nz * back;
+    const f2x = J.bx - fx * inset - J.nx * back, f2z = J.bz - fz * inset - J.nz * back;
+    const b1x = f1x - J.nx * depth, b1z = f1z - J.nz * depth;
+    const b2x = f2x - J.nx * depth, b2z = f2z - J.nz * depth;
+    const pts = [[f1x, f1z], [f2x, f2z], [b2x, b2z], [b1x, b1z], [(f1x + f2x) * 0.5, (f1z + f2z) * 0.5], [(b1x + b2x) * 0.5, (b1z + b2z) * 0.5]];
+    const spanLen = Math.hypot(f2x - f1x, f2z - f1z);
+    for (let s = 4; s < spanLen; s += 4) {
+      const t = s / spanLen;
+      pts.push([f1x + (f2x - f1x) * t, f1z + (f2z - f1z) * t]);
+      pts.push([b1x + (b2x - b1x) * t, b1z + (b2z - b1z) * t]);
+    }
+    let ok = true;
+    for (const p of pts) if (blocked(p[0], p[1])) ok = false;
+    if (!ok || blocked((f1x + b2x) * 0.5, (f1z + b2z) * 0.5)) continue;
+    used.add(J.pk);
+    const h = Math.min(12, Math.max(8, J.h * 0.9));
+    tris += face(f1x, f1z, f2x, f2z, J.nx, J.nz, h, J.col, J.tile, J.acc);
+    tris += face(f2x, f2z, b2x, b2z, fx, fz, h, J.col, J.tile, J.acc);
+    tris += face(b2x, b2z, b1x, b1z, -J.nx, -J.nz, h, J.col, J.tile, J.acc);
+    tris += face(b1x, b1z, f1x, f1z, -fx, -fz, h, J.col, J.tile, J.acc);
+    tris += roof(f1x, f1z, f2x, f2z, b2x, b2z, b1x, b1z, h, 0xc45a3a);
+    occupy([f1x, f1z, f2x, f2z, b2x, b2z, b1x, b1z], h);
+    backs++;
+  }
+  if (doPull) {
+    for (let i = 0; i < fronts.length && pulls < pullCap; i++) {
+      const f = fronts[i];
+      if (!dense(f.mx, f.mz) || f.h < 4.2) continue;
+      const len = Math.hypot(f.x2 - f.x1, f.z2 - f.z1);
+      if (len < 5.5) continue;
+      const target = f.rw * 0.5 + 3.15;
+      const pull = f.d - target;
+      if (pull < 2.8 || pull > 11) continue;
+      const x1 = f.x1 + f.nx * pull, z1 = f.z1 + f.nz * pull;
+      const x2 = f.x2 + f.nx * pull, z2 = f.z2 + f.nz * pull;
+      const sx = (f.x2 - f.x1) / len, sz = (f.z2 - f.z1) / len;
+      const samples = [[x1, z1], [x2, z2], [(x1 + x2) * 0.5, (z1 + z2) * 0.5], [(f.x1 + x1) * 0.5, (f.z1 + z1) * 0.5], [(f.x2 + x2) * 0.5, (f.z2 + z2) * 0.5]];
+      let ok = true;
+      for (const p of samples) if (blocked(p[0], p[1])) ok = false;
+      if (!ok) continue;
+      const h = Math.min(f.h, 12);
+      tris += face(x1, z1, x2, z2, f.nx, f.nz, h, f.col, f.tile, f.acc);
+      tris += face(f.x1, f.z1, x1, z1, -sx, -sz, h, f.col, f.tile, f.acc);
+      tris += face(x2, z2, f.x2, f.z2, sx, sz, h, f.col, f.tile, f.acc);
+      tris += roof(x1, z1, x2, z2, f.x2, f.z2, f.x1, f.z1, h, 0xc9c6c0);
+      occupy([f.x1, f.z1, f.x2, f.z2, x2, z2, x1, z1], h);
+      pulls++;
+    }
+  }
+  const fillPlots = (list, cap, shop) => {
+    if (!list || cap <= 0) return;
+    const rnd = mulberry32(shop ? 9091 : 4242);
+    const cols = shop ? [0xf3e6c8, 0x7fa8d8, 0xf0a24a, 0xeae4da] : [0xf3e6c8, 0xf0a24a, 0xf6d3a1, 0xe8b83a];
+    let made = 0;
+    for (const rec of list) {
+      if (made >= cap) break;
+      if (rec.area < (shop ? 500 : 800) || rec.area > (shop ? 2800 : 3800)) continue;
+      let cx = 0, cz = 0; const n = rec.ring.length / 2;
+      for (let i = 0; i < rec.ring.length; i += 2) { cx += rec.ring[i]; cz += rec.ring[i + 1]; }
+      cx /= n; cz /= n;
+      if (!pointInRing(cx, cz, rec.ring) || rec.holes.some((h) => pointInRing(cx, cz, h))) continue;
+      if (!dense(cx, cz) || nearPoi(cx, cz) || inWater(cx, cz) || insideBuilding(cx, cz)) continue;
+      let hits = 0;
+      for (let s = 0; s < 8; s++) {
+        const x = cx + (rnd() - 0.5) * 16, z = cz + (rnd() - 0.5) * 16;
+        if (pointInRing(x, z, rec.ring) && insideBuilding(x, z)) hits++;
+      }
+      if (hits > 1) continue;
+      let best = null, bd = 24;
+      W.roadGrid.query(cx, cz, 24, (ri) => {
+        const road = W.roads[W.roadGrid.meta[ri]];
+        if (!road.drivable || road.type === 'service' || road.bridge) return;
+        const sg = W.roadGrid.s;
+        closestOnSeg(cx, cz, sg[ri * 4], sg[ri * 4 + 1], sg[ri * 4 + 2], sg[ri * 4 + 3], tmpC);
+        const d = Math.hypot(tmpC.x - cx, tmpC.z - cz);
+        if (d < bd) { bd = d; best = { x: tmpC.x, z: tmpC.z, w: road.width }; }
+      });
+      if (!best || bd < 10 || bd > 22) continue;
+      const nx = (best.x - cx) / bd, nz = (best.z - cz) / bd;
+      const halfD = shop ? 4.2 : 3.6, halfW = shop ? 5.2 : 4.1;
+      const shift = bd - (best.w * 0.5 + 3.2 + halfD);
+      if (shift < 1.2) continue;
+      const hx = cx + nx * shift, hz = cz + nz * shift;
+      const sx = -nz, sz = nx;
+      const flx = hx - sx * halfW + nx * halfD, flz = hz - sz * halfW + nz * halfD;
+      const frx = hx + sx * halfW + nx * halfD, frz = hz + sz * halfW + nz * halfD;
+      const brx = hx + sx * halfW - nx * halfD, brz = hz + sz * halfW - nz * halfD;
+      const blx = hx - sx * halfW - nx * halfD, blz = hz - sz * halfW - nz * halfD;
+      const ring = [flx, flz, frx, frz, brx, brz, blx, blz];
+      let ok = pointInRing(hx, hz, rec.ring);
+      for (let i = 0; i < 8 && ok; i += 2) if (!pointInRing(ring[i], ring[i + 1], rec.ring) || blocked(ring[i], ring[i + 1])) ok = false;
+      if (!ok || blocked(hx, hz)) continue;
+      const h = shop ? 7.2 : 6.2;
+      const col = cols[Math.floor(rnd() * cols.length)];
+      const tile = shop ? 4 : 2;
+      const acc = 0x7a4a32;
+      tris += face(flx, flz, frx, frz, nx, nz, h, col, tile, acc);
+      tris += face(frx, frz, brx, brz, sx, sz, h, col, tile, acc);
+      tris += face(brx, brz, blx, blz, -nx, -nz, h, col, tile, acc);
+      tris += face(blx, blz, flx, flz, -sx, -sz, h, col, tile, acc);
+      tris += roof(flx, flz, frx, frz, brx, brz, blx, blz, h, shop ? 0xc9c6c0 : 0xc45a3a);
+      occupy(ring, h);
+      made++; plots++;
+    }
+  };
+  fillPlots(W.resid, plotCap, false);
+  fillPlots(W.shops, shopCap, true);
+  W.sealStats = { quality: q, fronts: fronts.length, cracks, pulls, backs, plots, tris };
 }
 
 function ribbon(pts, width, y, color, bufFor, caps) {
@@ -5800,7 +6061,7 @@ Object.assign(G, {
   navState: () => ({ on: NAV.on, status: NAV.status, note: NAV.note, instr: NAV.instr, dist: NAV.dist, src: NAV.src, n: NAV.pts ? NAV.pts.length / 2 : 0, plans: NAV.plans, tail: !!NAV.tail, cls: NAV.cls, name: NAV.name, dx: NAV.dx, dz: NAV.dz, sig: NAV.sig, bridges: NAV.bridges || 0, comps: NAV.comps || 0 }),
   navSet: (x, z, name, opt) => navSet(x, z, name, opt || { src: 'place' }), navClear, navAudit, openJournal, closeJournal, openTutor, closeTutor, missionCancel,
   storyDone: () => storyDoneCount(), save: () => SAVE,
-  stats: () => ({ buildings: W.buildings.length, roads: W.roads.length, trees: W.treeCount, chunks: W.chunkCount, calls: renderer.info.render.calls, tris: renderer.info.render.triangles }),
+  stats: () => ({ buildings: W.buildings.length, roads: W.roads.length, trees: W.treeCount, chunks: W.chunkCount, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, seal: W.sealStats || null }),
   garage: () => ({ open: GAR.open ? GAR.open.n : null, tab: GAR.tab, sel: GAR.sel, places: GAR.places.map((p) => ({ n: p.n, x: p.x, z: p.z, h: p.h })), cars: SAVE.garage.cars.map((r) => ({ uid: r.uid, model: r.model, color: r.color, up: { ...r.up }, st: carStats(r) })),
     own: GAR.own ? { uid: GAR.own.own.uid, model: GAR.own.model, x: GAR.own.x, z: GAR.own.z, hp: GAR.own.hp, st: GAR.own.st, nf: GAR.own.nf, inside: GAR.own === activeCar } : null, save: SAVE }),
   garageOpen: (i) => garageOpen(GAR.places[i || 0]), garageClose, garageTab: (t) => { GAR.tab = t; garageRender(); }, buyModel, upgradeCar, paintCar, spawnOwn: (uid, i) => spawnOwn(ownRec(uid), GAR.places[i || 0]), keepStolen, sellCar, storeCurrent, repairActive,

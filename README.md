@@ -83,6 +83,7 @@ Plik `gta-tbg-single.html` nie jest potrzebny na Pages. Wystarczy do gry offline
   - **Niska:** atlas, kominy i nadbudówki dachów. Balkony są w pamięci, ale się nie rysują.
   - **Średnia:** balkony do około 130 m.
   - **Wysoka:** balkony do około 170 m.
+- **Pierzeje:** wąskie szczeliny między sąsiednimi elewacjami (do 2 m na niskiej jakości, do 3 m na średniej i wysokiej) dostają ścianę w tym samym stylu. W Rynku i na Serbinowie cofnięte budynki dosuwają się do chodnika, a dziura w pierzei do około 18 m (24 m na wysokiej) dostaje niską zabudowę z tyłu. Kod wysokiej jakości umie też postawić jeden prosty dom albo pawilon na małej pustej działce w tych rejonach; na obecnej mapie takie działki są już zabudowane, więc ta przebudowa ich nie dodała. To nie są budynki z OSM. Niska jakość zostawia tylko krótkie wstawki.
   - **Klasyczny:** poprzednie gładkie ściany, bez tego atlasu.
   - *Komiks (pełny)* – z konturami (domyślnie na komputerze), *Komiks (lekki)* – bez kosztownego przejścia konturów (domyślnie na telefonie), *Klasyczny* – wcześniejszy wygląd.
 - **Ruch uliczny:** auta AI jeżdżą po grafie ulic z OSM prawym pasem, skręcają na skrzyżowaniach, zatrzymują się za innymi autami i przed graczem (15 / 22 / 30 aut zależnie od jakości), po chodnikach chodzą przechodnie.
@@ -237,7 +238,8 @@ python3 tools/build_release.py
 
 ## Ograniczenia
 - Teren jest płaski. Jedynym wyjątkiem jest proceduralnie pagórkowata strefa off-road nad jeziorem.
-- Wysokość części budynków jest oszacowana na podstawie liczby pięter, typu budynku albo jego powierzchni. Budynki są uproszczonymi bryłami.
+- Wysokość części budynków jest oszacowana na podstawie liczby pięter, typu budynku albo jego powierzchni. Budynki są uproszczonymi bryłami. Wstawki pierzei i dodatkowe bryły na pustych działkach są umowne: zamykają dziury w widoku, nie odtwarzają prawdziwej zabudowy.
+
 - Ruch uliczny i policja to uproszczone AI (bez świateł drogowych); auta AI korzystają z uproszczonego grafu skrzyżowań.
 - Dokładność mapy zależy od kompletności danych OSM. Nazwy ulic pochodzą z OSM.
 - Radio wymaga internetu; dostępność stacji zależy od nadawców. Przeglądarka może wymagać dotknięcia ekranu, zanim odtworzy dźwięk.
