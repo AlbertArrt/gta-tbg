@@ -196,6 +196,7 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 .tb.wide{grid-column:1 / span 3;width:auto;height:calc(var(--tbs) * .62)}
 .tb.small{grid-column:3;height:calc(var(--tbs) * .62)}
 .tb.active{background:var(--sun)!important;transform:translateY(3px) scale(.94);box-shadow:0 0 0 var(--ink)!important}
+.tb.on{background:#3d8fe0;color:#fff}
 #touch.lefty #tbtns{right:auto;left:calc(14px + env(safe-area-inset-left))}
 #touch.range #tbtns,#touch.range #joy{visibility:hidden}
 #hud.rangeHide{visibility:hidden}

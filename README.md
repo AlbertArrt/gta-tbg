@@ -63,11 +63,12 @@ Plik `gta-tbg-single.html` nie jest potrzebny na Pages. Wystarczy do gry offline
 | T | radio: włącz / wyłącz |
 | N | dzień / noc |
 | C | zbliżenie kamery |
+| V | w aucie: widok zza kierownicy albo z zewnątrz (wybór zostaje na czas jazdy) |
 
 ### Telefon (dotyk)
 - **Prawdziwy wielodotyk:** joystick, gaz/hamulec i obracanie kamery działają jednocześnie – każdy palec jest śledzony osobno (Pointer Events, `pointerId`).
 - **Pływający joystick:** dotknij gdziekolwiek w lewej części ekranu – środek joysticka pojawia się pod kciukiem i podąża za nim, gdy palec wyjedzie poza zasięg. Mała martwa strefa i płynna (analogowa) krzywa odpowiedzi.
-- **W aucie:** joystick = analogowy skręt (słabszy przy dużej prędkości, wygładzany), **GAZ / HAM. / RĘCZNY** to przyciski „trzymaj”; można przesuwać palec między GAZ i HAM. bez odrywania. **RĘCZNY + skręt = drift.** Przycisk **🔥NITRO** pojawia się, gdy auto ma nitro.
+- **W aucie:** joystick = analogowy skręt (słabszy przy dużej prędkości, wygładzany), **GAZ / HAM. / RĘCZNY** to przyciski „trzymaj”; można przesuwać palec między GAZ i HAM. bez odrywania. **RĘCZNY + skręt = drift.** Przycisk **🔥NITRO** pojawia się, gdy auto ma nitro. **WIDOK** przełącza kamerę zza kierownicy; po wyjściu z auta wraca zwykły widok pieszy.
 - Przyciski reagują już przy dotknięciu (bez 300 ms opóźnienia), mają strefę trafienia większą od rysunku (min. ~64 px, rośnie z ekranem), widoczny stan wciśnięcia i opcjonalną krótką wibrację.
 - Strona nie przewija się, nie powiększa, nie zaznacza tekstu i nie pokazuje menu długiego przytrzymania. Gdy palec zjedzie z ekranu, przyjdzie `pointercancel`, okno straci fokus albo karta zostanie ukryta – wszystkie wejścia są zerowane (nic się nie „zacina”).
 - **Ustawienia (zapisywane w przeglądarce):** *Czułość kamery*, *Czułość sterowania*, *Rozmiar przycisków* (80–150%), *Układ dla leworęcznych* (joystick po prawej, przyciski po lewej), *Wibracje*, *Głośność silnika i efektów*.

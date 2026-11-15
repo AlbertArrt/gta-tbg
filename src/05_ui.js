@@ -163,6 +163,7 @@ function initInput() {
     else if (e.code === 'KeyT') radioPower();
     else if (e.code === 'KeyN') toggleNight();
     else if (e.code === 'KeyC') G.camZoom = G.camZoom ? 0 : 1;
+    else if (e.code === 'KeyV') { if (G.mode === 'car') toggleDriveView(); }
     else if (e.code === 'Escape') { if (G.mapOpen) closeMap(); else pauseGame(); }
   });
   addEventListener('keyup', (e) => G.keys.delete(e.code));
@@ -229,7 +230,7 @@ function initMenu() {
 }
 
 Object.assign(G, {
-  teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE,
+  teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE, toggleDriveView,
   radioStep, radioPower, radioPlay, radioStop, setStars, crime, busted, wasted, damageCar, missionStart: (id) => missionStart(MIS.list.find((m) => m.id === id)), missionEnd, addMoney,
   traffic: () => ({ agents: TR.agents.length, pool: TR.pool.length, peds: TR.peds.filter((p) => p.on).length, pedList: TR.peds.filter((p) => p.on).map((p) => ({ x: p.x, z: p.z, h: p.h, look: p.look, fit: p.fit })), nodes: TR.nodes.length, edges: TR.edges.length, zebras: W.zebras || 0, moved: TR.stats.moved, spawned: TR.stats.spawned, cars: cars.length,
     list: TR.agents.map((c) => ({ x: c.x, z: c.z, h: c.h, v: c.ai ? c.ai.v : 0, e: c.ai ? c.ai.e : -1, mode: c.ai ? c.ai.mode : '' })) }),

@@ -1,7 +1,7 @@
 
 // ======================= GAME =======================
 const G = {
-  mode: 'foot', started: false, paused: true, night: settings.time === 'night', camZoom: 0, collisions: 0, fps: 0, street: '',
+  mode: 'foot', started: false, paused: true, night: settings.time === 'night', camZoom: 0, driveView: 0, collisions: 0, fps: 0, street: '',
   yaw: 0, pitch: -0.22, keys: new Set(), touch: { jx: 0, jy: 0, gas: false, brake: false, hand: false, run: false, jump: false },
 };
 window.__tb = G;
@@ -117,8 +117,9 @@ function enterExit() {
     if (best.wrecked) { toast('Ten wrak już nie pojedzie'); return false; }
     if (best.ai) carjack(best); else if (best.police) { if (best.pai) policeLeave(best); crime('carjack'); toast('Kradniesz radiowóz!', 1600); }
     if (best.rider) best.rider.visible = true;
-    activeCar = best; G.mode = 'car'; player.mesh.visible = false; G.yaw = best.h;
+    activeCar = best; G.mode = 'car'; player.mesh.visible = false; G.yaw = best.h; G.pitch = G.driveView ? 0.04 : G.pitch;
     $('speedo').classList.remove('hidden'); $('touch').classList.add('incar'); $('tEnter').textContent = 'WYSIĄDŹ';
+    syncDriveCabin();
     return true;
   }
   const c = activeCar; if (c.speed > 4) { toast('Zwolnij, aby wysiąść'); return false; }
@@ -129,6 +130,7 @@ function enterExit() {
   player.x = px; player.z = pz; player.y = groundH(px, pz); player.h = c.h; player.mesh.visible = true;
   c.vx = c.vz = 0; activeCar = null; G.mode = 'foot'; if (c.rider) c.rider.visible = false;
   $('speedo').classList.add('hidden'); $('touch').classList.remove('incar'); $('tEnter').textContent = 'WSIĄDŹ';
+  syncDriveCabin();
   return true;
 }
 
@@ -293,9 +295,84 @@ function updateParked(dt) {
   }
 }
 
-const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), tmpV = new THREE.Vector3();
+const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), tmpV = new THREE.Vector3(), camEuler = new THREE.Euler();
+const DRIVER_EYE = { hatch: [-0.38, 1.16, 0.22], sport: [-0.4, 0.98, 0.35], muscle: [-0.42, 1.12, 0.28], jeep: [-0.42, 1.52, 0.12], sedan: [-0.38, 1.18, 0.28], scooter: [0, 1.32, 0.05] };
+function toggleDriveView() {
+  if (!G.started || G.mode !== 'car' || !activeCar || G.inRange || G.inGarage) return;
+  G.driveView = G.driveView ? 0 : 1;
+  G.yaw = activeCar.h; G.pitch = 0.04;
+  const b = $('tView'); if (b) b.classList.toggle('on', !!G.driveView);
+  toast(G.driveView ? 'Widok zza kierownicy' : 'Widok z zewnątrz', 1000);
+  syncDriveCabin();
+}
+function showCabin(c, show) {
+  if (!c) return;
+  if (c.bodyMesh) c.bodyMesh.visible = show;
+  if (c.hull) c.hull.visible = show;
+  if (c.lamps) for (const m of c.lamps) m.visible = show;
+  if (c.wheels) for (const w of c.wheels) w.pv.visible = show;
+  if (c.rider) c.rider.visible = !!(show && G.mode === 'car' && c === activeCar);
+}
+function dashPiece(w, h, d, color, x, y, z) {
+  box.noHull = true;
+  const m = box(w, h, d, color, x, y, z);
+  box.noHull = false;
+  const ln = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: 0x1a120c }));
+  m.add(ln);
+  return m;
+}
+function ensureDash() {
+  if (G.dash) return G.dash;
+  const g = new THREE.Group();
+  g.add(dashPiece(1.7, 0.045, 1.15, 0x2a211c, 0, 0.7, 2.05));
+  g.add(dashPiece(1.45, 0.12, 0.18, 0xf3e6c8, 0, 0.78, 1.05));
+  G.dash = g;
+  return g;
+}
+function syncDriveCabin() {
+  const on = !!(G.mode === 'car' && G.driveView && activeCar && !G.inRange);
+  if (G._cabinCar && G._cabinCar !== activeCar) { showCabin(G._cabinCar, true); G._cabinCar = null; }
+  if (!on) {
+    if (G._cabinCar) { showCabin(G._cabinCar, true); G._cabinCar = null; }
+    if (G.dash) G.dash.visible = false;
+    return;
+  }
+  showCabin(activeCar, false);
+  G._cabinCar = activeCar;
+  const dash = ensureDash();
+  if (dash.parent !== activeCar.body) activeCar.body.add(dash);
+  dash.visible = true;
+  const sc = activeCar.scooter ? 0.5 : (activeCar.model === 'sport' ? 0.92 : 1);
+  dash.scale.set(sc, sc, activeCar.model === 'hatch' ? 0.9 : sc);
+}
+function setFov(target, dt) {
+  if (Math.abs(camera.fov - target) > 0.05) { camera.fov += (target - camera.fov) * Math.min(1, dt * 5); camera.updateProjectionMatrix(); }
+}
 function updateCamera(dt) {
   if (G.camOverride) { const o = G.camOverride; if (scene.fog.far < 2500) { scene.fog.near = 1200; scene.fog.far = 3200; } camera.position.set(o[0], o[1], o[2]); camera.lookAt(o[3], o[4], o[5]); return; }
+  if (G.started) syncDriveCabin();
+  if (G.started && G.mode === 'car' && G.driveView && activeCar) {
+    const c = activeCar; const eye = DRIVER_EYE[c.model] || DRIVER_EYE.sedan;
+    tmpV.set(eye[0], eye[1] + (c.sus || 0), eye[2]);
+    camEuler.set(c.g.rotation.x, c.g.rotation.y, c.g.rotation.z, c.g.rotation.order);
+    tmpV.applyEuler(camEuler);
+    const ex = c.x + tmpV.x, ey = (c.y || 0) + tmpV.y, ez = c.z + tmpV.z;
+    if (!G.mouseLooking) {
+      let d = c.h - G.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+      G.yaw += d * Math.min(1, dt * 8);
+      const aim = (c.pitch || 0) * 0.65 + 0.04;
+      G.pitch += (aim - G.pitch) * Math.min(1, dt * 6);
+    }
+    const lp = clamp(G.pitch, -0.5, 0.4), lookD = 14;
+    const cp = Math.cos(lp);
+    camPos.set(ex, ey, ez);
+    camera.position.lerp(camPos, Math.min(1, dt * 16));
+    camLook.set(camera.position.x + Math.sin(G.yaw) * lookD * cp, camera.position.y + Math.sin(lp) * lookD, camera.position.z + Math.cos(G.yaw) * lookD * cp);
+    camera.lookAt(camLook);
+    if (G.shake > 0.001) { const k = G.shake * G.shake * 0.12; camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; camera.position.z += (Math.random() - 0.5) * k; G.shake = Math.max(0, G.shake - dt * 2.2); }
+    setFov(78 + (c.nitroOn ? 6 : 0), dt);
+    return;
+  }
   if (!G.started) {
     const t = performance.now() * 0.00005; const r0 = W.travel[0];
     camera.position.set(r0[1] + Math.cos(t) * 420, 230, r0[2] + Math.sin(t) * 420); camera.lookAt(r0[1], 0, r0[2]); return;
@@ -320,7 +397,7 @@ function updateCamera(dt) {
   camLook.set(tx, ty + (G.mode === 'car' ? 0.4 : 0.1), tz);
   camera.lookAt(camLook);
   if (G.shake > 0.001) { const k = G.shake * G.shake * 0.35; camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; camera.position.z += (Math.random() - 0.5) * k; camera.rotation.z += (Math.random() - 0.5) * k * 0.06; G.shake = Math.max(0, G.shake - dt * 2.2); }
-  const fov = 65 + (G.mode === 'car' && activeCar && activeCar.nitroOn ? 7 : 0); if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 5); camera.updateProjectionMatrix(); }
+  setFov(65 + (G.mode === 'car' && activeCar && activeCar.nitroOn ? 7 : 0), dt);
 }
 function insideBuildingH(x, z, y) {
   const a = W.bCells.get(Math.floor(x / 32) * 100000 + Math.floor(z / 32)); if (!a) return false;
