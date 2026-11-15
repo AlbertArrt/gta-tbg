@@ -478,8 +478,6 @@ function renderFrame() {
     renderer.render(scene, camera);
     G.sceneCalls = renderer.info.render.calls; G.sceneTris = renderer.info.render.triangles;
   }
-  G.cockpitCalls = 0; G.cockpitTris = 0;
-  if (typeof renderCockpit === 'function') renderCockpit();
 }
 const tmpSz = new THREE.Vector2();
 
@@ -2090,7 +2088,7 @@ function buildBusBody(c, color) {
 
 // ======================= GAME =======================
 const G = {
-  mode: 'foot', started: false, paused: true, night: settings.time === 'night', camZoom: 0, driveView: 0, collisions: 0, fps: 0, street: '',
+  mode: 'foot', started: false, paused: true, night: settings.time === 'night', camZoom: 0, collisions: 0, fps: 0, street: '',
   yaw: 0, pitch: -0.22, keys: new Set(), touch: { jx: 0, jy: 0, gas: false, brake: false, hand: false, run: false, jump: false },
 };
 window.__tb = G;
@@ -2213,9 +2211,8 @@ function enterExit() {
     if (best.wrecked) { toast('Ten wrak już nie pojedzie'); return false; }
     if (best.ai) carjack(best); else if (best.police) { if (best.pai) policeLeave(best); crime('carjack'); toast('Kradniesz radiowóz!', 1600); }
     if (best.rider) best.rider.visible = true;
-    activeCar = best; G.mode = 'car'; player.mesh.visible = false; G.yaw = best.h; G.pitch = G.driveView ? 0.04 : G.pitch;
+    activeCar = best; G.mode = 'car'; player.mesh.visible = false; G.yaw = best.h;
     $('speedo').classList.remove('hidden'); $('touch').classList.add('incar'); $('tEnter').textContent = 'WYSIĄDŹ';
-    syncDriveCabin();
     return true;
   }
   const c = activeCar; if (c.speed > 4) { toast('Zwolnij, aby wysiąść'); return false; }
@@ -2226,7 +2223,6 @@ function enterExit() {
   player.x = px; player.z = pz; player.y = groundH(px, pz); player.h = c.h; player.mesh.visible = true;
   c.vx = c.vz = 0; activeCar = null; G.mode = 'foot'; if (c.rider) c.rider.visible = false;
   $('speedo').classList.add('hidden'); $('touch').classList.remove('incar'); $('tEnter').textContent = 'WSIĄDŹ';
-  syncDriveCabin();
   return true;
 }
 
@@ -2392,59 +2388,9 @@ function updateParked(dt) {
   }
 }
 
-const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), tmpV = new THREE.Vector3(), camEuler = new THREE.Euler();
-const DRIVER_EYE = { hatch: [-0.38, 1.16, 0.22], sport: [-0.4, 0.98, 0.35], muscle: [-0.42, 1.12, 0.28], jeep: [-0.42, 1.52, 0.12], sedan: [-0.38, 1.18, 0.28], scooter: [0, 1.32, 0.05], khatch: [-0.34, 1.02, 0.2], ksedan: [-0.36, 1.12, 0.25], kvan: [-0.4, 1.22, 0.2], kpickup: [-0.4, 1.16, 0.3], ktruck: [-0.42, 1.28, 0.35], ktaxi: [-0.36, 1.18, 0.2], kpolice: [-0.36, 1.12, 0.25], kambulance: [-0.42, 1.32, 0.15], bus: [-0.7, 1.72, 1.8] };
-function toggleDriveView() {
-  if (!G.started || G.mode !== 'car' || !activeCar || G.inRange || G.inGarage) return;
-  G.driveView = G.driveView ? 0 : 1;
-  G.yaw = activeCar.h; G.pitch = 0.04;
-  const b = $('tView'); if (b) b.classList.toggle('on', !!G.driveView);
-  toast(G.driveView ? 'Widok zza kierownicy' : 'Widok z zewnątrz', 1000);
-  syncDriveCabin();
-}
-function showCabin(c, show) {
-  if (!c) return;
-  if (c.bodyMesh) c.bodyMesh.visible = show;
-  if (c.hull) c.hull.visible = show;
-  if (c.lamps) for (const m of c.lamps) m.visible = show;
-  if (c.wheels) for (const w of c.wheels) w.pv.visible = show;
-  if (c.rider) c.rider.visible = !!(show && G.mode === 'car' && c === activeCar);
-}
-function syncDriveCabin() {
-  const on = !!(G.mode === 'car' && G.driveView && activeCar && !G.inRange);
-  if (G._cabinCar && G._cabinCar !== activeCar) { showCabin(G._cabinCar, true); G._cabinCar = null; }
-  if (!on) { if (G._cabinCar) { showCabin(G._cabinCar, true); G._cabinCar = null; } return; }
-  showCabin(activeCar, false);
-  G._cabinCar = activeCar;
-}
-function setFov(target, dt) {
-  if (Math.abs(camera.fov - target) > 0.05) { camera.fov += (target - camera.fov) * Math.min(1, dt * 5); camera.updateProjectionMatrix(); }
-}
+const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), tmpV = new THREE.Vector3();
 function updateCamera(dt) {
   if (G.camOverride) { const o = G.camOverride; if (scene.fog.far < 2500) { scene.fog.near = 1200; scene.fog.far = 3200; } camera.position.set(o[0], o[1], o[2]); camera.lookAt(o[3], o[4], o[5]); return; }
-  if (G.started) syncDriveCabin();
-  if (G.started && G.mode === 'car' && G.driveView && activeCar) {
-    const c = activeCar; const eye = DRIVER_EYE[c.model] || DRIVER_EYE.sedan;
-    tmpV.set(eye[0], eye[1] + (c.sus || 0), eye[2]);
-    camEuler.set(c.g.rotation.x, c.g.rotation.y, c.g.rotation.z, c.g.rotation.order);
-    tmpV.applyEuler(camEuler);
-    const ex = c.x + tmpV.x, ey = (c.y || 0) + tmpV.y, ez = c.z + tmpV.z;
-    if (!G.mouseLooking) {
-      let d = c.h - G.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
-      G.yaw += d * Math.min(1, dt * 8);
-      const aim = (c.pitch || 0) * 0.65 + 0.04;
-      G.pitch += (aim - G.pitch) * Math.min(1, dt * 6);
-    }
-    const lp = clamp(G.pitch, -0.5, 0.4), lookD = 14;
-    const cp = Math.cos(lp);
-    camPos.set(ex, ey, ez);
-    camera.position.lerp(camPos, Math.min(1, dt * 16));
-    camLook.set(camera.position.x + Math.sin(G.yaw) * lookD * cp, camera.position.y + Math.sin(lp) * lookD, camera.position.z + Math.cos(G.yaw) * lookD * cp);
-    camera.lookAt(camLook);
-    if (G.shake > 0.001) { const k = G.shake * G.shake * 0.12; camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; camera.position.z += (Math.random() - 0.5) * k; G.shake = Math.max(0, G.shake - dt * 2.2); }
-    setFov(78 + (c.nitroOn ? 6 : 0), dt);
-    return;
-  }
   if (!G.started) {
     const t = performance.now() * 0.00005; const r0 = W.travel[0];
     camera.position.set(r0[1] + Math.cos(t) * 420, 230, r0[2] + Math.sin(t) * 420); camera.lookAt(r0[1], 0, r0[2]); return;
@@ -2469,7 +2415,7 @@ function updateCamera(dt) {
   camLook.set(tx, ty + (G.mode === 'car' ? 0.4 : 0.1), tz);
   camera.lookAt(camLook);
   if (G.shake > 0.001) { const k = G.shake * G.shake * 0.35; camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; camera.position.z += (Math.random() - 0.5) * k; camera.rotation.z += (Math.random() - 0.5) * k * 0.06; G.shake = Math.max(0, G.shake - dt * 2.2); }
-  setFov(65 + (G.mode === 'car' && activeCar && activeCar.nitroOn ? 7 : 0), dt);
+  const fov = 65 + (G.mode === 'car' && activeCar && activeCar.nitroOn ? 7 : 0); if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 5); camera.updateProjectionMatrix(); }
 }
 function insideBuildingH(x, z, y) {
   const a = W.bCells.get(Math.floor(x / 32) * 100000 + Math.floor(z / 32)); if (!a) return false;
@@ -4181,154 +4127,6 @@ function drawMissionMinimap(g, sc) {
   if (typeof drawGarageMinimap === 'function') { drawGarageMinimap(g, sc); drawPickupMinimap(g, sc); }
 }
 
-// ======================= WIDOK ZZA KIEROWNICY – kabina na osobnej warstwie =======================
-// Rysowana po świecie, z wyczyszczoną głębią, więc deska nie wpada w jezdnię i nie zostawia szpary.
-const CAB = { ready: false };
-const CAB_INK = 0x1a120c;
-function cabLines(geo) {
-  return new THREE.LineSegments(new THREE.EdgesGeometry(geo, 12), new THREE.LineBasicMaterial({ color: CAB_INK }));
-}
-function cabBasic(color, transparent) {
-  return new THREE.MeshBasicMaterial(transparent ? { color, transparent: true, opacity: 0.42, depthWrite: false } : { color });
-}
-function cabOutline(mesh) { mesh.add(cabLines(mesh.geometry)); return mesh; }
-function ensureCockpit() {
-  if (CAB.ready) return;
-  CAB.ready = true;
-  CAB.scene = new THREE.Scene();
-  CAB.cam = new THREE.PerspectiveCamera(52, 1.6, 0.04, 12);
-  CAB.cam.position.set(0, 0, 0.22);
-  CAB.cam.lookAt(0, -0.04, -1);
-  CAB.root = new THREE.Group();
-  CAB.scene.add(CAB.root);
-  buildCarCockpit();
-  buildScooterCockpit();
-}
-function buildCarCockpit() {
-  const g = new THREE.Group();
-  const shell = mergeBoxes([
-    [3.4, 0.85, 0.22, 0, 0.78, -1.02, '#1a1714'],
-    [0.28, 1.25, 0.16, -0.82, 0.08, -1.0, '#2c2824'],
-    [0.28, 1.25, 0.16, 0.82, 0.08, -1.0, '#2c2824'],
-    [0.36, 0.95, 0.14, -1.12, -0.18, -0.92, '#24211e'],
-    [0.36, 0.95, 0.14, 1.12, -0.18, -0.92, '#24211e'],
-    [3.6, 1.55, 0.32, 0, -1.02, -0.86, '#2a2622'],
-    [2.3, 0.05, 0.1, 0, -0.22, -0.68, '#4a453f'],
-    [0.5, 0.12, 0.06, 0, 0.36, -0.74, '#1a1714'],
-    [0.4, 0.07, 0.02, 0, 0.36, -0.7, '#7eb6d6'],
-    [0.18, 0.1, 0.05, -0.62, 0.1, -0.74, '#1a1714'],
-    [0.13, 0.07, 0.02, -0.62, 0.1, -0.7, '#7eb6d6'],
-    [0.18, 0.1, 0.05, 0.62, 0.1, -0.74, '#1a1714'],
-    [0.13, 0.07, 0.02, 0.62, 0.1, -0.7, '#7eb6d6'],
-    [1.7, 0.18, 0.36, 0, -0.2, -0.98, '#2a2622'],
-    [0.62, 0.2, 0.05, 0.38, -0.34, -0.64, '#141210'],
-    [0.28, 0.14, 0.05, 0.78, -0.34, -0.6, '#1c1916'],
-    [0.08, 0.05, 0.02, 0.7, -0.34, -0.56, '#0e0c0a'],
-    [0.08, 0.05, 0.02, 0.86, -0.34, -0.56, '#0e0c0a'],
-  ]);
-  g.add(new THREE.Mesh(shell, new THREE.MeshBasicMaterial({ vertexColors: true })));
-  g.add(cabLines(shell));
-  const faceMat = cabBasic('#f4f1ea');
-  [[0.22, -0.34], [0.38, -0.34], [0.54, -0.34]].forEach(([x, y], i) => {
-    const d = new THREE.Mesh(new THREE.CircleGeometry(i === 0 ? 0.075 : 0.058, 14), faceMat);
-    d.position.set(x, y, -0.55); g.add(d);
-    const rim = new THREE.Mesh(new THREE.RingGeometry(i === 0 ? 0.075 : 0.058, (i === 0 ? 0.075 : 0.058) + 0.012, 14), cabBasic('#1a1714'));
-    rim.position.set(x, y, -0.545); g.add(rim);
-  });
-  CAB.needle = new THREE.Group();
-  CAB.needle.position.set(0.22, -0.34, -0.53);
-  const needle = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.07, 0.006), cabBasic('#e8503a'));
-  needle.position.y = 0.028; CAB.needle.add(needle); g.add(CAB.needle);
-  CAB.wheel = new THREE.Group();
-  CAB.wheel.position.set(-0.18, -0.28, -0.42);
-  const ring = cabOutline(new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.015, 6, 16), cabBasic('#2a211c')));
-  CAB.wheel.add(ring);
-  for (let i = 0; i < 3; i++) {
-    const sp = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.12, 0.012), cabBasic('#3a342c'));
-    sp.rotation.z = i / 3 * Math.PI; CAB.wheel.add(sp);
-  }
-  const skin = cabBasic('#f0c7a0'), sleeve = cabBasic('#3d8fe0');
-  [[-0.12, 0.08, 0.7], [0.12, 0.08, -0.7]].forEach(([x, y, rot]) => {
-    const h = new THREE.Group(); h.position.set(x, y, 0.03); h.rotation.z = rot;
-    const sl = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.04), sleeve); sl.position.y = -0.05; h.add(sl);
-    h.add(new THREE.Mesh(new THREE.BoxGeometry(0.058, 0.04, 0.032), skin));
-    CAB.wheel.add(h);
-  });
-  g.add(CAB.wheel);
-  CAB.hood = cabOutline(new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.07, 0.7), cabBasic('#c0392b')));
-  CAB.hood.position.set(0, -0.15, -1.15);
-  const hood2 = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.04, 0.4), CAB.hood.material);
-  hood2.position.set(0, -0.12, -1.5);
-  g.add(CAB.hood); g.add(hood2);
-  CAB.car = g; CAB.root.add(g);
-}
-function buildScooterCockpit() {
-  const g = new THREE.Group();
-  CAB.bars = new THREE.Group();
-  CAB.bars.position.set(0, -0.02, -0.72);
-  const bar = cabOutline(new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.035, 0.035), cabBasic('#2a211c')));
-  CAB.bars.add(bar);
-  [[-0.42, 0], [0.42, 0]].forEach(([x]) => {
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.04), cabBasic('#1a1714'));
-    grip.position.set(x, 0, 0); CAB.bars.add(grip);
-  });
-  [[-0.34, 1], [0.34, -1]].forEach(([x, s]) => {
-    const stalk = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.16, 0.015), cabBasic('#3a342c'));
-    stalk.position.set(x, 0.1, 0); CAB.bars.add(stalk);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07, 0.02), cabBasic('#1a1714'));
-    head.position.set(x + s * 0.02, 0.18, 0.02); CAB.bars.add(head);
-    const glass = new THREE.Mesh(new THREE.CircleGeometry(0.028, 10), cabBasic('#9fd0ea'));
-    glass.position.set(x + s * 0.02, 0.18, 0.035); CAB.bars.add(glass);
-  });
-  const pod = new THREE.Mesh(new THREE.CircleGeometry(0.045, 12), cabBasic('#f4f1ea'));
-  pod.position.set(0, 0.02, 0.04); CAB.bars.add(pod);
-  CAB.scootNeedle = new THREE.Group();
-  CAB.scootNeedle.position.set(0, 0.02, 0.05);
-  const nd = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.04, 0.004), cabBasic('#e8503a'));
-  nd.position.y = 0.016; CAB.scootNeedle.add(nd); CAB.bars.add(CAB.scootNeedle);
-  const glove = cabBasic('#f7f4ee'), sleeve = cabBasic('#3d8fe0');
-  [[-0.42], [0.42]].forEach(([x]) => {
-    const h = new THREE.Group(); h.position.set(x, 0.01, 0.02);
-    const sl = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.07, 0.04), sleeve); sl.position.y = -0.05; h.add(sl);
-    h.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, 0.03), glove));
-    CAB.bars.add(h);
-  });
-  g.add(CAB.bars);
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.22), cabBasic('#d7eefb', true));
-  screen.position.set(0, 0.2, -0.86); g.add(screen);
-  CAB.scootPanel = cabOutline(new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.22, 0.16), cabBasic('#d2452f')));
-  CAB.scootPanel.position.set(0, -0.22, -0.8);
-  g.add(CAB.scootPanel);
-  CAB.scoot = g; g.visible = false; CAB.root.add(g);
-}
-function renderCockpit() {
-  if (!G.started || !G.driveView || G.mode !== 'car' || !activeCar || G.inRange) return;
-  ensureCockpit();
-  const c = activeCar, scoot = !!c.scooter;
-  CAB.car.visible = !scoot; CAB.scoot.visible = scoot;
-  const aspect = innerWidth / Math.max(1, innerHeight);
-  CAB.root.scale.set(aspect / 1.6, 1, 1);
-  CAB.cam.aspect = aspect; CAB.cam.updateProjectionMatrix();
-  if (!scoot) {
-    CAB.hood.material.color.set(c.color);
-    CAB.wheel.rotation.z = -(c.steer || 0) * 2.5;
-    const t = clamp((c.speed || 0) * 3.6 / 160, 0, 1);
-    CAB.needle.rotation.z = 0.9 - t * 2.6;
-  } else {
-    CAB.scootPanel.material.color.set(c.color);
-    CAB.bars.rotation.z = -(c.steer || 0) * 1.1;
-    const t = clamp((c.speed || 0) * 3.6 / 80, 0, 1);
-    CAB.scootNeedle.rotation.z = 0.8 - t * 2.2;
-  }
-  const prev = renderer.autoClear;
-  renderer.autoClear = false;
-  renderer.clearDepth();
-  renderer.render(CAB.scene, CAB.cam);
-  renderer.autoClear = prev;
-  G.cockpitCalls = renderer.info.render.calls || 0;
-  G.cockpitTris = renderer.info.render.triangles || 0;
-}
-
 
 // ======================= RADIO (stacje w stylu GTA) =======================
 const RADIO = { i: 0, audio: null, playing: false, auto: false, fails: 0, npTimer: 0, wd: 0, popT: 0, hideT: 0, now: '', msg: '', lastMode: 'foot', userOff: false };
@@ -4449,7 +4247,7 @@ function btnAt(x, y, holdOnly) {
 function bPress(b) {
   b.el.classList.add('active'); buzz(b.kind === 'hold' ? 8 : 12);
   if (b.kind === 'hold') { TP.held[b.key] = (TP.held[b.key] || 0) + 1; G.touch[b.key] = true; return; }
-  if (b.key === 'jump') G.touch.jump = true; else if (b.key === 'enter') actionE(); else if (b.key === 'radio') radioStep(1); else if (b.key === 'view') toggleDriveView();
+  if (b.key === 'jump') G.touch.jump = true; else if (b.key === 'enter') actionE(); else if (b.key === 'radio') radioStep(1);
 }
 function bRelease(b) {
   if (!b) return; if (b.kind === 'hold') { TP.held[b.key] = Math.max(0, (TP.held[b.key] || 0) - 1); if (!TP.held[b.key]) { G.touch[b.key] = false; b.el.classList.remove('active'); } }
@@ -6227,7 +6025,6 @@ function initInput() {
     else if (e.code === 'KeyT') radioPower();
     else if (e.code === 'KeyN') toggleNight();
     else if (e.code === 'KeyC') G.camZoom = G.camZoom ? 0 : 1;
-    else if (e.code === 'KeyV') { if (G.mode === 'car') toggleDriveView(); }
     else if (e.code === 'Escape') { if (G.mapOpen) closeMap(); else pauseGame(); }
   });
   addEventListener('keyup', (e) => G.keys.delete(e.code));
@@ -6294,7 +6091,7 @@ function initMenu() {
 }
 
 Object.assign(G, {
-  teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE, toggleDriveView,
+  teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE,
   radioStep, radioPower, radioPlay, radioStop, setStars, crime, busted, wasted, damageCar, missionStart: (id) => missionStart(MIS.list.find((m) => m.id === id)), missionEnd, addMoney,
   traffic: () => ({ agents: TR.agents.length, pool: TR.pool.length, peds: TR.peds.filter((p) => p.on).length, pedList: TR.peds.filter((p) => p.on).map((p) => ({ x: p.x, z: p.z, h: p.h, look: p.look, fit: p.fit })), nodes: TR.nodes.length, edges: TR.edges.length, zebras: W.zebras || 0, moved: TR.stats.moved, spawned: TR.stats.spawned, cars: cars.length,
     list: TR.agents.map((c) => ({ x: c.x, z: c.z, h: c.h, v: c.ai ? c.ai.v : 0, e: c.ai ? c.ai.e : -1, mode: c.ai ? c.ai.mode : '' })) }),
@@ -6308,7 +6105,7 @@ Object.assign(G, {
   navState: () => ({ on: NAV.on, status: NAV.status, note: NAV.note, instr: NAV.instr, dist: NAV.dist, src: NAV.src, n: NAV.pts ? NAV.pts.length / 2 : 0, plans: NAV.plans, tail: !!NAV.tail, cls: NAV.cls, name: NAV.name, dx: NAV.dx, dz: NAV.dz, sig: NAV.sig, bridges: NAV.bridges || 0, comps: NAV.comps || 0 }),
   navSet: (x, z, name, opt) => navSet(x, z, name, opt || { src: 'place' }), navClear, navAudit, openJournal, closeJournal, openTutor, closeTutor, missionCancel,
   storyDone: () => storyDoneCount(), save: () => SAVE,
-  stats: () => ({ buildings: W.buildings.length, roads: W.roads.length, trees: W.treeCount, chunks: W.chunkCount, calls: (G.sceneCalls || renderer.info.render.calls) + (G.cockpitCalls || 0), tris: (G.sceneTris || renderer.info.render.triangles) + (G.cockpitTris || 0), cockpitCalls: G.cockpitCalls || 0, seal: W.sealStats || null, clouds: W.cloudCount || 0, furn: W.furnCount || 0 }),
+  stats: () => ({ buildings: W.buildings.length, roads: W.roads.length, trees: W.treeCount, chunks: W.chunkCount, calls: G.sceneCalls || renderer.info.render.calls, tris: G.sceneTris || renderer.info.render.triangles, seal: W.sealStats || null, clouds: W.cloudCount || 0, furn: W.furnCount || 0 }),
   garage: () => ({ open: GAR.open ? GAR.open.n : null, tab: GAR.tab, sel: GAR.sel, places: GAR.places.map((p) => ({ n: p.n, x: p.x, z: p.z, h: p.h })), cars: SAVE.garage.cars.map((r) => ({ uid: r.uid, model: r.model, color: r.color, up: { ...r.up }, st: carStats(r) })),
     own: GAR.own ? { uid: GAR.own.own.uid, model: GAR.own.model, x: GAR.own.x, z: GAR.own.z, hp: GAR.own.hp, st: GAR.own.st, nf: GAR.own.nf, inside: GAR.own === activeCar } : null, save: SAVE }),
   garageOpen: (i) => garageOpen(GAR.places[i || 0]), garageClose, garageTab: (t) => { GAR.tab = t; garageRender(); }, buyModel, upgradeCar, paintCar, spawnOwn: (uid, i) => spawnOwn(ownRec(uid), GAR.places[i || 0]), keepStolen, sellCar, storeCurrent, repairActive,

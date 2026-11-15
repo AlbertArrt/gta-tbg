@@ -331,7 +331,5 @@ function renderFrame() {
     renderer.render(scene, camera);
     G.sceneCalls = renderer.info.render.calls; G.sceneTris = renderer.info.render.triangles;
   }
-  G.cockpitCalls = 0; G.cockpitTris = 0;
-  if (typeof renderCockpit === 'function') renderCockpit();
 }
 const tmpSz = new THREE.Vector2();

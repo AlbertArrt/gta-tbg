@@ -163,7 +163,6 @@ function initInput() {
     else if (e.code === 'KeyT') radioPower();
     else if (e.code === 'KeyN') toggleNight();
     else if (e.code === 'KeyC') G.camZoom = G.camZoom ? 0 : 1;
-    else if (e.code === 'KeyV') { if (G.mode === 'car') toggleDriveView(); }
     else if (e.code === 'Escape') { if (G.mapOpen) closeMap(); else pauseGame(); }
   });
   addEventListener('keyup', (e) => G.keys.delete(e.code));
@@ -230,7 +229,7 @@ function initMenu() {
 }
 
 Object.assign(G, {
-  teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE, toggleDriveView,
+  teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE,
   radioStep, radioPower, radioPlay, radioStop, setStars, crime, busted, wasted, damageCar, missionStart: (id) => missionStart(MIS.list.find((m) => m.id === id)), missionEnd, addMoney,
   traffic: () => ({ agents: TR.agents.length, pool: TR.pool.length, peds: TR.peds.filter((p) => p.on).length, pedList: TR.peds.filter((p) => p.on).map((p) => ({ x: p.x, z: p.z, h: p.h, look: p.look, fit: p.fit })), nodes: TR.nodes.length, edges: TR.edges.length, zebras: W.zebras || 0, moved: TR.stats.moved, spawned: TR.stats.spawned, cars: cars.length,
     list: TR.agents.map((c) => ({ x: c.x, z: c.z, h: c.h, v: c.ai ? c.ai.v : 0, e: c.ai ? c.ai.e : -1, mode: c.ai ? c.ai.mode : '' })) }),
@@ -244,7 +243,7 @@ Object.assign(G, {
   navState: () => ({ on: NAV.on, status: NAV.status, note: NAV.note, instr: NAV.instr, dist: NAV.dist, src: NAV.src, n: NAV.pts ? NAV.pts.length / 2 : 0, plans: NAV.plans, tail: !!NAV.tail, cls: NAV.cls, name: NAV.name, dx: NAV.dx, dz: NAV.dz, sig: NAV.sig, bridges: NAV.bridges || 0, comps: NAV.comps || 0 }),
   navSet: (x, z, name, opt) => navSet(x, z, name, opt || { src: 'place' }), navClear, navAudit, openJournal, closeJournal, openTutor, closeTutor, missionCancel,
   storyDone: () => storyDoneCount(), save: () => SAVE,
-  stats: () => ({ buildings: W.buildings.length, roads: W.roads.length, trees: W.treeCount, chunks: W.chunkCount, calls: (G.sceneCalls || renderer.info.render.calls) + (G.cockpitCalls || 0), tris: (G.sceneTris || renderer.info.render.triangles) + (G.cockpitTris || 0), cockpitCalls: G.cockpitCalls || 0, seal: W.sealStats || null, clouds: W.cloudCount || 0, furn: W.furnCount || 0 }),
+  stats: () => ({ buildings: W.buildings.length, roads: W.roads.length, trees: W.treeCount, chunks: W.chunkCount, calls: G.sceneCalls || renderer.info.render.calls, tris: G.sceneTris || renderer.info.render.triangles, seal: W.sealStats || null, clouds: W.cloudCount || 0, furn: W.furnCount || 0 }),
   garage: () => ({ open: GAR.open ? GAR.open.n : null, tab: GAR.tab, sel: GAR.sel, places: GAR.places.map((p) => ({ n: p.n, x: p.x, z: p.z, h: p.h })), cars: SAVE.garage.cars.map((r) => ({ uid: r.uid, model: r.model, color: r.color, up: { ...r.up }, st: carStats(r) })),
     own: GAR.own ? { uid: GAR.own.own.uid, model: GAR.own.model, x: GAR.own.x, z: GAR.own.z, hp: GAR.own.hp, st: GAR.own.st, nf: GAR.own.nf, inside: GAR.own === activeCar } : null, save: SAVE }),
   garageOpen: (i) => garageOpen(GAR.places[i || 0]), garageClose, garageTab: (t) => { GAR.tab = t; garageRender(); }, buyModel, upgradeCar, paintCar, spawnOwn: (uid, i) => spawnOwn(ownRec(uid), GAR.places[i || 0]), keepStolen, sellCar, storeCurrent, repairActive,

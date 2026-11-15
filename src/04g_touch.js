@@ -37,7 +37,7 @@ function btnAt(x, y, holdOnly) {
 function bPress(b) {
   b.el.classList.add('active'); buzz(b.kind === 'hold' ? 8 : 12);
   if (b.kind === 'hold') { TP.held[b.key] = (TP.held[b.key] || 0) + 1; G.touch[b.key] = true; return; }
-  if (b.key === 'jump') G.touch.jump = true; else if (b.key === 'enter') actionE(); else if (b.key === 'radio') radioStep(1); else if (b.key === 'view') toggleDriveView();
+  if (b.key === 'jump') G.touch.jump = true; else if (b.key === 'enter') actionE(); else if (b.key === 'radio') radioStep(1);
 }
 function bRelease(b) {
   if (!b) return; if (b.kind === 'hold') { TP.held[b.key] = Math.max(0, (TP.held[b.key] || 0) - 1); if (!TP.held[b.key]) { G.touch[b.key] = false; b.el.classList.remove('active'); } }
