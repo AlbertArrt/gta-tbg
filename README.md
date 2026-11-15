@@ -63,7 +63,7 @@ Plik `gta-tbg-single.html` nie jest potrzebny na Pages. Wystarczy do gry offline
 | T | radio: włącz / wyłącz |
 | N | dzień / noc |
 | C | zbliżenie kamery |
-| V | w aucie: widok zza kierownicy albo z zewnątrz (wybór zostaje na czas jazdy) |
+| V | w aucie: widok zza kierownicy (deska, kierownica, maska) albo z zewnątrz |
 
 ### Telefon (dotyk)
 - **Prawdziwy wielodotyk:** joystick, gaz/hamulec i obracanie kamery działają jednocześnie – każdy palec jest śledzony osobno (Pointer Events, `pointerId`).

@@ -313,37 +313,12 @@ function showCabin(c, show) {
   if (c.wheels) for (const w of c.wheels) w.pv.visible = show;
   if (c.rider) c.rider.visible = !!(show && G.mode === 'car' && c === activeCar);
 }
-function dashPiece(w, h, d, color, x, y, z) {
-  box.noHull = true;
-  const m = box(w, h, d, color, x, y, z);
-  box.noHull = false;
-  const ln = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: 0x1a120c }));
-  m.add(ln);
-  return m;
-}
-function ensureDash() {
-  if (G.dash) return G.dash;
-  const g = new THREE.Group();
-  g.add(dashPiece(1.7, 0.045, 1.15, 0x2a211c, 0, 0.7, 2.05));
-  g.add(dashPiece(1.45, 0.12, 0.18, 0xf3e6c8, 0, 0.78, 1.05));
-  G.dash = g;
-  return g;
-}
 function syncDriveCabin() {
   const on = !!(G.mode === 'car' && G.driveView && activeCar && !G.inRange);
   if (G._cabinCar && G._cabinCar !== activeCar) { showCabin(G._cabinCar, true); G._cabinCar = null; }
-  if (!on) {
-    if (G._cabinCar) { showCabin(G._cabinCar, true); G._cabinCar = null; }
-    if (G.dash) G.dash.visible = false;
-    return;
-  }
+  if (!on) { if (G._cabinCar) { showCabin(G._cabinCar, true); G._cabinCar = null; } return; }
   showCabin(activeCar, false);
   G._cabinCar = activeCar;
-  const dash = ensureDash();
-  if (dash.parent !== activeCar.body) activeCar.body.add(dash);
-  dash.visible = true;
-  const sc = activeCar.scooter ? 0.5 : (activeCar.model === 'sport' ? 0.92 : 1);
-  dash.scale.set(sc, sc, activeCar.model === 'hatch' ? 0.9 : sc);
 }
 function setFov(target, dt) {
   if (Math.abs(camera.fov - target) > 0.05) { camera.fov += (target - camera.fov) * Math.min(1, dt * 5); camera.updateProjectionMatrix(); }

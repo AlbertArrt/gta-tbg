@@ -270,7 +270,14 @@ function renderFrame() {
   }
   if (POST.on) {
     POST.mat.uniforms.uNear.value = camera.near; POST.mat.uniforms.uFar.value = camera.far;
-    renderer.setRenderTarget(POST.rt); renderer.render(scene, camera); renderer.setRenderTarget(null); renderer.render(POST.scene, POST.cam);
-  } else renderer.render(scene, camera);
+    renderer.setRenderTarget(POST.rt); renderer.render(scene, camera);
+    G.worldCalls = renderer.info.render.calls; G.worldTris = renderer.info.render.triangles;
+    renderer.setRenderTarget(null); renderer.render(POST.scene, POST.cam);
+  } else {
+    renderer.render(scene, camera);
+    G.worldCalls = renderer.info.render.calls; G.worldTris = renderer.info.render.triangles;
+  }
+  G.cockpitCalls = 0; G.cockpitTris = 0;
+  if (typeof renderCockpit === 'function') renderCockpit();
 }
 const tmpSz = new THREE.Vector2();
