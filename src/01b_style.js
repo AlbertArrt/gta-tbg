@@ -4,7 +4,7 @@ const OUTLINE_COL = new THREE.Color('#2a211c');
 let toonGradTex = null;
 function toonGrad() {
   if (!toonGradTex) {
-    toonGradTex = new THREE.DataTexture(new Uint8Array([118, 190, 255]), 3, 1, THREE.RedFormat);
+    toonGradTex = new THREE.DataTexture(new Uint8Array([64, 122, 186, 255]), 4, 1, THREE.RedFormat);
     toonGradTex.minFilter = toonGradTex.magFilter = THREE.NearestFilter; toonGradTex.generateMipmaps = false; toonGradTex.needsUpdate = true;
   }
   return toonGradTex;
@@ -15,7 +15,27 @@ function mkMat(p) {
   if (!TOON) return new THREE.MeshLambertMaterial(q);
   delete q.flatShading; delete q.shininess; delete q.specular;
   q.gradientMap = toonGrad();
-  return new THREE.MeshToonMaterial(q);
+  const m = new THREE.MeshToonMaterial(q);
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vAo;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+      {
+#ifdef USE_INSTANCING
+        vec3 aoW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+        vec3 aoN = mat3(modelMatrix * instanceMatrix) * normal;
+#else
+        vec3 aoW = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        vec3 aoN = mat3(modelMatrix) * normal;
+#endif
+        float aoShade = mix(0.58, 1.0, smoothstep(0.02, 1.2, aoW.y));
+        vAo = mix(1.0, aoShade, clamp(1.0 - abs(normalize(aoN).y), 0.0, 1.0));
+      }`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vAo;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        diffuseColor.rgb *= vAo;`);
+  };
+  m.customProgramCacheKey = () => 'toonAo4';
+  return m;
 }
 // ---- inverted-hull outlines (thickness grows with distance ≈ constant on screen, capped)
 const HULL_U = { uHullW: { value: 0.0026 }, uHullB: { value: 0.012 }, uHullMax: { value: 0.35 } };
@@ -194,9 +214,16 @@ function makeFacadeMat(aniso) {
   const mat = new THREE.MeshToonMaterial({ vertexColors: true, map: tex, gradientMap: toonGrad(), emissive: 0xffd28a, emissiveIntensity: 0 });
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.facMask = { value: mask };
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 acc; attribute float aTile; varying vec3 vAcc; varying float vTile;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAcc = acc; vTile = aTile;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D facMask; varying vec3 vAcc; varying float vTile;')
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 acc; attribute float aTile; varying vec3 vAcc; varying float vTile; varying float vAo;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+      vAcc = acc; vTile = aTile;
+      {
+        vec3 aoW = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        vec3 aoN = mat3(modelMatrix) * normal;
+        float aoShade = mix(0.58, 1.0, smoothstep(0.02, 1.2, aoW.y));
+        vAo = mix(1.0, aoShade, clamp(1.0 - abs(normalize(aoN).y), 0.0, 1.0));
+      }`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D facMask; varying vec3 vAcc; varying float vTile; varying float vAo;')
       .replace('#include <map_fragment>', `float facLit = 0.0;
         if (vTile < -0.5) { diffuseColor.rgb *= vColor; }
         else {
@@ -219,49 +246,72 @@ function makeFacadeMat(aniso) {
           vec3 pc = mix(fc.rgb, vColor, fm.r); pc = mix(pc, vAcc, fm.g);
           diffuseColor.rgb *= pc;
           facLit = fm.b * step(0.42, fract(sin(dot(floor(fu) + vec2(vTile * 3.7, vTile), vec2(12.9898, 78.233))) * 43758.5453));
+          diffuseColor.rgb *= vAo;
         }`)
       .replace('#include <color_fragment>', '')
       .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance *= facLit;');
   };
-  mat.customProgramCacheKey = () => 'facade3';
+  mat.customProgramCacheKey = () => 'facade4';
   return mat;
 }
 
-// ---- optional post-process (Komiks pełny): depth-edge outlines + slight saturation boost
-const POST = { on: false };
+// ---- post: cheap warm grade on every comic mode (including Low/lite). Depth edges stay a Full extra above Low.
+const POST = { on: false, edge: false, grade: false, mode: '' };
 function initPost() {
-  const want = STYLE === 'full' && settings.quality !== 'low';
-  if (!want) { POST.on = false; return; }
-  POST.on = true; if (POST.rt) { resizePost(); return; }
+  const edge = TOON && STYLE === 'full' && settings.quality !== 'low';
+  const grade = TOON;
+  if (!edge && !grade) { POST.on = false; POST.edge = false; POST.grade = false; POST.mode = ''; return; }
+  const mode = (edge ? 'e' : '') + (grade ? 'g' : '');
+  POST.on = true; POST.edge = edge; POST.grade = grade;
+  if (POST.mode === mode && POST.rt) { resizePost(); return; }
+  if (POST.rt) { POST.rt.dispose(); POST.rt = null; }
+  POST.mode = mode;
   const sz = renderer.getDrawingBufferSize(new THREE.Vector2());
-  const dt = new THREE.DepthTexture(sz.x, sz.y); dt.type = THREE.UnsignedIntType;
-  POST.rt = new THREE.WebGLRenderTarget(sz.x, sz.y, { depthTexture: dt, samples: QUALITY[settings.quality].aa ? 4 : 0 });
-  POST.mat = new THREE.ShaderMaterial({
-    uniforms: { tCol: { value: POST.rt.texture }, tDep: { value: dt }, uPx: { value: new THREE.Vector2(1 / sz.x, 1 / sz.y) }, uNear: { value: camera.near }, uFar: { value: camera.far }, uCol: { value: OUTLINE_COL.clone() }, uSat: { value: 1.1 }, uK: { value: 1 } },
-    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-    fragmentShader: `uniform sampler2D tCol; uniform sampler2D tDep; uniform vec2 uPx; uniform float uNear; uniform float uFar; uniform vec3 uCol; uniform float uSat; uniform float uK; varying vec2 vUv;
-      float lin(float d){ return uNear * uFar / (uFar - d * (uFar - uNear)); }
-      void main(){
-        vec4 c = texture2D(tCol, vUv);
+  const opt = { samples: 0 };
+  let dt = null;
+  if (edge) { dt = new THREE.DepthTexture(sz.x, sz.y); dt.type = THREE.UnsignedIntType; opt.depthTexture = dt; opt.samples = QUALITY[settings.quality].aa ? 4 : 0; }
+  POST.rt = new THREE.WebGLRenderTarget(sz.x, sz.y, opt);
+  const uPx = { value: new THREE.Vector2(1 / sz.x, 1 / sz.y) };
+  POST.exp = { value: 1 };
+  const uniforms = { tCol: { value: POST.rt.texture }, uExp: POST.exp, uPx, uNear: { value: camera.near }, uFar: { value: camera.far }, uCol: { value: OUTLINE_COL.clone() }, uK: { value: 1 } };
+  if (dt) uniforms.tDep = { value: dt };
+  const edgeBody = edge ? `
         float zc = lin(texture2D(tDep, vUv).x);
         vec2 o = uPx * uK;
         float z1 = lin(texture2D(tDep, vUv + vec2(o.x, 0.0)).x), z2 = lin(texture2D(tDep, vUv - vec2(o.x, 0.0)).x);
         float z3 = lin(texture2D(tDep, vUv + vec2(0.0, o.y)).x), z4 = lin(texture2D(tDep, vUv - vec2(0.0, o.y)).x);
         float dz = max(max(z1, z2), max(z3, z4)) - zc;
         float e = smoothstep(0.05, 0.12, dz / zc) * (1.0 - smoothstep(180.0, 420.0, zc));
-        float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)); c.rgb = max(mix(vec3(l), c.rgb, uSat), 0.0);
-        c.rgb = mix(c.rgb, uCol, e * 0.9);
-        gl_FragColor = vec4(c.rgb, 1.0);
+        c = mix(c, uCol, e * 0.9);` : '';
+  POST.mat = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: `uniform sampler2D tCol; ${edge ? 'uniform sampler2D tDep; uniform vec2 uPx; uniform float uNear; uniform float uFar; uniform vec3 uCol; uniform float uK;' : ''} uniform float uExp; varying vec2 vUv;
+      ${edge ? 'float lin(float d){ return uNear * uFar / (uFar - d * (uFar - uNear)); }' : ''}
+      void main(){
+        vec3 c = texture2D(tCol, vUv).rgb;
+        float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+        c = max(mix(vec3(l), c, 1.15), 0.0);
+        c *= vec3(1.07, 1.02, 0.93) * uExp;
+        float vig = smoothstep(0.42, 1.05, length((vUv - 0.5) * vec2(1.2, 1.0)));
+        c *= mix(1.0, 0.8, vig);
+        ${edgeBody}
+        gl_FragColor = vec4(c, 1.0);
         #include <colorspace_fragment>
       }`,
     depthTest: false, depthWrite: false,
   });
-  POST.scene = new THREE.Scene(); POST.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), POST.mat); q.frustumCulled = false; POST.scene.add(q);
+  if (!POST.scene) {
+    POST.scene = new THREE.Scene(); POST.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  }
+  if (POST.quad) POST.scene.remove(POST.quad);
+  POST.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), POST.mat); POST.quad.frustumCulled = false; POST.scene.add(POST.quad);
 }
 function resizePost() {
-  if (!POST.on) return; const sz = renderer.getDrawingBufferSize(new THREE.Vector2());
-  POST.rt.setSize(sz.x, sz.y); POST.mat.uniforms.uPx.value.set(1 / sz.x, 1 / sz.y); POST.mat.uniforms.uK.value = Math.max(1, renderer.getPixelRatio());
+  if (!POST.on || !POST.rt) return; const sz = renderer.getDrawingBufferSize(new THREE.Vector2());
+  POST.rt.setSize(sz.x, sz.y);
+  if (POST.mat.uniforms.uPx) POST.mat.uniforms.uPx.value.set(1 / sz.x, 1 / sz.y);
+  if (POST.mat.uniforms.uK) POST.mat.uniforms.uK.value = Math.max(1, renderer.getPixelRatio());
 }
 function renderFrame() {
   if (TOON) {
@@ -269,8 +319,11 @@ function renderFrame() {
     em.uniforms.uRes.value.set(sz.x / 2, sz.y / 2); em.uniforms.uW.value = 1.05 * renderer.getPixelRatio(); em.uniforms.uNear.value = camera.near;
   }
   if (POST.on) {
-    POST.mat.uniforms.uNear.value = camera.near; POST.mat.uniforms.uFar.value = camera.far;
-    renderer.setRenderTarget(POST.rt); renderer.render(scene, camera); renderer.setRenderTarget(null); renderer.render(POST.scene, POST.cam);
-  } else renderer.render(scene, camera);
+    if (POST.edge) { POST.mat.uniforms.uNear.value = camera.near; POST.mat.uniforms.uFar.value = camera.far; }
+    if (POST.exp) POST.exp.value = G.night ? 1.08 : 1.0;
+    renderer.setRenderTarget(POST.rt); renderer.render(scene, camera);
+    G.sceneCalls = renderer.info.render.calls; G.sceneTris = renderer.info.render.triangles;
+    renderer.setRenderTarget(null); renderer.render(POST.scene, POST.cam);
+  } else { renderer.render(scene, camera); G.sceneCalls = renderer.info.render.calls; G.sceneTris = renderer.info.render.triangles; }
 }
 const tmpSz = new THREE.Vector2();

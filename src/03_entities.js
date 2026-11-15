@@ -248,16 +248,20 @@ function nearestRoadPoint(x, z, drivableOnly, maxR = 300) {
 
 // ======================= SKY =======================
 function makeSky(scene) {
-  const geo = new THREE.SphereGeometry(4500, 32, 16);
+  const geo = new THREE.SphereGeometry(4500, 48, 24);
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
     uniforms: { top: { value: new THREE.Color() }, bottom: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, night: { value: 0 } },
     vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); vec4 p = modelViewMatrix*vec4(position,1.0); gl_Position = projectionMatrix*p; gl_Position.z = gl_Position.w*0.9999; }',
     fragmentShader: `uniform vec3 top; uniform vec3 bottom; uniform vec3 sunDir; uniform vec3 sunCol; uniform float night; varying vec3 vP;
       float h(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164)))*43758.5453); }
-      void main(){ float t = clamp(vP.y*1.4+0.15,0.0,1.0); vec3 c = mix(bottom, top, pow(t,0.7));
-        float s = max(dot(normalize(vP), normalize(sunDir)),0.0); c += sunCol*(pow(s,800.0)*4.0 + pow(s,12.0)*0.25);
-        if(night>0.5 && vP.y>0.05){ vec3 q = floor(vP*300.0); float st = step(0.9975, h(q)); c += vec3(st)*0.9; }
+      void main(){ vec3 p = normalize(vP); float t = clamp(p.y*1.15+0.08,0.0,1.0); vec3 c = mix(bottom, top, pow(t,0.85));
+        float hz = smoothstep(0.42, -0.02, p.y);
+        c = mix(c, mix(vec3(0.90, 0.94, 0.86), bottom, night), hz * 0.62);
+        float s = max(dot(p, normalize(sunDir)),0.0);
+        float ang = acos(clamp(s, 0.0, 1.0));
+        c += sunCol * smoothstep(0.07, 0.012, ang) * 0.7;
+        if(night>0.5 && p.y>0.05){ vec3 q = floor(p*300.0); float st = step(0.9975, h(q)); c += vec3(st)*0.9; }
         gl_FragColor = vec4(c,1.0);
         ${TOON ? '#include <colorspace_fragment>' : ''} }`,
   });
