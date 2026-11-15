@@ -110,12 +110,33 @@ function addZebras(bufOf, white) {
 // ---------------- traffic agents
 const tmpS = { x: 0, z: 0, h: 0 }, tmpS2 = { x: 0, z: 0, h: 0 };
 function trafficMax() { return { low: 15, med: 22, high: 30 }[settings.quality] || 22; }
+const BUS_TYPES = { motorway: 1, trunk: 1, primary: 1, secondary: 1 };
+function busRoad(e) {
+  if (e.bridge || e.len < 28) return false;
+  if (BUS_TYPES[e.type] && e.w >= 6.5) return true;
+  // In this city the streets through the centre are wide tertiaries, not primary roads.
+  return e.type === 'tertiary' && e.w >= 8;
+}
+function takeTraffic() {
+  if (!TR.pool.length) return null;
+  const i = Math.floor(Math.random() * TR.pool.length);
+  return TR.pool.splice(i, 1)[0];
+}
 function initTraffic() {
   const rnd = mulberry32(5);
   const pal = TOON ? TOON_CAR_COLORS : CAR_COLORS;
+  const roster = kitRoster(); TR.roster = roster; TR.busPool = []; TR.busT = 0.6;
   for (let i = 0; i < 30; i++) {
-    const c = new Car(scene, pal[Math.floor(rnd() * pal.length)], 0, -99999, 0); c.g.visible = false; c.pooled = true; TR.pool.push(c);
+    const model = i < roster.n ? roster.models[i % roster.models.length] : '';
+    const c = new Car(scene, pal[Math.floor(rnd() * pal.length)], 0, -99999, 0, model ? { model } : {});
+    c.g.visible = false; c.pooled = true; TR.pool.push(c);
   }
+  for (let i = 0; i < roster.buses; i++) {
+    const c = new Car(scene, i ? 0xf6c431 : 0xe8503a, 0, -99999, 0, { model: 'bus' });
+    c.g.visible = false; c.pooled = true; TR.busPool.push(c);
+  }
+  placeBusStop();
+  for (let i = 0; i < roster.buses; i++) spawnBus({ x: -7, z: 10 });
   initPeds();
 }
 function laneOffset(e) { return e.ow ? 0 : Math.min(e.w / 4, 1.8); }
@@ -128,7 +149,8 @@ function agentPose(c) {
 }
 function chooseNext(c) {
   const a = c.ai, e = TR.edges[a.e]; const node = a.dir > 0 ? e.b : e.a;
-  const opts = TR.adj[node].filter((o) => !o.back && o.e !== a.e);
+  let opts = TR.adj[node].filter((o) => !o.back && o.e !== a.e);
+  if (c.bus) { const main = opts.filter((o) => busRoad(TR.edges[o.e])); if (main.length) opts = main; }
   if (!opts.length) { const o = TR.adj[node].find((q) => q.e === a.e && !q.back); return o ? { e: o.e, dir: o.dir, turn: 3 } : null; }
   const endH = agentEndHeading(e, a.dir);
   const scored = opts.map((o) => { const e2 = TR.edges[o.e]; const h2 = edgeSample(e2, o.dir > 0 ? Math.min(3, e2.len) : Math.max(0, e2.len - 3), tmpS2).h + (o.dir > 0 ? 0 : Math.PI); let d = h2 - endH; d = Math.atan2(Math.sin(d), Math.cos(d)); return { ...o, turn: Math.abs(d), w: 1 / (0.4 + Math.abs(d)) * (TR_VMAX[e2.type] || 8) }; });
@@ -138,7 +160,7 @@ function agentEndHeading(e, dir) { const p = e.pts, n = p.length / 2; if (dir > 
 function focusPos() { return G.mode === 'car' && activeCar ? activeCar : player; }
 function spawnAgent(f) {
   let c; const wantPatrol = !TR.agents.some((a) => a.patrol) && POL.pool.length && WANT.stars === 0 && Math.random() < 0.15;
-  if (wantPatrol) { c = POL.pool.pop(); c.patrol = true; } else c = TR.pool.pop(); if (!c) return false;
+  if (wantPatrol) { c = POL.pool.pop(); c.patrol = true; } else c = takeTraffic(); if (!c) return false;
   for (let t = 0; t < 12; t++) {
     const ang = Math.random() * 6.283, R = 110 + Math.random() * 190; const x = f.x + Math.cos(ang) * R, z = f.z + Math.sin(ang) * R;
     const arr = TR.egrid.get(Math.floor(x / 100) + ',' + Math.floor(z / 100)); if (!arr || !arr.length) continue;
@@ -153,6 +175,44 @@ function spawnAgent(f) {
   }
   c.ai = null; if (c.police) { c.patrol = false; POL.pool.push(c); } else TR.pool.push(c); return false;
 }
+function spawnBus(f) {
+  if (!TR.busPool || !TR.busPool.length) return false;
+  const c = TR.busPool.pop();
+  for (let t = 0; t < 28; t++) {
+    const ang = Math.random() * 6.283, R = 130 + Math.random() * 200;
+    const x = f.x + Math.cos(ang) * R, z = f.z + Math.sin(ang) * R;
+    const arr = TR.egrid.get(Math.floor(x / 100) + ',' + Math.floor(z / 100)); if (!arr || !arr.length) continue;
+    const cand = []; for (const id of arr) { const e = TR.edges[id]; if (busRoad(e)) cand.push(e); }
+    if (!cand.length) continue;
+    const e = cand[Math.floor(Math.random() * cand.length)];
+    const dir = e.ow ? 1 : (Math.random() < 0.5 ? 1 : -1); const s = Math.random() * e.len;
+    c.ai = { e: e.id, dir, s, v: Math.min(e.vmax, 9) * 0.55, next: null, mode: 'drive', stuck: 0 };
+    const p = agentPose(c); const d = Math.hypot(p.x - f.x, p.z - f.z); if (d < 55 || d > 380) continue;
+    if (cars.some((o) => o !== c && Math.hypot(o.x - p.x, o.z - p.z) < 14)) continue;
+    if (insideBuilding(p.x, p.z, 1.1)) continue;
+    c.x = p.x; c.z = p.z; c.h = p.h; c.vx = c.vz = 0; c.y = 0; c.vy = 0; c.hp = 100; c.wrecked = false; c.burn = 0; c.pooled = false; c.g.visible = true; c.sync();
+    if (c.smokeT) c.smokeT = 0; TR.agents.push(c); cars.push(c); TR.stats.spawned++; return true;
+  }
+  c.ai = null; TR.busPool.push(c); return false;
+}
+function placeBusStop() {
+  let best = null, bd = 1e9;
+  for (const e of TR.edges) {
+    if (!busRoad(e)) continue;
+    const n = e.pts.length;
+    const mx = (e.pts[0] + e.pts[n - 2]) * 0.5, mz = (e.pts[1] + e.pts[n - 1]) * 0.5;
+    const d = Math.hypot(mx + 7, mz - 10);
+    if (d < bd) { bd = d; best = e; }
+  }
+  if (!best) return;
+  const u = Math.min(best.len * 0.42, 48);
+  edgeSample(best, u, tmpS);
+  const h = tmpS.h, side = best.w * 0.5 - 1.35;
+  const x = tmpS.x - Math.cos(h) * side, z = tmpS.z + Math.sin(h) * side;
+  if (insideBuilding(x, z, 1.6)) return;
+  const c = new Car(scene, 0x3d8fe0, x, z, h, { model: 'bus' });
+  c.busStop = true; cars.push(c);
+}
 function despawnCar(c) {
   const i = cars.indexOf(c); if (i >= 0) cars.splice(i, 1);
   const j = TR.agents.indexOf(c); if (j >= 0) TR.agents.splice(j, 1);
@@ -160,17 +220,19 @@ function despawnCar(c) {
   if (c.origColor !== undefined) { c.setPaint(c.origColor); c.origColor = undefined; }
   if (c.wreckPaint) unwreck(c);
   c.pai = null; c.patrol = false; c.block = false;
-  if (c.police) POL.pool.push(c); else TR.pool.push(c); TR.stats.despawned++;
+  if (c.bus) TR.busPool.push(c); else if (c.police) POL.pool.push(c); else TR.pool.push(c); TR.stats.despawned++;
 }
 function updateTraffic(dt) {
   const f = focusPos(); const max = trafficMax();
-  TR.spawnT -= dt; if (TR.spawnT <= 0) { TR.spawnT = 0.35; if (!inOffZone(f.x, f.z)) { const k = TR.agents.length < max * 0.5 ? 3 : 1; for (let q = 0; q < k && TR.agents.length < max; q++) spawnAgent(f); } }
+  const busCap = TR.roster ? TR.roster.buses : 1;
+  TR.spawnT -= dt; if (TR.spawnT <= 0) { TR.spawnT = 0.35; if (!inOffZone(f.x, f.z)) { const carsN = TR.agents.reduce((n, a) => n + (a.bus ? 0 : 1), 0); const k = carsN < max * 0.5 ? 3 : 1; for (let q = 0; q < k && TR.agents.reduce((n, a) => n + (a.bus ? 0 : 1), 0) < max; q++) spawnAgent(f); } }
+  TR.busT = (TR.busT || 0) - dt; if (TR.busT <= 0) { TR.busT = 1.5; if (!inOffZone(f.x, f.z) && TR.agents.filter((a) => a.bus).length < busCap) spawnBus(f); }
   // former traffic cars left behind (stolen / wrecked) also return to the pool when far away
   for (let i = cars.length - 1; i >= 0; i--) { const c = cars[i]; if (c.fromPool && !c.ai && c !== activeCar && !c.mission && Math.hypot(c.x - f.x, c.z - f.z) > 450) { c.fromPool = false; despawnCar(c); } }
   for (let i = TR.agents.length - 1; i >= 0; i--) {
     const c = TR.agents[i]; const a = c.ai; c.fromPool = true;
     const dP = Math.hypot(c.x - f.x, c.z - f.z);
-    if (dP > 400 || TR.agents.length > max + 2) { despawnCar(c); continue; }
+    if (dP > 420 || (!c.bus && TR.agents.length > max + busCap + 2)) { despawnCar(c); continue; }
     lodCar(c, dP);
     if (a.mode !== 'drive') { // knocked out of its lane: plain physics, then resume when stopped
       updateCar(c, dt, false); a.stuck += dt;
@@ -184,8 +246,9 @@ function updateTraffic(dt) {
     if (!a.next) a.next = chooseNext(c);
     if (a.next && rem < 22 && a.next.turn > 0.5) target = Math.min(target, 5.5 + rem * 0.35);
     if (a.next && a.next.turn > 2.5 && rem < 10) target = Math.min(target, 3);
+    if (c.bus) target = Math.min(target, 9.5);
     const look = 7 + a.v * 1.4; let block = 1e9;
-    const chk = (ox, oz, rr) => { const dx = ox - c.x, dz = oz - c.z; const fw = dx * fx + dz * fz; if (fw <= 0 || fw > look) return; const lat = Math.abs(dx * fz - dz * fx); if (lat < 2.1 + rr) block = Math.min(block, fw); };
+    const chk = (ox, oz, rr) => { const dx = ox - c.x, dz = oz - c.z; const fw = dx * fx + dz * fz; if (fw <= 0 || fw > look) return; const lat = Math.abs(dx * fz - dz * fx); if (lat < (c.rad || 0.95) + 1.15 + rr) block = Math.min(block, fw); };
     for (const o of cars) if (o !== c && o.g.visible && Math.abs(o.x - c.x) < look && Math.abs(o.z - c.z) < look) chk(o.x, o.z, 0);
     if (G.mode === 'foot') chk(player.x, player.z, 0.4);
     for (const p of TR.peds) if (p.on && Math.abs(p.x - c.x) < look && Math.abs(p.z - c.z) < look) chk(p.x, p.z, 0.2);

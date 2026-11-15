@@ -25,6 +25,8 @@ button.big{font-size:26px;font-weight:800;padding:12px 60px;background:linear-gr
 select{font:inherit;background:#13304d;color:#fff;border:1px solid #ffffff40;border-radius:8px;padding:4px}
 .attr{font-size:12px;opacity:.85;margin-top:14px}
 .attr a{color:#9fd3ff}
+.credits{font-size:14px;line-height:1.35;margin-top:8px;text-align:left}
+.credits b{display:block;margin-bottom:2px}
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
 #hud button,#hud input,#hud a{pointer-events:auto}
 #minimapWrap{position:absolute;left:14px;top:14px;width:200px;height:200px;border-radius:50%;overflow:hidden;border:3px solid #ffffffcc;box-shadow:0 4px 18px rgba(0,0,0,.45);background:#cfd8c4}
@@ -91,7 +93,9 @@ select{font:inherit;background:#13304d;color:#fff;border:1px solid #ffffff40;bor
 @media (max-width:950px),(max-height:500px){#race{top:84px;font-size:13px;padding:4px 10px}}
 
 /* ===================== KOMIKS – styl kreskówkowy (Fredoka, grube obrysy) ===================== */
-@font-face{font-family:"Fredoka";src:url("fonts/fredoka-subset.woff") format("woff");font-weight:300 700;font-display:swap}
+@font-face{font-family:"Fredoka";src:url("fonts/fredoka-400.woff") format("woff");font-weight:400;font-display:swap}
+@font-face{font-family:"Fredoka";src:url("fonts/fredoka-600.woff") format("woff");font-weight:600;font-display:swap}
+@font-face{font-family:"Fredoka";src:url("fonts/fredoka-700.woff") format("woff");font-weight:700;font-display:swap}
 html,body{font-family:"Fredoka",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 button,select,input{font-family:inherit}
 :root{--ink:#2a211c;--cream:#fff8e8;--sun:#ffd21f;--pink:#ff3fa4;--sky:#7fc8f8}

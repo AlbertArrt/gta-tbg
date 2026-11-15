@@ -20,11 +20,12 @@ def build_main():
 def build_single(main):
     index = (ROOT / "index.html").read_text(encoding="utf-8")
     css = (ROOT / "style.css").read_text(encoding="utf-8")
-    font = (ROOT / "fonts" / "fredoka-subset.woff").read_bytes()
-    css = css.replace(
-        'url("fonts/fredoka-subset.woff") format("woff")',
-        'url("data:font/woff;base64,' + base64.b64encode(font).decode("ascii") + '") format("woff")',
-    )
+    for weight in (400, 600, 700):
+        font = (ROOT / "fonts" / f"fredoka-{weight}.woff").read_bytes()
+        css = css.replace(
+            f'url("fonts/fredoka-{weight}.woff") format("woff")',
+            'url("data:font/woff;base64,' + base64.b64encode(font).decode("ascii") + '") format("woff")',
+        )
     three = (ROOT / "vendor" / "three.module.min.js").read_bytes()
     icon = (ROOT / "icon.svg").read_bytes()
     data = (ROOT / "data" / "tarnobrzeg.json").read_text(encoding="utf-8")
@@ -47,7 +48,8 @@ def build_single(main):
 def build_zip():
     names = [
         "index.html", "main.js", "style.css", "manifest.webmanifest", "icon.svg",
-        "data/tarnobrzeg.json", "fonts/fredoka-subset.woff", "fonts/OFL-Fredoka.txt",
+        "data/tarnobrzeg.json",
+        "fonts/fredoka-400.woff", "fonts/fredoka-600.woff", "fonts/fredoka-700.woff", "fonts/OFL-Fredoka.txt",
         "vendor/three.module.js",
     ]
     dest = ROOT / "gta-tbg-web.zip"

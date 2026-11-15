@@ -4,6 +4,7 @@ Przeglądarkowa gra 3D z otwartym światem, której mapą jest **Tarnobrzeg**. M
 
 > Dane mapy © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), licencja **ODbL**.
 > Silnik grafiki: [three.js](https://threejs.org) r160, licencja MIT (dołączony w `vendor/`).
+> Czcionka: [Fredoka](https://fonts.google.com/specimen/Fredoka) (OFL 1.1, podzbiór z polskimi literami). Dodatkowe auta: [Kenney Car Kit](https://kenney.nl/assets/car-kit) (CC0). Autobus jest modelem własnym.
 > „GTA TBG” to fanowski projekt hobbystyczny. Logo jest własnym projektem i nie korzysta z materiałów Rockstar Games.
 
 ## Jak uruchomić
@@ -32,7 +33,9 @@ style.css
 manifest.webmanifest
 icon.svg
 data/tarnobrzeg.json
-fonts/fredoka-subset.woff
+fonts/fredoka-400.woff
+fonts/fredoka-600.woff
+fonts/fredoka-700.woff
 fonts/OFL-Fredoka.txt
 vendor/three.module.js
 ```
