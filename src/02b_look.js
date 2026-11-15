@@ -41,6 +41,11 @@ function furnSpec(kind) {
   if (kind === 'sign') return [[0.08, 2.15, 0.08, 0, 1.08, 0, iron], [0.72, 0.4, 0.06, 0, 2.0, 0, cream], [0.48, 0.08, 0.02, 0, 2.0, 0.04, blue]];
   return [[0.68, 0.36, 0.68, 0, 0.18, 0, cream], [0.46, 0.32, 0.46, 0, 0.48, 0, leaf]];
 }
+function nearKayShop(x, z) {
+  if (!W.buildings) return false;
+  for (const b of W.buildings) if (b.kay && (b.cx - x) ** 2 + (b.cz - z) ** 2 < 64) return true;
+  return false;
+}
 function nearMark(x, z) {
   const t = W.data && W.data.travel;
   if (t) for (let i = 0; i < t.length; i++) if ((t[i][1] - x) ** 2 + (t[i][2] - z) ** 2 < 324) return true;
@@ -68,7 +73,7 @@ function buildFurniture(scene) {
         const sg = ((Math.floor(x1 + t) + Math.floor(z1)) & 1) ? 1 : -1;
         const o = sg * (r.width / 2 + 2.55);
         const x = x1 + dx * t + nx * o, z = z1 + dz * t + nz * o;
-        if (insideBuilding(x, z, 0.7) || inWater(x, z) || nearRoad(x, z, 0.35) || nearMark(x, z)) continue;
+        if (insideBuilding(x, z, 0.7) || inWater(x, z) || nearRoad(x, z, 0.35) || nearMark(x, z) || nearKayShop(x, z)) continue;
         const kind = kinds[(n + Math.floor(Math.abs(x * 3 + z) ) ) % kinds.length];
         buckets[kind].push([x, z, Math.atan2(dx, dz)]);
         W.props.push({ x, z, r: rad[kind] });
@@ -130,12 +135,17 @@ function updateBlobs() {
     mesh.setMatrixAt(LOOK._i++, LOOK.blobM);
   };
   LOOK._i = 0;
-  if (G.mode === 'car' && activeCar) put(activeCar.x, activeCar.y, activeCar.z, 1.15, 2.05, activeCar.h);
+  const blobOf = (c) => {
+    const halfL = c.offs && c.offs.length ? Math.max.apply(null, c.offs.map((o) => Math.abs(o))) : (c.scooter ? 0.55 : 1.7);
+    const halfW = c.rad || (c.scooter ? 0.4 : 0.95);
+    return [Math.max(0.4, halfW * 1.05), Math.max(0.6, halfL * 0.95)];
+  };
+  if (G.mode === 'car' && activeCar) { const s = blobOf(activeCar); put(activeCar.x, activeCar.y, activeCar.z, s[0], s[1], activeCar.h); }
   else put(player.x, player.y, player.z, 0.42, 0.42, player.h || 0);
   if (cars) for (let k = 0; k < cars.length && LOOK._i < cap; k++) {
     const c = cars[k]; if (!c || c === activeCar || !c.g || !c.g.visible) continue;
     if (Math.hypot(c.x - cx, c.z - cz) > reach) continue;
-    put(c.x, c.y, c.z, c.scooter ? 0.4 : 1.05, c.scooter ? 0.7 : 1.9, c.h);
+    const s = blobOf(c); put(c.x, c.y, c.z, s[0], s[1], c.h);
   }
   if (typeof TR !== 'undefined' && TR.peds) for (let k = 0; k < TR.peds.length && LOOK._i < cap; k++) {
     const p = TR.peds[k]; if (!p.on) continue;

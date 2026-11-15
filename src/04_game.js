@@ -304,7 +304,7 @@ function updateParked(dt) {
 }
 
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), tmpV = new THREE.Vector3(), camEuler = new THREE.Euler();
-const DRIVER_EYE = { hatch: [-0.38, 1.16, 0.22], sport: [-0.4, 0.98, 0.35], muscle: [-0.42, 1.12, 0.28], jeep: [-0.42, 1.52, 0.12], sedan: [-0.38, 1.18, 0.28], scooter: [0, 1.32, 0.05] };
+const DRIVER_EYE = { hatch: [-0.38, 1.16, 0.22], sport: [-0.4, 0.98, 0.35], muscle: [-0.42, 1.12, 0.28], jeep: [-0.42, 1.52, 0.12], sedan: [-0.38, 1.18, 0.28], scooter: [0, 1.32, 0.05], khatch: [-0.34, 1.02, 0.2], ksedan: [-0.36, 1.12, 0.25], kvan: [-0.4, 1.22, 0.2], kpickup: [-0.4, 1.16, 0.3], ktruck: [-0.42, 1.28, 0.35], ktaxi: [-0.36, 1.18, 0.2], kpolice: [-0.36, 1.12, 0.25], kambulance: [-0.42, 1.32, 0.15], bus: [-0.7, 1.72, 1.8] };
 function toggleDriveView() {
   if (!G.started || G.mode !== 'car' || !activeCar || G.inRange || G.inGarage) return;
   G.driveView = G.driveView ? 0 : 1;
