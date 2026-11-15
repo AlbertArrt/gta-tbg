@@ -65,6 +65,37 @@ function animateWalker(w, speed, dt, air) {
   }
 }
 
+function wheelGeometry(WR, WW, offroad) {
+  const wg = new THREE.CylinderGeometry(WR, WR, WW, TOON ? 12 : 14).rotateZ(Math.PI / 2);
+  const parts = [[0, 0, 0, 0, 0, 0, '#1a1a1a', 0, wg]];
+  if (TOON) {
+    const rimCol = offroad ? '#e4efe0' : '#f4f1ea';
+    const cap = new THREE.CylinderGeometry(WR * 0.2, WR * 0.2, WW + 0.16, 8).rotateZ(Math.PI / 2);
+    parts.push([0, 0, 0, 0, 0, 0, '#2a211c', 0, cap]);
+    for (const sign of [1, -1]) {
+      const ring = new THREE.RingGeometry(WR * 0.22, WR * 0.66, 10);
+      ring.rotateY(sign > 0 ? Math.PI / 2 : -Math.PI / 2);
+      ring.translate(sign * (WW * 0.5 + 0.02), 0, 0);
+      parts.push([0, 0, 0, 0, 0, 0, rimCol, 0, ring]);
+      for (let i = 0; i < 5; i++) {
+        const spoke = new THREE.BoxGeometry(0.05, WR * 0.42, WR * 0.12);
+        spoke.translate(0, WR * 0.4, 0);
+        spoke.rotateX(i / 5 * Math.PI * 2);
+        spoke.translate(sign * (WW * 0.5 + 0.05), 0, 0);
+        parts.push([0, 0, 0, 0, 0, 0, '#2a211c', 0, spoke]);
+      }
+    }
+  } else {
+    const hg = new THREE.CylinderGeometry(WR * 0.55, WR * 0.55, WW + 0.02, 8).rotateZ(Math.PI / 2);
+    parts.push([0, 0, 0, 0, 0, 0, '#c4c4c4', 0, hg]);
+  }
+  return mergeBoxes(parts);
+}
+function finishCar(c, x, z, heading) {
+  c.x = x; c.z = z; c.h = heading; c.vx = 0; c.vz = 0; c.steer = 0; c.spin = 0; c.yawRate = 0;
+  c.y = groundH(x, z); c.vy = 0; c.pgh = c.y; c.air = false; c.sus = 0; c.susV = 0; c.pitch = 0; c.roll = 0;
+  c.sync();
+}
 const CAR_COLORS = [0xc0392b, 0x2e86c1, 0xf1c40f, 0x27ae60, 0xecf0f1, 0x34495e, 0xe67e22, 0x8e44ad];
 const TOON_CAR_COLORS = [0xe8503a, 0x3d8fe0, 0xf6c431, 0x45b65a, 0xf4f1ea, 0x5a6b8c, 0xf08a2c, 0xa66bd0, 0x4fc3c8, 0xe86fa0];
 let carMatV = null;
@@ -83,6 +114,8 @@ class Car {
     this.body = new THREE.Group(); this.g.add(this.body); const B = this.body;
     const lift = OR ? 0.32 : 0, DK = '#262626', GL = TOON ? '#41678c' : '#223344';
     let specs, heads, tails;
+    if (typeof KIT !== 'undefined' && KIT[this.model]) { buildKitBody(this, color); finishCar(this, x, z, heading); return; }
+    if (this.model === 'bus') { buildBusBody(this, color); finishCar(this, x, z, heading); return; }
     if (this.scooter) {
       specs = [[0.5, 0.14, 1.3, 0, 0.36, 0, color, 1], [0.42, 0.2, 0.7, 0, 0.62, -0.25, color, 1], [0.36, 0.08, 0.6, 0, 0.76, -0.25, DK], [0.14, 0.85, 0.14, 0, 0.78, 0.55, DK], [0.72, 0.07, 0.07, 0, 1.2, 0.55, DK], [0.5, 0.55, 0.22, 0, 0.62, 0.6, color, 1], [0.6, 0.34, 0.6, 0, 1.05, -0.62, '#f2c46a'], [0.62, 0.05, 0.62, 0, 1.23, -0.62, '#d2452f']];
       heads = [[0.22, 0.14, 0.05, 0, 0.98, 0.72]]; tails = [[0.2, 0.08, 0.05, 0, 0.62, -0.66]];
@@ -127,7 +160,9 @@ class Car {
     if (TOON) { this.hull = new THREE.Mesh(this.geo, hullMats().box); B.add(this.hull); }
     this.headMat = mkMat({ color: 0xfff6d8, emissive: 0xfff2c0, emissiveIntensity: 0.2 });
     this.tailMat = mkMat({ color: 0x990000, emissive: 0xff1010, emissiveIntensity: 0.3 });
-    B.add(new THREE.Mesh(mergeBoxes(heads.map((h) => [...h, '#ffffff'])), this.headMat)); B.add(new THREE.Mesh(mergeBoxes(tails.map((h) => [...h, '#ffffff'])), this.tailMat));
+    const headM = new THREE.Mesh(mergeBoxes(heads.map((h) => [...h, '#ffffff'])), this.headMat);
+    const tailM = new THREE.Mesh(mergeBoxes(tails.map((h) => [...h, '#ffffff'])), this.tailMat);
+    B.add(headM); B.add(tailM); this.lamps = [headM, tailM];
     if (this.police) {
       this.lbR = new THREE.MeshBasicMaterial({ color: 0x661111 }); this.lbB = new THREE.MeshBasicMaterial({ color: 0x112266 });
       const r = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.16, 0.36), this.lbR); r.position.set(-0.23, 1.62, -0.25); B.add(r);
@@ -135,34 +170,9 @@ class Car {
     }
     this.wheels = [];
     const WR = this.scooter ? 0.27 : (OR ? 0.5 : 0.36), WW = this.scooter ? 0.14 : (OR ? 0.36 : 0.26); this.wr = WR;
-    const key = WR + '_' + WW + '_' + TOON;
+    const key = WR + '_' + WW + '_' + TOON + '_' + (OR ? 1 : 0);
     Car.wheelGeo = Car.wheelGeo || {};
-    if (!Car.wheelGeo[key]) {
-      const wg = new THREE.CylinderGeometry(WR, WR, WW, TOON ? 12 : 14).rotateZ(Math.PI / 2);
-      const parts = [[0, 0, 0, 0, 0, 0, '#1a1a1a', 0, wg]];
-      if (TOON) {
-        const rimCol = OR ? '#e4efe0' : '#f4f1ea';
-        const cap = new THREE.CylinderGeometry(WR * 0.2, WR * 0.2, WW + 0.16, 8).rotateZ(Math.PI / 2);
-        parts.push([0, 0, 0, 0, 0, 0, '#2a211c', 0, cap]);
-        for (const sign of [1, -1]) {
-          const ring = new THREE.RingGeometry(WR * 0.22, WR * 0.66, 10);
-          ring.rotateY(sign > 0 ? Math.PI / 2 : -Math.PI / 2);
-          ring.translate(sign * (WW * 0.5 + 0.02), 0, 0);
-          parts.push([0, 0, 0, 0, 0, 0, rimCol, 0, ring]);
-          for (let i = 0; i < 5; i++) {
-            const spoke = new THREE.BoxGeometry(0.05, WR * 0.42, WR * 0.12);
-            spoke.translate(0, WR * 0.4, 0);
-            spoke.rotateX(i / 5 * Math.PI * 2);
-            spoke.translate(sign * (WW * 0.5 + 0.05), 0, 0);
-            parts.push([0, 0, 0, 0, 0, 0, '#2a211c', 0, spoke]);
-          }
-        }
-      } else {
-        const hg = new THREE.CylinderGeometry(WR * 0.55, WR * 0.55, WW + 0.02, 8).rotateZ(Math.PI / 2);
-        parts.push([0, 0, 0, 0, 0, 0, '#c4c4c4', 0, hg]);
-      }
-      Car.wheelGeo[key] = mergeBoxes(parts);
-    }
+    if (!Car.wheelGeo[key]) Car.wheelGeo[key] = wheelGeometry(WR, WW, OR);
     const TX = OR ? 0.98 : (MD === 'sport' || MD === 'muscle') ? 0.9 : 0.86, TZ = OR ? 1.38 : MD === 'hatch' ? 1.12 : (MD === 'sport' || MD === 'muscle') ? 1.45 : 1.35;
     const WP = this.scooter ? [[0, 0.62], [0, -0.55]] : [[-TX, TZ], [TX, TZ], [-TX, -TZ], [TX, -TZ]];
     for (const [wx, wz] of WP) {
@@ -175,9 +185,7 @@ class Car {
       u.legL.rotation.x = u.legR.rotation.x = -1.35; u.armL.rotation.x = u.armR.rotation.x = -1.2;
       this.rider.position.set(0, -0.15, -0.2); this.rider.visible = false; this.g.add(this.rider);
     }
-    this.x = x; this.z = z; this.h = heading; this.vx = 0; this.vz = 0; this.steer = 0; this.spin = 0; this.yawRate = 0;
-    this.y = groundH(x, z); this.vy = 0; this.pgh = this.y; this.air = false; this.sus = 0; this.susV = 0; this.pitch = 0; this.roll = 0;
-    this.sync();
+    finishCar(this, x, z, heading);
   }
   setPaint(color) { if (this.police) return; this.color = color; recolorTag(this.geo, 1, color); }
   circles() { const fx = Math.sin(this.h), fz = Math.cos(this.h); return this.offs.map((o) => [this.x + fx * o, this.z + fz * o]); }
@@ -248,16 +256,20 @@ function nearestRoadPoint(x, z, drivableOnly, maxR = 300) {
 
 // ======================= SKY =======================
 function makeSky(scene) {
-  const geo = new THREE.SphereGeometry(4500, 32, 16);
+  const geo = new THREE.SphereGeometry(4500, 48, 24);
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
     uniforms: { top: { value: new THREE.Color() }, bottom: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, night: { value: 0 } },
     vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); vec4 p = modelViewMatrix*vec4(position,1.0); gl_Position = projectionMatrix*p; gl_Position.z = gl_Position.w*0.9999; }',
     fragmentShader: `uniform vec3 top; uniform vec3 bottom; uniform vec3 sunDir; uniform vec3 sunCol; uniform float night; varying vec3 vP;
       float h(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164)))*43758.5453); }
-      void main(){ float t = clamp(vP.y*1.4+0.15,0.0,1.0); vec3 c = mix(bottom, top, pow(t,0.7));
-        float s = max(dot(normalize(vP), normalize(sunDir)),0.0); c += sunCol*(pow(s,800.0)*4.0 + pow(s,12.0)*0.25);
-        if(night>0.5 && vP.y>0.05){ vec3 q = floor(vP*300.0); float st = step(0.9975, h(q)); c += vec3(st)*0.9; }
+      void main(){ vec3 p = normalize(vP); float t = clamp(p.y*1.15+0.08,0.0,1.0); vec3 c = mix(bottom, top, pow(t,0.85));
+        float hz = smoothstep(0.42, -0.02, p.y);
+        c = mix(c, mix(vec3(0.90, 0.94, 0.86), bottom, night), hz * 0.62);
+        float s = max(dot(p, normalize(sunDir)),0.0);
+        float ang = acos(clamp(s, 0.0, 1.0));
+        c += sunCol * smoothstep(0.07, 0.012, ang) * 0.7;
+        if(night>0.5 && p.y>0.05){ vec3 q = floor(p*300.0); float st = step(0.9975, h(q)); c += vec3(st)*0.9; }
         gl_FragColor = vec4(c,1.0);
         ${TOON ? '#include <colorspace_fragment>' : ''} }`,
   });

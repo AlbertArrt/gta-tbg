@@ -190,9 +190,11 @@ async function buildWorld(data, scene, renderer) {
         if (L > doorL) { doorL = L; doorI = i; }
       }
     }
-    const wantDoor = TOON && doorL > 4.2 && !SHEDS.has(kind) && wallH > 2.5;
+    const kay = (typeof KAY_SHOP !== 'undefined' && KAY_SHOP[bi]) || '';
+    const wantDoor = TOON && !kay && doorL > 4.2 && !SHEDS.has(kind) && wallH > 2.5;
     const blockish = palette === PAL.block && floors >= 3 && area > 140 && area < 4500;
     const addQuad = (x1, z1, x2, z2, nx, nz, u0, u1, tcode) => {
+      if (kay) return;
       if (TOON) ch.walls.setX(acc, tcode);
       const v1 = TOON ? floors : wallH / 12;
       ch.walls.tri(x1, 0, z1, x2, 0, z2, x2, wallH, z2, wcol, [u0, 0, u1, 0, u1, v1], nx, 0, nz);
@@ -245,7 +247,7 @@ async function buildWorld(data, scene, renderer) {
       }
     };
     addWalls(ring, true); holes.forEach((hr) => addWalls(hr, false));
-    if (TOON) {
+    if (TOON && !kay) {
       ch.walls.setX(null, -1);
       const E = ch.edges;
       for (let i = 0; i < n; i++) {
@@ -257,7 +259,8 @@ async function buildWorld(data, scene, renderer) {
         E.push(x, wallH, z, ring[j * 2], wallH, ring[j * 2 + 1]);
       }
     }
-    if (pitched) {
+    if (kay) { /* OSM walls and roof are replaced by a KayKit shop; the ring stays in bGrid */ }
+    else if (pitched) {
       for (let i = 0; i < n; i++) {
         const j = (i + 1) % n; const x1 = ring[i * 2], z1 = ring[i * 2 + 1], x2 = ring[j * 2], z2 = ring[j * 2 + 1];
         const ax = x2 - x1, az = z2 - z1, bx = cx - x1, by = roofH, bz = cz - z1;
@@ -273,7 +276,7 @@ async function buildWorld(data, scene, renderer) {
       for (const f of faces) { const A = pts[f[0]], B = pts[f[1]], C = pts[f[2]]; ch.roofs.tri(A.x, wallH, A.y, B.x, wallH, B.y, C.x, wallH, C.y, rcol, null, 0, 1, 0); }
       if (TOON && area > 150 && wallH > 4.5) roofBoxes(ch, ring, holes, wallH, area, rnd);
     }
-    W.buildings.push({ ring, cx, cz, h: wallH + roofH, kind });
+    W.buildings.push({ ring, cx, cz, h: wallH + roofH, kind, kay });
     let x0 = 1e9, x1b = -1e9, z0 = 1e9, z1b = -1e9;
     for (let i = 0; i < ring.length; i += 2) { x0 = Math.min(x0, ring[i]); x1b = Math.max(x1b, ring[i]); z0 = Math.min(z0, ring[i + 1]); z1b = Math.max(z1b, ring[i + 1]); }
     for (let ix = Math.floor(x0 / 32); ix <= Math.floor(x1b / 32); ix++) for (let iz = Math.floor(z0 / 32); iz <= Math.floor(z1b / 32); iz++) {
@@ -285,6 +288,7 @@ async function buildWorld(data, scene, renderer) {
   setLoad(0.76, 'Pierzeje ulic…'); await nextFrame();
   sealStreetWalls(fronts, getChunk);
   W.bGrid.finish();
+  if (typeof placeKayShops === 'function') placeKayShops(scene);
 
   setLoad(0.78, 'Składanie miasta…'); await nextFrame();
   W.chunkGroup = new THREE.Group(); scene.add(W.chunkGroup);
@@ -321,6 +325,8 @@ async function buildWorld(data, scene, renderer) {
   buildTrees(QUALITY[settings.quality].trees);
   W.travel = data.travel.slice();
   W.landmarks = data.landmarks;
+  setLoad(0.92, 'Chmury i ulica…'); await nextFrame();
+  buildLook(scene);
   setLoad(0.95, 'Prawie gotowe…'); await nextFrame();
 }
 

@@ -22,7 +22,7 @@ function applyQuality() {
   if (W.treeGroup && W.treeDensity !== q.trees) { W.treeDensity = q.trees; buildTrees(q.trees); }
   onResize();
 }
-function applyFog() { const q = QUALITY[settings.quality]; scene.fog = new THREE.Fog(G.night ? FOG_NIGHT : FOG_DAY, q.dist * (TOON ? 0.72 : 0.45), q.dist); }
+function applyFog() { const q = QUALITY[settings.quality]; scene.fog = new THREE.Fog(G.night ? FOG_NIGHT : FOG_DAY, q.dist * (TOON ? 0.36 : 0.45), q.dist); }
 function applyTime() {
   const n = G.night;
   sky.material.uniforms.top.value.set(n ? '#050b18' : (TOON ? '#6fb7ff' : '#3f7fc4'));
@@ -31,14 +31,16 @@ function applyTime() {
   sky.material.uniforms.night.value = n ? 1 : 0;
   const sd = n ? new THREE.Vector3(-0.4, 0.55, 0.5) : new THREE.Vector3(0.45, 0.75, 0.35); sd.normalize();
   sky.material.uniforms.sunDir.value.copy(sd); G.sunDir = sd;
-  hemi.intensity = n ? 0.35 : (TOON ? 1.25 : 1.6); hemi.color.set(n ? '#5a6f99' : (TOON ? '#eaf4ff' : '#dfefff')); hemi.groundColor.set(n ? '#1a1f2a' : (TOON ? '#8fae6a' : '#6f7a5a'));
-  sun.intensity = n ? 0.35 : (TOON ? 2.2 : 2.4); sun.color.set(n ? '#9fb6ff' : '#fff3dd');
+  hemi.intensity = n ? 0.22 : (TOON ? 0.55 : 1.6); hemi.color.set(n ? '#5a6f99' : (TOON ? '#d5e4f4' : '#dfefff')); hemi.groundColor.set(n ? '#141820' : (TOON ? '#6d8a48' : '#6f7a5a'));
+  sun.intensity = n ? 0.28 : (TOON ? 1.65 : 2.4); sun.color.set(n ? '#9fb6ff' : '#fff3dd');
   W.mats.wall.emissiveIntensity = n ? 1.1 : 0;
   W.mats.water.color.set(n ? '#1b3550' : (TOON ? '#47a6e0' : '#3f7398'));
   W.mats.ground.color.set(n ? (TOON ? '#5f7f3c' : '#5d7048') : (TOON ? '#a3d65c' : '#93ad6e'));
   headlight.intensity = n ? 60 : 0;
   for (const c of cars.concat(TR.pool, POL.cars)) { if (!c.headMat) continue; c._hl = c._tl = undefined; c.headMat.emissiveIntensity = n ? 2.3 : 0.12; c.tailMat.emissiveIntensity = n ? 1.25 : 0.22; }
-  renderer.toneMappingExposure = n ? 1.15 : 1.0;
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.toneMappingExposure = 1;
+  if (typeof POST !== 'undefined' && POST.exp) POST.exp.value = n ? 1.08 : 1;
   $('btnNight').textContent = n ? '☀️' : '🌙';
   applyFog();
 }
@@ -47,6 +49,7 @@ async function init() {
   const canvas = $('c');
   renderer = new THREE.WebGLRenderer({ canvas, antialias: QUALITY[settings.quality].aa, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.NoToneMapping;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.3, 2000);
@@ -94,7 +97,11 @@ function spawnCars() {
     if (insideBuilding(cx, cz, 2.2) || spots.some((s) => Math.hypot(s[0] - cx, s[1] - cz) < 8)) continue;
     spots.push([cx, cz, rp.h]);
   }
-  spots.slice(0, 14).forEach((s, i) => { cars.push(new Car(scene, CAR_COLORS[i % CAR_COLORS.length], s[0], s[1], s[2] + (rnd() < 0.5 ? 0 : Math.PI))); });
+  const roster = kitRoster(); const pal = TOON ? TOON_CAR_COLORS : CAR_COLORS;
+  spots.slice(0, 14).forEach((s, i) => {
+    const model = i < roster.parked ? roster.models[i % roster.models.length] : '';
+    cars.push(new Car(scene, pal[i % pal.length], s[0], s[1], s[2] + (rnd() < 0.5 ? 0 : Math.PI), model ? { model } : {}));
+  });
 }
 
 // ---------------- teleport / enter-exit
@@ -183,6 +190,7 @@ function updateCar(c, dt, drive) {
   let vF = c.vx * fx + c.vz * fz, vR = c.vx * rx + c.vz * rz;
   const OR = c.offroad, st = c.st; let MAXV = st ? st.maxv : (OR ? 41 : 48); let ACC = st ? st.acc : (OR ? 14 : 13); const BRK = st ? st.brk : 28;
   const GRIP = st ? st.grip : 9, STEER = st ? st.steer : 0.55;
+  if (c.bus) { MAXV = Math.min(MAXV, 30); ACC = Math.min(ACC, 7); }
   if (c.pmul && c !== activeCar) { MAXV *= c.pmul; ACC *= c.pmul; } // police slowed down at low wanted levels
   if (c.hp < 25 && !c.wrecked && !c.police) MAXV *= 0.85; // badly damaged engine
   c.nitroOn = false;
@@ -200,7 +208,7 @@ function updateCar(c, dt, drive) {
   else if (thr < 0) { if (vF > 0.5) vF -= BRK * dt; else vF = Math.max(-12, vF - 7 * dt); }
   else { vF -= Math.sign(vF) * Math.min(Math.abs(vF), (2.2 + Math.abs(vF) * 0.04) * dt); }
   if (hand) { vF -= Math.sign(vF) * Math.min(Math.abs(vF), (thr > 0 ? 5 : 9) * dt); }
-  const maxSteer = STEER / (1 + Math.abs(vF) * 0.035);
+  const maxSteer = (c.bus ? STEER * 0.62 : STEER) / (1 + Math.abs(vF) * 0.035);
   c.steer = lerp(c.steer, steerIn * maxSteer, Math.min(1, dt * (drive && G.touch.jon ? 7 : 6)));
   c.gripK = hand ? 0 : Math.min(1, (c.gripK === undefined ? 1 : c.gripK) + dt * (thr > 0 ? 1.5 : 3)); // grip comes back gradually after the handbrake → longer, controllable drifts
   const gFull = GRIP * surfGrip, gLo = Math.min(1.8, gFull);
@@ -373,6 +381,7 @@ function loop() {
     headlight.target.position.set(c.x + Math.sin(c.h) * 25, c.y || 0, c.z + Math.cos(c.h) * 25); headlight.target.updateMatrixWorld(); headlight.visible = G.night;
   } else headlight.visible = false;
   visT -= dt; if (visT <= 0) { visT = 0.25; updateVisibility(); }
+  if (typeof updateBlobs === 'function') updateBlobs();
   updateRadio(dt);
   renderFrame();
   fpsAcc += Math.min(rawDt, 1); fpsN++; if (fpsAcc > 0.5) { G.fps = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; if (settings.fps) $('fps').textContent = G.fps + ' FPS · ' + renderer.info.render.calls + ' dc'; }
