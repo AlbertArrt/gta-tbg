@@ -32,6 +32,66 @@ function buildRoadGraph() {
     }
   }
   W.graph = TR;
+  buildWalkGraph();
+}
+function distEdge(e, x, z) {
+  const p = e.pts; let best = 1e9, sAt = 0, hx = x, hz = z;
+  const n = p.length / 2;
+  for (let i = 1; i < n; i++) {
+    const ax = p[i * 2 - 2], az = p[i * 2 - 1], bx = p[i * 2], bz = p[i * 2 + 1];
+    const vx = bx - ax, vz = bz - az, l2 = vx * vx + vz * vz || 1e-4;
+    let t = ((x - ax) * vx + (z - az) * vz) / l2; if (t < 0) t = 0; else if (t > 1) t = 1;
+    const px = ax + vx * t, pz = az + vz * t, d = Math.hypot(x - px, z - pz);
+    if (d < best) { best = d; hx = px; hz = pz; sAt = e.cum[i - 1] + (e.cum[i] - e.cum[i - 1]) * t; }
+  }
+  return { d: best, s: sAt, x: hx, z: hz };
+}
+function carriageNear(x, z) {
+  const cx = Math.floor(x / 100), cz = Math.floor(z / 100);
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const arr = TR.egrid.get((cx + i) + ',' + (cz + j)); if (!arr) continue;
+    for (const id of arr) {
+      const e = TR.edges[id];
+      if (distEdge(e, x, z).d < e.w * 0.5 + 0.25) return e;
+    }
+  }
+  return null;
+}
+function buildWalkGraph() {
+  TR.walk = []; TR.wnodes = []; TR.wadj = []; TR.wgrid = new Map();
+  const key = (x, z) => Math.round(x * 2) + ',' + Math.round(z * 2);
+  const ways = W.roads.filter((r) => (r.type === 'footway' || r.type === 'pedestrian') && r.pts.length >= 4 && !inOffZone(r.pts[0], r.pts[1]));
+  const cnt = new Map();
+  for (const r of ways) for (let i = 0; i < r.pts.length; i += 2) { const k = key(r.pts[i], r.pts[i + 1]); cnt.set(k, (cnt.get(k) || 0) + 1); }
+  const nid = new Map();
+  const node = (x, z) => { const k = key(x, z); let id = nid.get(k); if (id === undefined) { id = TR.wnodes.length; nid.set(k, id); TR.wnodes.push({ x, z }); TR.wadj.push([]); } return id; };
+  for (const r of ways) {
+    const p = r.pts, n = p.length / 2; let start = 0;
+    for (let i = 1; i < n; i++) {
+      if (i !== n - 1 && cnt.get(key(p[i * 2], p[i * 2 + 1])) <= 1) continue;
+      const pts = Array.from(p.slice(start * 2, i * 2 + 2)); const cum = [0];
+      for (let j = 1; j < pts.length / 2; j++) cum.push(cum[j - 1] + Math.hypot(pts[j * 2] - pts[j * 2 - 2], pts[j * 2 + 1] - pts[j * 2 - 1]));
+      const len = cum[cum.length - 1];
+      if (len > 1.4) {
+        const a = node(pts[0], pts[1]), b = node(pts[pts.length - 2], pts[pts.length - 1]);
+        const e = { id: TR.walk.length, a, b, pts, cum, len, w: r.width || 2, cross: false, use: true };
+        const mid = edgeSample(e, len * 0.5, { x: 0, z: 0, h: 0 });
+        const cell = TR.egrid.get(Math.floor(mid.x / 100) + ',' + Math.floor(mid.z / 100));
+        let onRoad = false;
+        if (cell) for (const id of cell) { const road = TR.edges[id]; if (distEdge(road, mid.x, mid.z).d < road.w * 0.5 + 0.2) { onRoad = true; break; } }
+        if (onRoad) { if (len > 18) e.use = false; else e.cross = true; }
+        if (e.use) {
+          TR.walk.push(e); TR.wadj[a].push({ e: e.id, dir: 1 }); TR.wadj[b].push({ e: e.id, dir: -1 });
+          for (let j = 0; j < pts.length; j += 2) {
+            const ck = Math.floor(pts[j] / 100) + ',' + Math.floor(pts[j + 1] / 100);
+            let arr = TR.wgrid.get(ck); if (!arr) { arr = []; TR.wgrid.set(ck, arr); }
+            if (arr[arr.length - 1] !== e.id) arr.push(e.id);
+          }
+        }
+      }
+      start = i;
+    }
+  }
 }
 // position on edge at arc length u (from a), returns heading too
 function edgeSample(e, u, out) {
@@ -370,19 +430,132 @@ function pedShin(idx, root, jx, jy, jz, thigh, thighLen, shin, w, h, d, zf) {
   pedMT.makeTranslation(0, -h / 2, zf || 0); pedMS.makeScale(w, h, d); pedMB.multiplyMatrices(pedMT, pedMS); pedMA.multiply(pedMB); pedMA.premultiply(root);
   TR.pedMesh.setMatrixAt(idx, pedMA);
 }
+const PED_MARGIN = 1.7;
+function pedSide(e, s, side, out) {
+  edgeSample(e, clamp(s, 0, e.len), out);
+  const off = side * (e.w * 0.5 + PED_MARGIN);
+  out.x -= Math.cos(out.h) * off; out.z += Math.sin(out.h) * off; return out;
+}
+function pedBlocked(x, z) { return insideBuilding(x, z, 0.35); }
 function spawnPedAt(x, z) {
   const p = TR.peds.find((q) => !q.on); if (!p) return null;
-  Object.assign(p, { on: true, x, z, h: Math.random() * 6.28, v: 1.4, state: 'walk', t: 0, e: -1, fall: 0 }); pedColors(p); return p;
+  Object.assign(p, { on: true, x, z, h: Math.random() * 6.28, v: 1.25, state: 'walk', t: 0, e: -1, kind: '', side: 1, dir: 1, fall: 0, next: null }); pedColors(p); return p;
+}
+function pedHide(p) { p.on = false; for (let k = 0; k < PED_N; k++) TR.pedMesh.setMatrixAt(p.i * PED_N + k, pedZ); }
+function nearestSidewalk(x, z, maxR) {
+  const cx = Math.floor(x / 100), cz = Math.floor(z / 100); let best = null, bd = maxR;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const arr = TR.wgrid.get((cx + i) + ',' + (cz + j)); if (!arr) continue;
+    for (const id of arr) {
+      const e = TR.walk[id]; if (!e || !e.use || e.cross) continue;
+      const hit = distEdge(e, x, z); if (hit.d < bd && !pedBlocked(hit.x, hit.z) && !carriageNear(hit.x, hit.z)) { bd = hit.d; best = { kind: 'walk', e: e.id, s: hit.s, x: hit.x, z: hit.z, dir: 1, side: 1 }; }
+    }
+  }
+  if (best) return best;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const arr = TR.egrid.get((cx + i) + ',' + (cz + j)); if (!arr) continue;
+    for (const id of arr) {
+      const e = TR.edges[id]; if (!e.ped || e.bridge || e.len < 8) continue;
+      const along = distEdge(e, x, z);
+      for (const side of [1, -1]) {
+        const smp = pedSide(e, along.s, side, { x: 0, z: 0, h: 0 });
+        const d = Math.hypot(smp.x - x, smp.z - z);
+        if (d < bd && !pedBlocked(smp.x, smp.z) && !carriageNear(smp.x, smp.z)) { bd = d; best = { kind: 'side', e: e.id, s: along.s, x: smp.x, z: smp.z, dir: 1, side }; }
+      }
+    }
+  }
+  return best;
+}
+function pedAdopt(p, spot) {
+  p.kind = spot.kind; p.e = spot.e; p.s = spot.s; p.dir = spot.dir; p.side = spot.side; p.x = spot.x; p.z = spot.z; p.state = 'walk'; p.next = null;
+}
+function pedRescue(p) {
+  const spot = nearestSidewalk(p.x, p.z, 14);
+  if (!spot) { pedHide(p); return; }
+  pedAdopt(p, spot);
+}
+function pedReverse(p, len) { p.dir = -p.dir; p.s = p.s < 0 ? Math.min(len, 0.9) : Math.max(0, len - 0.9); }
+function pedCrossTo(p, x, z, next) {
+  const d = Math.hypot(x - p.x, z - p.z);
+  if (d < 0.45 || d > 14) { if (d <= 14) pedAdopt(p, next); return; }
+  p.kind = 'cross'; p.tx = x; p.tz = z; p.t = Math.min(2.8, d / 2.5); p.next = next;
+}
+function pedJunction(p, e, nodeId, walk) {
+  if (walk) {
+    const opts = (TR.wadj[nodeId] || []).filter((o) => o.e !== e.id && TR.walk[o.e] && TR.walk[o.e].use);
+    const stroll = opts.filter((o) => !TR.walk[o.e].cross);
+    const pool = stroll.length ? stroll : opts.filter((o) => TR.walk[o.e].cross);
+    if (pool.length) {
+      const o = pool[Math.floor(Math.random() * pool.length)]; const e2 = TR.walk[o.e];
+      const s = o.dir > 0 ? Math.min(1.1, e2.len) : Math.max(0, e2.len - 1.1);
+      const smp = edgeSample(e2, s, { x: 0, z: 0, h: 0 });
+      if (!e2.cross && Math.hypot(smp.x - p.x, smp.z - p.z) > 14) { pedReverse(p, e.len); return; }
+      pedCrossTo(p, smp.x, smp.z, { kind: 'walk', e: e2.id, s, dir: o.dir, side: 1, x: smp.x, z: smp.z }); return;
+    }
+    pedReverse(p, e.len); return;
+  }
+  const nd = TR.nodes[nodeId];
+  const hop = nearestSidewalk(nd.x, nd.z, 7);
+  if (hop && hop.kind === 'walk' && Math.hypot(hop.x - p.x, hop.z - p.z) < 14) { pedCrossTo(p, hop.x, hop.z, hop); return; }
+  const opts = (TR.adj[nodeId] || []).filter((o) => !o.back && o.e !== e.id && TR.edges[o.e].ped && !TR.edges[o.e].bridge);
+  if (opts.length) {
+    const o = opts[Math.floor(Math.random() * opts.length)]; const e2 = TR.edges[o.e];
+    const s = o.dir > 0 ? Math.min(3, e2.len * 0.45) : Math.max(e2.len * 0.55, e2.len - 3);
+    let pick = null, bd = 1e9;
+    for (const side of [p.side || 1, -(p.side || 1)]) {
+      const smp = pedSide(e2, s, side, { x: 0, z: 0, h: 0 });
+      const d = Math.hypot(smp.x - p.x, smp.z - p.z);
+      if (d < bd && d < 14 && !pedBlocked(smp.x, smp.z) && !carriageNear(smp.x, smp.z)) { bd = d; pick = { smp, side }; }
+    }
+    if (pick) { pedCrossTo(p, pick.smp.x, pick.smp.z, { kind: 'side', e: e2.id, s, dir: o.dir, side: pick.side, x: pick.smp.x, z: pick.smp.z }); return; }
+  }
+  pedReverse(p, e.len);
+}
+function pedStep(p, dt) {
+  if (p.kind === 'cross') {
+    const dx = p.tx - p.x, dz = p.tz - p.z, L = Math.hypot(dx, dz) || 1; p.t -= dt;
+    if (L < 0.4 || p.t <= 0) { if (p.next) pedAdopt(p, p.next); else pedRescue(p); return; }
+    const step = Math.min(L, 2.5 * dt); p.x += dx / L * step; p.z += dz / L * step; p.h = Math.atan2(dx, dz); return;
+  }
+  if (p.kind === 'walk') {
+    const e = TR.walk[p.e]; if (!e) { pedRescue(p); return; }
+    const v = e.cross ? 2.5 : p.v; p.s += p.dir * v * dt;
+    if (p.s < 0 || p.s > e.len) { pedJunction(p, e, p.s < 0 ? e.a : e.b, true); return; }
+    const smp = edgeSample(e, p.s, { x: 0, z: 0, h: 0 });
+    p.h = p.dir > 0 ? smp.h : smp.h + Math.PI; p.x = smp.x; p.z = smp.z;
+    return;
+  }
+  if (p.kind === 'side') {
+    const e = TR.edges[p.e]; if (!e) { pedRescue(p); return; }
+    p.s += p.dir * p.v * dt;
+    if (p.s < 0 || p.s > e.len) { pedJunction(p, e, p.s < 0 ? e.a : e.b, false); return; }
+    const smp = pedSide(e, p.s, p.side || 1, { x: 0, z: 0, h: 0 });
+    if (pedBlocked(smp.x, smp.z)) { p.side = -(p.side || 1); const alt = pedSide(e, p.s, p.side, { x: 0, z: 0, h: 0 }); if (pedBlocked(alt.x, alt.z)) { pedRescue(p); return; } p.x = alt.x; p.z = alt.z; p.h = p.dir > 0 ? alt.h : alt.h + Math.PI; return; }
+    p.h = p.dir > 0 ? smp.h : smp.h + Math.PI; p.x = smp.x; p.z = smp.z; return;
+  }
+  pedRescue(p);
 }
 function spawnPedWalker(f) {
-  for (let t = 0; t < 8; t++) {
-    const ang = Math.random() * 6.283, R = 35 + Math.random() * 150; const x = f.x + Math.cos(ang) * R, z = f.z + Math.sin(ang) * R;
+  for (let t = 0; t < 10; t++) {
+    const ang = Math.random() * 6.283, R = 24 + Math.random() * 110, x = f.x + Math.cos(ang) * R, z = f.z + Math.sin(ang) * R;
+    const wk = TR.wgrid.get(Math.floor(x / 100) + ',' + Math.floor(z / 100));
+    if (wk && wk.length) {
+      const e = TR.walk[wk[Math.floor(Math.random() * wk.length)]];
+      if (e && e.use && !e.cross && e.len > 8) {
+        const s = Math.random() * e.len; const smp = edgeSample(e, s, { x: 0, z: 0, h: 0 });
+        if (!pedBlocked(smp.x, smp.z) && !carriageNear(smp.x, smp.z)) {
+          const p = spawnPedAt(smp.x, smp.z); if (!p) return;
+          p.kind = 'walk'; p.e = e.id; p.s = s; p.dir = Math.random() < 0.5 ? 1 : -1; p.v = 1.15 + Math.random() * 0.4; return;
+        }
+      }
+    }
     const arr = TR.egrid.get(Math.floor(x / 100) + ',' + Math.floor(z / 100)); if (!arr) continue;
-    const e = TR.edges[arr[Math.floor(Math.random() * arr.length)]]; if (!e.ped || e.len < 10) continue;
-    const side = Math.random() < 0.5 ? 1 : -1; const s = Math.random() * e.len; const smp = edgeSample(e, s, {});
-    const off = side * (e.w / 2 + 1.45); const px = smp.x - Math.cos(smp.h) * off, pz = smp.z + Math.sin(smp.h) * off;
-    if (insideBuilding(px, pz, 0.4)) continue;
-    const p = spawnPedAt(px, pz); if (!p) return; p.e = e.id; p.s = s; p.dir = Math.random() < 0.5 ? 1 : -1; p.side = side; p.v = 1.2 + Math.random() * 0.6; return;
+    const e = TR.edges[arr[Math.floor(Math.random() * arr.length)]]; if (!e.ped || e.len < 12 || e.bridge) continue;
+    let side = Math.random() < 0.5 ? 1 : -1; const s = 1 + Math.random() * Math.max(0.2, e.len - 2);
+    let smp = pedSide(e, s, side, { x: 0, z: 0, h: 0 });
+    if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z)) { side = -side; smp = pedSide(e, s, side, { x: 0, z: 0, h: 0 }); if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z)) continue; }
+    const p = spawnPedAt(smp.x, smp.z); if (!p) return;
+    p.kind = 'side'; p.e = e.id; p.s = s; p.dir = Math.random() < 0.5 ? 1 : -1; p.side = side; p.v = 1.15 + Math.random() * 0.4; return;
   }
 }
 const pm4 = new THREE.Matrix4(), pm4b = new THREE.Matrix4(), pq = new THREE.Quaternion(), pe = new THREE.Euler(), pv3 = new THREE.Vector3(), ps3 = new THREE.Vector3();
@@ -412,18 +585,12 @@ function updatePeds(dt) {
     if (p.state === 'fall') {
       p.t += dt; const k = Math.max(0, 1 - p.t * 2.2); p.x += p.fvx * dt * k; p.z += p.fvz * dt * k; p.h = p.fh;
       pitch = p.t < 2.4 ? -Math.min(1, p.t * 4) * 1.45 : -1.45 * Math.max(0, 1 - (p.t - 2.4) * 2.5);
-      if (p.t > 2.8) { p.state = 'flee'; p.t = 6; p.fx = f.x; p.fz = f.z; }
+      if (p.t > 2.8) { p.state = 'flee'; p.t = 2.2; p.fx = f.x; p.fz = f.z; }
     } else if (p.state === 'flee') {
       p.t -= dt; const ax = p.x - p.fx, az = p.z - p.fz, L = Math.hypot(ax, az) || 1; p.h = Math.atan2(ax / L, az / L);
-      const nx = p.x + ax / L * 6.5 * dt, nz = p.z + az / L * 6.5 * dt; collideCircle(nx, nz, 0.35, col, true); p.x = col.x; p.z = col.z; run = true;
-      if (p.t <= 0) { p.state = 'walk'; p.e = -1; }
-    } else if (p.e >= 0) {
-      const e = TR.edges[p.e]; p.s += p.dir * p.v * dt;
-      if (p.s < 0 || p.s > e.len) { p.dir = -p.dir; p.s = clamp(p.s, 0, e.len); }
-      const smp = edgeSample(e, p.s, {}); const off = p.side * (e.w / 2 + 1.45);
-      const tx = smp.x - Math.cos(smp.h) * off, tz = smp.z + Math.sin(smp.h) * off; p.h = Math.atan2(tx - p.x, tz - p.z) || p.h;
-      if (Math.hypot(tx - p.x, tz - p.z) > 6) { p.x = tx; p.z = tz; } else { p.x = tx; p.z = tz; }
-    } else { p.v = 0.8; const nx = p.x + Math.sin(p.h) * p.v * dt, nz = p.z + Math.cos(p.h) * p.v * dt; collideCircle(nx, nz, 0.35, col, true); if (col.hit) p.h += 1.5; p.x = col.x; p.z = col.z; }
+      const nx = p.x + ax / L * 3.2 * dt, nz = p.z + az / L * 3.2 * dt; collideCircle(nx, nz, 0.35, col, true); p.x = col.x; p.z = col.z; run = true;
+      if (p.t <= 0) pedRescue(p);
+    } else pedStep(p, dt);
     if (p.state !== 'fall') { p.phase += dt * (run ? 7.2 : Math.max(p.v, 0.8)) * 2.5; swing = Math.sin(p.phase) * (run ? 0.85 : 0.62); }
     const camD = Math.hypot(p.x - camP.x, p.z - camP.z);
     const far = camD > rng.far; const dress = !far && camD < rng.detail; const bones = dress && settings.quality !== 'low';

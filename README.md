@@ -89,7 +89,7 @@ Plik `gta-tbg-single.html` nie jest potrzebny na Pages. Wystarczy do gry offline
 - **Pierzeje:** wąskie szczeliny między sąsiednimi elewacjami (do 2 m na niskiej jakości, do 3 m na średniej i wysokiej) dostają ścianę w tym samym stylu. W Rynku i na Serbinowie cofnięte budynki dosuwają się do chodnika, a dziura w pierzei do około 18 m (24 m na wysokiej) dostaje niską zabudowę z tyłu. Kod wysokiej jakości umie też postawić jeden prosty dom albo pawilon na małej pustej działce w tych rejonach; na obecnej mapie takie działki są już zabudowane, więc ta przebudowa ich nie dodała. To nie są budynki z OSM. Niska jakość zostawia tylko krótkie wstawki.
   - **Klasyczny:** poprzednie gładkie ściany, bez tego atlasu.
   - *Komiks (pełny)* – z konturami (domyślnie na komputerze), *Komiks (lekki)* – bez kosztownego przejścia konturów (domyślnie na telefonie), *Klasyczny* – wcześniejszy wygląd.
-- **Ruch uliczny:** auta AI jeżdżą po grafie ulic z OSM prawym pasem, skręcają na skrzyżowaniach, zatrzymują się za innymi autami i przed graczem (15 / 22 / 30 aut zależnie od jakości), po chodnikach chodzą przechodnie.
+- **Ruch uliczny:** auta AI jeżdżą po grafie ulic z OSM prawym pasem, skręcają na skrzyżowaniach, zatrzymują się za innymi autami i przed graczem (15 / 22 / 30 aut zależnie od jakości), przechodnie idą po chodniku (albo po ciągu pieszym z mapy), a jezdnię przecinają tylko na skrzyżowaniu.
 - **Ludzie:** gracz, zleceniodawcy i policjanci pieszo mają ten sam komiksowy model: oczy, fryzura (krótka, długa, kok, kucyk albo czapka), czasem kurtka, spódnica albo plecak. Przechodnie z ruchu dzielą jedną siatkę instancji. Kolory koszul, spodni, skóry i włosów są losowe; sylwetkę dopina czapka, długie włosy, kok, kucyk, kurtka, spódnica albo plecak. W marszu nogi i ręce idą naprzemiennie, tułów lekko podskakuje; z bliska (poza niską jakością) noga zgina się w kolanie. Daleko zostaje głowa i tułów. Niska jakość: do 12 osób, szczegóły do ~36 m, proste nogi, znikają po ~150 m. Średnia: 20 osób, szczegóły ~70 m, znikają ~210 m. Wysoka: 30 osób, szczegóły ~110 m, znikają ~260 m. Stojący zleceniodawca lekko się kołysze.
   Kolizje z autami i budynkami uszkadzają auto (pasek HP). Przy 0 HP auto dymi, płonie i wybucha.
 - **Policja i gwiazdki ★1–5:** potrącenie przechodnia (przewraca się i wstaje), taranowanie radiowozu, kradzież auta, zbyt szybka jazda obok policji. Radiowozy mają kontury, migające koguty i syrenę (Web Audio), ścigają cię i taranują, przy 4–5 ★ stawiają blokady, wysiadają też policjanci pieszo.
@@ -127,6 +127,15 @@ Pełna kwota tylko za pierwszym razem. Kolejny przejazd zapisuje rekord i daje *
 | Próba nad jeziorem | plaża Jeziora Tarnobrzeskiego | 4 checkpointy off-road w odwrotnej kolejności niż rajd Głowackiego. Trzeba wjechać na ścieżkę (albo teleport przy pomniku) | 260 zł |
 | Drift pod Lidlem | parking przy Lidlu | 800 pkt driftu w 75 s wewnątrz żółtego kółka | 210 zł (rekord = punkty) |
 | Tort do Dzikowa | piekarnia Skalski | zamek bez utraty HP. Otarcie poniżej progu obrażeń się nie liczy. Kilka sekund na wyjechanie | 240 zł |
+
+### Dłuższe misje
+Kilka etapów na jedną robotę: odbiór, dojazd, dostawa, czasem pościg. Dziennik pokazuje kroki. GPS przelicza się sam przy zmianie etapu. Pełna nagroda raz, potem premia za rekord czasu.
+
+| Misja | Gdzie | Etapy | Nagroda |
+|---|---|---|---|
+| Dostawa placków ziemniaczanych | The Italiana, ul. Kościuszki 7 | odbiór placków, skuter, dom przy ul. Chłopskiej w Mokrzyszowie. Pasek stanu: uderzenie osypuje placki | 280 zł + premia za zapas czasu |
+| List z Dzikowa | brama Zamku w Dzikowie | auto, list przy bramie (do parku nie wchodzi ulica), Urząd Miasta, odpowiedź na stację kolejową | 260 zł |
+| Paczka na Siarkowiec | Dworzec PKS | furgonetka, odbiór na stacji, 2 ★ i dojazd do kościoła św. Barbary | 290 zł |
 
 - **📻 Radio (jak w GTA):** 15 stacji w 8 gatunkach. W aucie włącza się samo i pokazuje nazwę stacji, pieszo – ikoną 📻 w HUD. Tytuł utworu pobierany na żywo (SomaFM, Jazz Kultura, Radio Leliwa). Gdy strumień nie wstanie, radio pisze „Stacja nie działa – następna.” i przełącza się dalej. Bez internetu pokazuje krótki komunikat, a gra działa dalej. Lista stacji jest w jednej tablicy `RADIO_STATIONS` w `src/01_head.js`.
 

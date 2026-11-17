@@ -151,6 +151,9 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 #objCard{pointer-events:auto;background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-left:0;border-radius:0 14px 14px 0;box-shadow:0 3px 0 var(--ink);padding:6px 10px;width:268px;max-height:min(200px,calc(100vh - 260px));overflow:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
 #objCard b{display:block;font-size:15px;color:#c0392b}
 #objCard span{display:block;font-size:14px;line-height:1.3}
+#objCargo{display:block;height:10px;margin-top:4px;background:#efe6d4;border:2px solid var(--ink);border-radius:6px;overflow:hidden}
+#objCargo.hidden{display:none}
+#objCargo b{display:block;height:100%;width:100%;background:#e2a122}
 #objCard em{display:block;margin-top:2px;font-style:normal;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
 #objCard em.warn{color:#c0392b}
 #objCard small{display:block;margin-top:2px;font-size:13px;line-height:1.25;color:#1d4e89}
