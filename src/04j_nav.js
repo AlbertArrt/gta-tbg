@@ -621,7 +621,7 @@ const TUTOR = [
   { h: 'Ruszaj', p: 'Komputer: WASD albo strzałki, mysz rozgląda się po kliknięciu w ekran. Telefon: lewy joystick to ruch, przeciąganie prawej strony obraca kamerę. Shift / BIEG to bieg, w aucie nitro (gdy je masz).' },
   { h: 'Auto, mapa, GPS', p: 'E albo WSIĄDŹ – wsiądź i wysiądź. M otwiera mapę: klik przenosi (gdy nie goni cię policja), przycisk GPS rysuje trasę po ulicach. Trasa omija budynki i wodę. G albo „Anuluj GPS” kasuje wyznaczony cel. Cel misji ustawia się sam przy kolejnym etapie.' },
   { h: 'Misje i dziennik', p: 'Świecące „!” to zleceniodawcy. Dziennik (J albo 📒) ma zakładki Aktywna, Dostępne i Ukończone: kroki, nagroda, rekord. Można przyjąć, przerwać i jechać od nowa. Zegar misji stoi, gdy dziennik albo mapa jest otwarta.' },
-  { h: 'Policja, garaż, radio', p: 'Gwiazdki za potrącenie, taran radiowozu, kradzież i pędzenie obok policji. Zgub pościg albo wpadnij do lakierni. Niebieskie G to garaż i tuning. Q / R zmienia stację (jest Radio Leliwa), T wycisza. Ten samouczek włączysz ponownie z menu.' },
+  { h: 'Policja, garaż, radio', p: 'Gwiazdki za potrącenie, taran radiowozu, kradzież i pędzenie obok policji. Zgub pościg albo wpadnij do lakierni. Niebieskie G to garaż i tuning. Q / R zmienia stację (Antyradio, Jazz Kultura, Opera, Radio Leliwa). T wycisza. Gdy stacja milczy, radio samo bierze następną. Ten samouczek włączysz ponownie z menu.' },
 ];
 let TUT = { i: 0 };
 function openTutor() {

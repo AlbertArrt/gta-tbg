@@ -18,11 +18,14 @@ const STYLE = settings.style;
 const TOON = STYLE !== 'classic';
 
 // ======================= RADIO – lista stacji (jedna tablica konfiguracyjna) =======================
-// Darmowe, publicznie udostępniane strumienie internetowe. np = źródło "teraz gra" (tylko tam, gdzie jest publiczne API z CORS).
+// Darmowe, publicznie udostępniane strumienie HTTPS (MP3/AAC). Kolejność to gatunki.
+// np = źródło "teraz gra" (tylko tam, gdzie jest publiczne API z CORS).
 const RADIO_STATIONS = [
+  { genre: 'Rock', name: 'Antyradio', url: 'https://r.dcs.redcdn.pl/sc/o2/Eurozet/live/antyradio.livx?audio=5', np: null, src: 'antyradio.pl' },
   { genre: 'Rock', name: 'Radio Paradise – Rock Mix', url: 'https://stream.radioparadise.com/rock-128', np: null, src: 'radioparadise.com' },
   { genre: 'Rock', name: 'SomaFM Left Coast 70s', url: 'https://ice2.somafm.com/seventies-128-mp3', np: { type: 'soma', id: 'seventies' }, src: 'somafm.com' },
   { genre: 'Metal', name: 'SomaFM Metal Detector', url: 'https://ice2.somafm.com/metal-128-mp3', np: { type: 'soma', id: 'metal' }, src: 'somafm.com' },
+  { genre: 'Jazz', name: 'Jazz Kultura', url: 'https://stream.radio.co/s1136b59f3/listen', np: { type: 'radioco', id: 's1136b59f3' }, src: 'jazzkultura.pl' },
   { genre: 'Jazz', name: 'SomaFM Sonic Universe', url: 'https://ice2.somafm.com/sonicuniverse-128-mp3', np: { type: 'soma', id: 'sonicuniverse' }, src: 'somafm.com' },
   { genre: 'Jazz', name: 'SmoothJazz.com', url: 'https://smoothjazz.cdnstream1.com/2585_128.mp3', np: null, src: 'smoothjazz.com' },
   { genre: 'Chillout', name: 'SomaFM Groove Salad', url: 'https://ice2.somafm.com/groovesalad-128-mp3', np: { type: 'soma', id: 'groovesalad' }, src: 'somafm.com' },
@@ -31,7 +34,8 @@ const RADIO_STATIONS = [
   { genre: 'Pop', name: 'SomaFM Indie Pop Rocks!', url: 'https://ice2.somafm.com/indiepop-128-mp3', np: { type: 'soma', id: 'indiepop' }, src: 'somafm.com' },
   { genre: 'House', name: 'SomaFM Beat Blender', url: 'https://ice2.somafm.com/beatblender-128-mp3', np: { type: 'soma', id: 'beatblender' }, src: 'somafm.com' },
   { genre: 'House', name: 'Technolovers Deep House', url: 'https://stream.technolovers.fm/deep-house', np: null, src: 'technolovers.fm' },
-  { genre: 'Lokalne', name: 'Radio Leliwa (Tarnobrzeg)', url: 'https://streaming.g-news.pl/radio/8050/leliwa', np: { type: 'leliwa', url: 'https://streaming.g-news.pl/api/nowplaying/leliwa' }, src: 'g-news.pl / radioleliwa.pl' },
+  { genre: 'Opera', name: 'Opera', url: 'https://stream.klassikradio.de/opera/mp3-128/radiobrowser', np: null, src: 'klassikradio.de' },
+  { genre: 'Lokalne', name: 'Radio Leliwa (Tarnobrzeg)', url: 'https://streaming.g-news.pl/radio/8050/leliwa', np: { type: 'leliwa', url: 'https://streaming.g-news.pl/api/nowplaying/leliwa' }, src: 'leliwa.pl' },
 ];
 
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -4129,7 +4133,7 @@ function drawMissionMinimap(g, sc) {
 
 
 // ======================= RADIO (stacje w stylu GTA) =======================
-const RADIO = { i: 0, audio: null, playing: false, auto: false, fails: 0, npTimer: 0, wd: 0, popT: 0, hideT: 0, now: '', msg: '', lastMode: 'foot', userOff: false };
+const RADIO = { i: 0, audio: null, playing: false, auto: false, fails: 0, npTimer: 0, wd: 0, popT: 0, hideT: 0, now: '', msg: '', lastMode: 'foot', userOff: false, live: 0, switching: false };
 function initRadio() {
   RADIO.i = clamp(settings.station | 0, 0, RADIO_STATIONS.length - 1);
   $('radioPlay').onclick = () => radioPower(); $('radioPrev').onclick = () => radioStep(-1); $('radioNext').onclick = () => radioStep(1);
@@ -4158,25 +4162,56 @@ function radioStep(d) {
 }
 function radioPlay() {
   const s = RADIO_STATIONS[RADIO.i]; RADIO.now = '';
-  if (navigator.onLine === false) { RADIO.playing = false; radioMsg('Brak internetu – radio offline. Gra działa normalnie.'); return; }
+  if (navigator.onLine === false) { RADIO.playing = false; RADIO.switching = false; radioMsg('Brak internetu. Gra działa dalej.'); return; }
+  const token = ++RADIO.live;
+  RADIO.failTok = token;
   if (!RADIO.audio) {
     const a = new Audio(); a.preload = 'none'; a.crossOrigin = null;
-    a.addEventListener('playing', () => { RADIO.fails = 0; clearTimeout(RADIO.wd); radioMsg(''); radioNP(); });
+    a.addEventListener('playing', () => {
+      if (!RADIO.playing) return;
+      RADIO.fails = 0; clearTimeout(RADIO.wd);
+      if (settings.station !== RADIO.i) { settings.station = RADIO.i; saveSettings(); }
+      radioMsg(''); radioNP();
+    });
     a.addEventListener('waiting', () => { if (RADIO.playing) radioMsg('Buforowanie…'); });
-    a.addEventListener('error', () => { if (RADIO.playing && a.getAttribute('src')) radioFail('błąd strumienia'); });
+    a.addEventListener('error', () => {
+      if (!RADIO.playing || RADIO.switching) return;
+      if (a.error && a.error.code === 1) return;
+      radioFail();
+    });
     RADIO.audio = a;
   }
-  const a = RADIO.audio; a.volume = settings.radioVol; a.src = s.url + (s.url.includes('?') ? '&' : '?') + 't=' + Date.now();
+  const a = RADIO.audio; a.volume = settings.radioVol;
+  a.src = s.url + (s.url.includes('?') ? '&' : '?') + 't=' + Date.now();
   RADIO.playing = true; radioMsg('Łączenie: ' + s.name + '…');
-  const p = a.play(); const myI = RADIO.i;
-  if (p && p.catch) p.catch((err) => { if (RADIO.i !== myI || !RADIO.playing) return; if (err && err.name === 'NotAllowedError') { RADIO.playing = false; radioMsg('Przeglądarka zablokowała dźwięk – dotknij ⏻ Włącz.'); } else radioFail('brak odpowiedzi'); });
-  clearTimeout(RADIO.wd); RADIO.wd = setTimeout(() => { if (RADIO.playing && RADIO.i === myI && a.readyState < 3) radioFail('przekroczony czas'); }, 8000);
+  const p = a.play();
+  if (p && p.catch) p.catch((err) => {
+    if (RADIO.live !== token || !RADIO.playing) return;
+    if (err && err.name === 'NotAllowedError') { RADIO.playing = false; radioMsg('Dotknij ⏻ Włącz, żeby puścić dźwięk.'); }
+    else radioFail();
+  });
+  clearTimeout(RADIO.wd);
+  RADIO.wd = setTimeout(() => { if (RADIO.playing && RADIO.live === token && a.readyState < 3) radioFail(); }, 8000);
   clearInterval(RADIO.npTimer); RADIO.npTimer = setInterval(radioNP, 20000);
+  RADIO.switching = false;
 }
-function radioFail(why) {
-  RADIO.fails++; const s = RADIO_STATIONS[RADIO.i];
-  if (RADIO.fails >= RADIO_STATIONS.length) { radioStop(); radioMsg('Radio offline – żadna stacja nie odpowiada. Gra działa normalnie.'); return; }
-  RADIO.i = (RADIO.i + 1) % RADIO_STATIONS.length; radioMsg(s.name + ': ' + why + ' – przełączam dalej…'); radioPopup(); radioPlay();
+function radioFail() {
+  if (!RADIO.playing || RADIO.switching) return;
+  if (RADIO.failTok !== RADIO.live) return;
+  RADIO.failTok = 0;
+  RADIO.switching = true;
+  RADIO.fails++;
+  clearTimeout(RADIO.wd);
+  if (RADIO.fails >= RADIO_STATIONS.length) {
+    RADIO.switching = false;
+    radioStop();
+    radioMsg('Żadna stacja nie odpowiada. Gra działa dalej.');
+    return;
+  }
+  RADIO.i = (RADIO.i + 1) % RADIO_STATIONS.length;
+  radioMsg('Stacja nie działa – następna.');
+  radioPopup();
+  radioPlay();
 }
 function radioStop() {
   RADIO.playing = false; RADIO.now = ''; clearTimeout(RADIO.wd); clearInterval(RADIO.npTimer); RADIO.npTimer = 0;
@@ -4194,6 +4229,10 @@ async function radioNP() {
     } else if (s.np.type === 'leliwa') {
       const r = await fetch(s.np.url, { cache: 'no-store' }); const j = await r.json(); const t = j && j.now_playing && j.now_playing.song;
       if (RADIO.i === myI) RADIO.now = t ? (t.text || [t.artist, t.title].filter(Boolean).join(' – ')) : '';
+    } else if (s.np.type === 'radioco') {
+      const r = await fetch('https://public.radio.co/stations/' + s.np.id + '/status', { cache: 'no-store' }); const j = await r.json();
+      const t = j && j.current_track && j.current_track.title;
+      if (RADIO.i === myI) RADIO.now = t || '';
     }
   } catch (e) { RADIO.now = ''; }
   radioUI();
@@ -5419,7 +5458,7 @@ const TUTOR = [
   { h: 'Ruszaj', p: 'Komputer: WASD albo strzałki, mysz rozgląda się po kliknięciu w ekran. Telefon: lewy joystick to ruch, przeciąganie prawej strony obraca kamerę. Shift / BIEG to bieg, w aucie nitro (gdy je masz).' },
   { h: 'Auto, mapa, GPS', p: 'E albo WSIĄDŹ – wsiądź i wysiądź. M otwiera mapę: klik przenosi (gdy nie goni cię policja), przycisk GPS rysuje trasę po ulicach. Trasa omija budynki i wodę. G albo „Anuluj GPS” kasuje wyznaczony cel. Cel misji ustawia się sam przy kolejnym etapie.' },
   { h: 'Misje i dziennik', p: 'Świecące „!” to zleceniodawcy. Dziennik (J albo 📒) ma zakładki Aktywna, Dostępne i Ukończone: kroki, nagroda, rekord. Można przyjąć, przerwać i jechać od nowa. Zegar misji stoi, gdy dziennik albo mapa jest otwarta.' },
-  { h: 'Policja, garaż, radio', p: 'Gwiazdki za potrącenie, taran radiowozu, kradzież i pędzenie obok policji. Zgub pościg albo wpadnij do lakierni. Niebieskie G to garaż i tuning. Q / R zmienia stację (jest Radio Leliwa), T wycisza. Ten samouczek włączysz ponownie z menu.' },
+  { h: 'Policja, garaż, radio', p: 'Gwiazdki za potrącenie, taran radiowozu, kradzież i pędzenie obok policji. Zgub pościg albo wpadnij do lakierni. Niebieskie G to garaż i tuning. Q / R zmienia stację (Antyradio, Jazz Kultura, Opera, Radio Leliwa). T wycisza. Gdy stacja milczy, radio samo bierze następną. Ten samouczek włączysz ponownie z menu.' },
 ];
 let TUT = { i: 0 };
 function openTutor() {

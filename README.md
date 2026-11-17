@@ -128,24 +128,27 @@ Pełna kwota tylko za pierwszym razem. Kolejny przejazd zapisuje rekord i daje *
 | Drift pod Lidlem | parking przy Lidlu | 800 pkt driftu w 75 s wewnątrz żółtego kółka | 210 zł (rekord = punkty) |
 | Tort do Dzikowa | piekarnia Skalski | zamek bez utraty HP. Otarcie poniżej progu obrażeń się nie liczy. Kilka sekund na wyjechanie | 240 zł |
 
-- **📻 Radio (jak w GTA):** 12 stacji w 7 gatunkach. W aucie włącza się samo i pokazuje nazwę stacji, pieszo – ikoną 📻 w HUD. Tytuł utworu pobierany na żywo (SomaFM, Radio Leliwa). Gdy stacja nie odpowiada, radio przełącza się na następną; bez internetu pokazuje „Radio offline”, a gra działa dalej. Lista stacji jest w jednej tablicy `RADIO_STATIONS` w `src/01_head.js`.
+- **📻 Radio (jak w GTA):** 15 stacji w 8 gatunkach. W aucie włącza się samo i pokazuje nazwę stacji, pieszo – ikoną 📻 w HUD. Tytuł utworu pobierany na żywo (SomaFM, Jazz Kultura, Radio Leliwa). Gdy strumień nie wstanie, radio pisze „Stacja nie działa – następna.” i przełącza się dalej. Bez internetu pokazuje krótki komunikat, a gra działa dalej. Lista stacji jest w jednej tablicy `RADIO_STATIONS` w `src/01_head.js`.
 
 | # | Gatunek | Stacja | Strumień | Źródło |
 |---|---|---|---|---|
-| 1 | Rock | Radio Paradise – Rock Mix | `https://stream.radioparadise.com/rock-128` | radioparadise.com |
-| 2 | Rock | SomaFM Left Coast 70s | `https://ice2.somafm.com/seventies-128-mp3` | somafm.com |
-| 3 | Metal | SomaFM Metal Detector | `https://ice2.somafm.com/metal-128-mp3` | somafm.com |
-| 4 | Jazz | SomaFM Sonic Universe | `https://ice2.somafm.com/sonicuniverse-128-mp3` | somafm.com |
-| 5 | Jazz | SmoothJazz.com | `https://smoothjazz.cdnstream1.com/2585_128.mp3` | smoothjazz.com |
-| 6 | Chillout | SomaFM Groove Salad | `https://ice2.somafm.com/groovesalad-128-mp3` | somafm.com |
-| 7 | Chillout | Radio Paradise – Mellow Mix | `https://stream.radioparadise.com/mellow-128` | radioparadise.com |
-| 8 | Pop | SomaFM PopTron | `https://ice2.somafm.com/poptron-128-mp3` | somafm.com |
-| 9 | Pop | SomaFM Indie Pop Rocks! | `https://ice2.somafm.com/indiepop-128-mp3` | somafm.com |
-| 10 | House | SomaFM Beat Blender | `https://ice2.somafm.com/beatblender-128-mp3` | somafm.com |
-| 11 | House | Technolovers Deep House | `https://stream.technolovers.fm/deep-house` | technolovers.fm |
-| 12 | Lokalne | Radio Leliwa (Tarnobrzeg) | `https://streaming.g-news.pl/radio/8050/leliwa` | radioleliwa.pl |
+| 1 | Rock | Antyradio | `https://r.dcs.redcdn.pl/sc/o2/Eurozet/live/antyradio.livx?audio=5` | antyradio.pl |
+| 2 | Rock | Radio Paradise – Rock Mix | `https://stream.radioparadise.com/rock-128` | radioparadise.com |
+| 3 | Rock | SomaFM Left Coast 70s | `https://ice2.somafm.com/seventies-128-mp3` | somafm.com |
+| 4 | Metal | SomaFM Metal Detector | `https://ice2.somafm.com/metal-128-mp3` | somafm.com |
+| 5 | Jazz | Jazz Kultura | `https://stream.radio.co/s1136b59f3/listen` | jazzkultura.pl |
+| 6 | Jazz | SomaFM Sonic Universe | `https://ice2.somafm.com/sonicuniverse-128-mp3` | somafm.com |
+| 7 | Jazz | SmoothJazz.com | `https://smoothjazz.cdnstream1.com/2585_128.mp3` | smoothjazz.com |
+| 8 | Chillout | SomaFM Groove Salad | `https://ice2.somafm.com/groovesalad-128-mp3` | somafm.com |
+| 9 | Chillout | Radio Paradise – Mellow Mix | `https://stream.radioparadise.com/mellow-128` | radioparadise.com |
+| 10 | Pop | SomaFM PopTron | `https://ice2.somafm.com/poptron-128-mp3` | somafm.com |
+| 11 | Pop | SomaFM Indie Pop Rocks! | `https://ice2.somafm.com/indiepop-128-mp3` | somafm.com |
+| 12 | House | SomaFM Beat Blender | `https://ice2.somafm.com/beatblender-128-mp3` | somafm.com |
+| 13 | House | Technolovers Deep House | `https://stream.technolovers.fm/deep-house` | technolovers.fm |
+| 14 | Opera | Opera | `https://stream.klassikradio.de/opera/mp3-128/radiobrowser` | klassikradio.de |
+| 15 | Lokalne | Radio Leliwa (Tarnobrzeg) | `https://streaming.g-news.pl/radio/8050/leliwa` | leliwa.pl |
 
-  Tytuły utworów: `https://somafm.com/songs/<kanał>.json` (SomaFM) i `https://streaming.g-news.pl/api/nowplaying/leliwa` (Leliwa). Radio Paradise nie udostępnia tytułów przeglądarce (brak CORS). Wszystkie strumienie należą do ich nadawców – gra tylko je odtwarza.
+  Tytuły utworów: `https://somafm.com/songs/<kanał>.json` (SomaFM), `https://public.radio.co/stations/s1136b59f3/status` (Jazz Kultura) i `https://streaming.g-news.pl/api/nowplaying/leliwa` (Leliwa). Radio Paradise i Antyradio nie podają tytułu przeglądarce. Wszystkie strumienie należą do ich nadawców – gra tylko je odtwarza.
 - **HUD:** prędkościomierz, minimapa z obrotem, gwiazdki, gotówka, pasek HP auta, nazwa ulicy, mapa M z szybką podróżą (niedostępna przy gwiazdkach).
 - **Grafika:** cykl dnia i nocy, chunki z ukrywaniem niewidocznych, jakość Niska / Średnia / Wysoka (z cieniami). Komiks ma twardsze pasy cienia, wcześniejszą mgłę i lekką korekcję koloru (cieplej, winieta) także na niskiej jakości. Pełny styl powyżej niskiej jakości dokłada kontury z głębi. Chmury, latarnie i drobne meble uliczne są instancjami; pod autami i ludźmi leży płaska plama cienia, bez map cieni.
   Kontury budynków w stylu komiksowym rysują się tylko w pobliżu kamery (Niska 200 m, Średnia 320 m, Wysoka 500 m; w trybie lekkim 75% tego). Dalej i tak zasłania je mgła, a to mocno odciąża słabsze telefony.
