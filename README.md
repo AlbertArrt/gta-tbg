@@ -89,7 +89,7 @@ Plik `gta-tbg-single.html` nie jest potrzebny na Pages. Wystarczy do gry offline
 - **Pierzeje:** wąskie szczeliny między sąsiednimi elewacjami (do 2 m na niskiej jakości, do 3 m na średniej i wysokiej) dostają ścianę w tym samym stylu. W Rynku i na Serbinowie cofnięte budynki dosuwają się do chodnika, a dziura w pierzei do około 18 m (24 m na wysokiej) dostaje niską zabudowę z tyłu. Kod wysokiej jakości umie też postawić jeden prosty dom albo pawilon na małej pustej działce w tych rejonach; na obecnej mapie takie działki są już zabudowane, więc ta przebudowa ich nie dodała. To nie są budynki z OSM. Niska jakość zostawia tylko krótkie wstawki.
   - **Klasyczny:** poprzednie gładkie ściany, bez tego atlasu.
   - *Komiks (pełny)* – z konturami (domyślnie na komputerze), *Komiks (lekki)* – bez kosztownego przejścia konturów (domyślnie na telefonie), *Klasyczny* – wcześniejszy wygląd.
-- **Ruch uliczny:** auta AI jeżdżą po grafie ulic z OSM prawym pasem, skręcają na skrzyżowaniach, zatrzymują się za innymi autami i przed graczem (15 / 22 / 30 aut zależnie od jakości), po chodnikach chodzą przechodnie.
+- **Ruch uliczny:** auta AI jeżdżą po grafie ulic z OSM prawym pasem, skręcają na skrzyżowaniach, zatrzymują się za innymi autami i przed graczem (15 / 22 / 30 aut zależnie od jakości), przechodnie idą po chodniku (albo po ciągu pieszym z mapy), a jezdnię przecinają tylko na skrzyżowaniu.
 - **Ludzie:** gracz, zleceniodawcy i policjanci pieszo mają ten sam komiksowy model: oczy, fryzura (krótka, długa, kok, kucyk albo czapka), czasem kurtka, spódnica albo plecak. Przechodnie z ruchu dzielą jedną siatkę instancji. Kolory koszul, spodni, skóry i włosów są losowe; sylwetkę dopina czapka, długie włosy, kok, kucyk, kurtka, spódnica albo plecak. W marszu nogi i ręce idą naprzemiennie, tułów lekko podskakuje; z bliska (poza niską jakością) noga zgina się w kolanie. Daleko zostaje głowa i tułów. Niska jakość: do 12 osób, szczegóły do ~36 m, proste nogi, znikają po ~150 m. Średnia: 20 osób, szczegóły ~70 m, znikają ~210 m. Wysoka: 30 osób, szczegóły ~110 m, znikają ~260 m. Stojący zleceniodawca lekko się kołysze.
   Kolizje z autami i budynkami uszkadzają auto (pasek HP). Przy 0 HP auto dymi, płonie i wybucha.
 - **Policja i gwiazdki ★1–5:** potrącenie przechodnia (przewraca się i wstaje), taranowanie radiowozu, kradzież auta, zbyt szybka jazda obok policji. Radiowozy mają kontury, migające koguty i syrenę (Web Audio), ścigają cię i taranują, przy 4–5 ★ stawiają blokady, wysiadają też policjanci pieszo.
@@ -128,24 +128,38 @@ Pełna kwota tylko za pierwszym razem. Kolejny przejazd zapisuje rekord i daje *
 | Drift pod Lidlem | parking przy Lidlu | 800 pkt driftu w 75 s wewnątrz żółtego kółka | 210 zł (rekord = punkty) |
 | Tort do Dzikowa | piekarnia Skalski | zamek bez utraty HP. Otarcie poniżej progu obrażeń się nie liczy. Kilka sekund na wyjechanie | 240 zł |
 
-- **📻 Radio (jak w GTA):** 12 stacji w 7 gatunkach. W aucie włącza się samo i pokazuje nazwę stacji, pieszo – ikoną 📻 w HUD. Tytuł utworu pobierany na żywo (SomaFM, Radio Leliwa). Gdy stacja nie odpowiada, radio przełącza się na następną; bez internetu pokazuje „Radio offline”, a gra działa dalej. Lista stacji jest w jednej tablicy `RADIO_STATIONS` w `src/01_head.js`.
+### Dłuższe misje
+Kilka etapów na jedną robotę: odbiór, dojazd, dostawa, czasem pościg. Dziennik pokazuje kroki. GPS przelicza się sam przy zmianie etapu. Pełna nagroda raz, potem premia za rekord czasu.
+
+| Misja | Gdzie | Etapy | Nagroda |
+|---|---|---|---|
+| Dostawa placków ziemniaczanych | The Italiana, ul. Kościuszki 7 | odbiór placków, skuter, dom przy ul. Chłopskiej w Mokrzyszowie. Pasek stanu: uderzenie osypuje placki | 280 zł + premia za zapas czasu |
+| List z Dzikowa | brama Zamku w Dzikowie | auto, list przy bramie (do parku nie wchodzi ulica), Urząd Miasta, odpowiedź na stację kolejową | 260 zł |
+| Paczka na Siarkowiec | Dworzec PKS | furgonetka, odbiór na stacji, 2 ★ i dojazd do kościoła św. Barbary | 290 zł |
+
+- **📻 Radio (jak w GTA):** 17 stacji w 8 gatunkach. W aucie włącza się samo i pokazuje nazwę stacji, pieszo – ikoną 📻 w HUD. Tytuł utworu pobierany na żywo (SomaFM, Jazz Kultura, Radio Leliwa). Gdy strumień nie wstanie, radio pisze „Stacja nie działa – następna.” i przełącza się dalej. Bez internetu pokazuje krótki komunikat, a gra działa dalej. Lista stacji jest w jednej tablicy `RADIO_STATIONS` w `src/01_head.js`.
 
 | # | Gatunek | Stacja | Strumień | Źródło |
 |---|---|---|---|---|
-| 1 | Rock | Radio Paradise – Rock Mix | `https://stream.radioparadise.com/rock-128` | radioparadise.com |
-| 2 | Rock | SomaFM Left Coast 70s | `https://ice2.somafm.com/seventies-128-mp3` | somafm.com |
-| 3 | Metal | SomaFM Metal Detector | `https://ice2.somafm.com/metal-128-mp3` | somafm.com |
-| 4 | Jazz | SomaFM Sonic Universe | `https://ice2.somafm.com/sonicuniverse-128-mp3` | somafm.com |
-| 5 | Jazz | SmoothJazz.com | `https://smoothjazz.cdnstream1.com/2585_128.mp3` | smoothjazz.com |
-| 6 | Chillout | SomaFM Groove Salad | `https://ice2.somafm.com/groovesalad-128-mp3` | somafm.com |
-| 7 | Chillout | Radio Paradise – Mellow Mix | `https://stream.radioparadise.com/mellow-128` | radioparadise.com |
-| 8 | Pop | SomaFM PopTron | `https://ice2.somafm.com/poptron-128-mp3` | somafm.com |
-| 9 | Pop | SomaFM Indie Pop Rocks! | `https://ice2.somafm.com/indiepop-128-mp3` | somafm.com |
-| 10 | House | SomaFM Beat Blender | `https://ice2.somafm.com/beatblender-128-mp3` | somafm.com |
-| 11 | House | Technolovers Deep House | `https://stream.technolovers.fm/deep-house` | technolovers.fm |
-| 12 | Lokalne | Radio Leliwa (Tarnobrzeg) | `https://streaming.g-news.pl/radio/8050/leliwa` | radioleliwa.pl |
+| 1 | Rock | Antyradio | `https://r.dcs.redcdn.pl/sc/o2/Eurozet/live/antyradio.livx?audio=5` | antyradio.pl |
+| 2 | Rock | Antyradio Classic Rock | `https://an.cdn.eurozet.pl/ANTCLA.mp3` | antyradio.pl |
+| 3 | Rock | Antyradio Hard | `https://an.cdn.eurozet.pl/ANTHAR.mp3` | antyradio.pl |
+| 4 | Rock | Radio Paradise – Rock Mix | `https://stream.radioparadise.com/rock-128` | radioparadise.com |
+| 5 | Rock | SomaFM Left Coast 70s | `https://ice2.somafm.com/seventies-128-mp3` | somafm.com |
+| 6 | Metal | SomaFM Metal Detector | `https://ice2.somafm.com/metal-128-mp3` | somafm.com |
+| 7 | Jazz | Jazz Kultura | `https://stream.radio.co/s1136b59f3/listen` | jazzkultura.pl |
+| 8 | Jazz | SomaFM Sonic Universe | `https://ice2.somafm.com/sonicuniverse-128-mp3` | somafm.com |
+| 9 | Jazz | SmoothJazz.com | `https://smoothjazz.cdnstream1.com/2585_128.mp3` | smoothjazz.com |
+| 10 | Chillout | SomaFM Groove Salad | `https://ice2.somafm.com/groovesalad-128-mp3` | somafm.com |
+| 11 | Chillout | Radio Paradise – Mellow Mix | `https://stream.radioparadise.com/mellow-128` | radioparadise.com |
+| 12 | Pop | SomaFM PopTron | `https://ice2.somafm.com/poptron-128-mp3` | somafm.com |
+| 13 | Pop | SomaFM Indie Pop Rocks! | `https://ice2.somafm.com/indiepop-128-mp3` | somafm.com |
+| 14 | House | SomaFM Beat Blender | `https://ice2.somafm.com/beatblender-128-mp3` | somafm.com |
+| 15 | House | Technolovers Deep House | `https://stream.technolovers.fm/deep-house` | technolovers.fm |
+| 16 | Opera | Opera | `https://stream.klassikradio.de/opera/mp3-128/radiobrowser` | klassikradio.de |
+| 17 | Lokalne | Radio Leliwa (Tarnobrzeg) | `https://streaming.g-news.pl/radio/8050/leliwa` | leliwa.pl |
 
-  Tytuły utworów: `https://somafm.com/songs/<kanał>.json` (SomaFM) i `https://streaming.g-news.pl/api/nowplaying/leliwa` (Leliwa). Radio Paradise nie udostępnia tytułów przeglądarce (brak CORS). Wszystkie strumienie należą do ich nadawców – gra tylko je odtwarza.
+  Tytuły utworów: `https://somafm.com/songs/<kanał>.json` (SomaFM), `https://public.radio.co/stations/s1136b59f3/status` (Jazz Kultura) i `https://streaming.g-news.pl/api/nowplaying/leliwa` (Leliwa). Radio Paradise i Antyradio nie podają tytułu przeglądarce. Wszystkie strumienie należą do ich nadawców – gra tylko je odtwarza.
 - **HUD:** prędkościomierz, minimapa z obrotem, gwiazdki, gotówka, pasek HP auta, nazwa ulicy, mapa M z szybką podróżą (niedostępna przy gwiazdkach).
 - **Grafika:** cykl dnia i nocy, chunki z ukrywaniem niewidocznych, jakość Niska / Średnia / Wysoka (z cieniami). Komiks ma twardsze pasy cienia, wcześniejszą mgłę i lekką korekcję koloru (cieplej, winieta) także na niskiej jakości. Pełny styl powyżej niskiej jakości dokłada kontury z głębi. Chmury, latarnie i drobne meble uliczne są instancjami; pod autami i ludźmi leży płaska plama cienia, bez map cieni.
   Kontury budynków w stylu komiksowym rysują się tylko w pobliżu kamery (Niska 200 m, Średnia 320 m, Wysoka 500 m; w trybie lekkim 75% tego). Dalej i tak zasłania je mgła, a to mocno odciąża słabsze telefony.

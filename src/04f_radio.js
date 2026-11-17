@@ -1,6 +1,6 @@
 
 // ======================= RADIO (stacje w stylu GTA) =======================
-const RADIO = { i: 0, audio: null, playing: false, auto: false, fails: 0, npTimer: 0, wd: 0, popT: 0, hideT: 0, now: '', msg: '', lastMode: 'foot', userOff: false };
+const RADIO = { i: 0, audio: null, playing: false, auto: false, fails: 0, npTimer: 0, wd: 0, popT: 0, hideT: 0, now: '', msg: '', lastMode: 'foot', userOff: false, live: 0, switching: false };
 function initRadio() {
   RADIO.i = clamp(settings.station | 0, 0, RADIO_STATIONS.length - 1);
   $('radioPlay').onclick = () => radioPower(); $('radioPrev').onclick = () => radioStep(-1); $('radioNext').onclick = () => radioStep(1);
@@ -29,25 +29,56 @@ function radioStep(d) {
 }
 function radioPlay() {
   const s = RADIO_STATIONS[RADIO.i]; RADIO.now = '';
-  if (navigator.onLine === false) { RADIO.playing = false; radioMsg('Brak internetu – radio offline. Gra działa normalnie.'); return; }
+  if (navigator.onLine === false) { RADIO.playing = false; RADIO.switching = false; radioMsg('Brak internetu. Gra działa dalej.'); return; }
+  const token = ++RADIO.live;
+  RADIO.failTok = token;
   if (!RADIO.audio) {
     const a = new Audio(); a.preload = 'none'; a.crossOrigin = null;
-    a.addEventListener('playing', () => { RADIO.fails = 0; clearTimeout(RADIO.wd); radioMsg(''); radioNP(); });
+    a.addEventListener('playing', () => {
+      if (!RADIO.playing) return;
+      RADIO.fails = 0; clearTimeout(RADIO.wd);
+      if (settings.station !== RADIO.i) { settings.station = RADIO.i; saveSettings(); }
+      radioMsg(''); radioNP();
+    });
     a.addEventListener('waiting', () => { if (RADIO.playing) radioMsg('Buforowanie…'); });
-    a.addEventListener('error', () => { if (RADIO.playing && a.getAttribute('src')) radioFail('błąd strumienia'); });
+    a.addEventListener('error', () => {
+      if (!RADIO.playing || RADIO.switching) return;
+      if (a.error && a.error.code === 1) return;
+      radioFail();
+    });
     RADIO.audio = a;
   }
-  const a = RADIO.audio; a.volume = settings.radioVol; a.src = s.url + (s.url.includes('?') ? '&' : '?') + 't=' + Date.now();
+  const a = RADIO.audio; a.volume = settings.radioVol;
+  a.src = s.url + (s.url.includes('?') ? '&' : '?') + 't=' + Date.now();
   RADIO.playing = true; radioMsg('Łączenie: ' + s.name + '…');
-  const p = a.play(); const myI = RADIO.i;
-  if (p && p.catch) p.catch((err) => { if (RADIO.i !== myI || !RADIO.playing) return; if (err && err.name === 'NotAllowedError') { RADIO.playing = false; radioMsg('Przeglądarka zablokowała dźwięk – dotknij ⏻ Włącz.'); } else radioFail('brak odpowiedzi'); });
-  clearTimeout(RADIO.wd); RADIO.wd = setTimeout(() => { if (RADIO.playing && RADIO.i === myI && a.readyState < 3) radioFail('przekroczony czas'); }, 8000);
+  const p = a.play();
+  if (p && p.catch) p.catch((err) => {
+    if (RADIO.live !== token || !RADIO.playing) return;
+    if (err && err.name === 'NotAllowedError') { RADIO.playing = false; radioMsg('Dotknij ⏻ Włącz, żeby puścić dźwięk.'); }
+    else radioFail();
+  });
+  clearTimeout(RADIO.wd);
+  RADIO.wd = setTimeout(() => { if (RADIO.playing && RADIO.live === token && a.readyState < 3) radioFail(); }, 8000);
   clearInterval(RADIO.npTimer); RADIO.npTimer = setInterval(radioNP, 20000);
+  RADIO.switching = false;
 }
-function radioFail(why) {
-  RADIO.fails++; const s = RADIO_STATIONS[RADIO.i];
-  if (RADIO.fails >= RADIO_STATIONS.length) { radioStop(); radioMsg('Radio offline – żadna stacja nie odpowiada. Gra działa normalnie.'); return; }
-  RADIO.i = (RADIO.i + 1) % RADIO_STATIONS.length; radioMsg(s.name + ': ' + why + ' – przełączam dalej…'); radioPopup(); radioPlay();
+function radioFail() {
+  if (!RADIO.playing || RADIO.switching) return;
+  if (RADIO.failTok !== RADIO.live) return;
+  RADIO.failTok = 0;
+  RADIO.switching = true;
+  RADIO.fails++;
+  clearTimeout(RADIO.wd);
+  if (RADIO.fails >= RADIO_STATIONS.length) {
+    RADIO.switching = false;
+    radioStop();
+    radioMsg('Żadna stacja nie odpowiada. Gra działa dalej.');
+    return;
+  }
+  RADIO.i = (RADIO.i + 1) % RADIO_STATIONS.length;
+  radioMsg('Stacja nie działa – następna.');
+  radioPopup();
+  radioPlay();
 }
 function radioStop() {
   RADIO.playing = false; RADIO.now = ''; clearTimeout(RADIO.wd); clearInterval(RADIO.npTimer); RADIO.npTimer = 0;
@@ -65,6 +96,10 @@ async function radioNP() {
     } else if (s.np.type === 'leliwa') {
       const r = await fetch(s.np.url, { cache: 'no-store' }); const j = await r.json(); const t = j && j.now_playing && j.now_playing.song;
       if (RADIO.i === myI) RADIO.now = t ? (t.text || [t.artist, t.title].filter(Boolean).join(' – ')) : '';
+    } else if (s.np.type === 'radioco') {
+      const r = await fetch('https://public.radio.co/stations/' + s.np.id + '/status', { cache: 'no-store' }); const j = await r.json();
+      const t = j && j.current_track && j.current_track.title;
+      if (RADIO.i === myI) RADIO.now = t || '';
     }
   } catch (e) { RADIO.now = ''; }
   radioUI();

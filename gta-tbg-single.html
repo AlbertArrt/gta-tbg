@@ -163,6 +163,9 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 #objCard{pointer-events:auto;background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-left:0;border-radius:0 14px 14px 0;box-shadow:0 3px 0 var(--ink);padding:6px 10px;width:268px;max-height:min(200px,calc(100vh - 260px));overflow:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
 #objCard b{display:block;font-size:15px;color:#c0392b}
 #objCard span{display:block;font-size:14px;line-height:1.3}
+#objCargo{display:block;height:10px;margin-top:4px;background:#efe6d4;border:2px solid var(--ink);border-radius:6px;overflow:hidden}
+#objCargo.hidden{display:none}
+#objCargo b{display:block;height:100%;width:100%;background:#e2a122}
 #objCard em{display:block;margin-top:2px;font-style:normal;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
 #objCard em.warn{color:#c0392b}
 #objCard small{display:block;margin-top:2px;font-size:13px;line-height:1.25;color:#1d4e89}
@@ -405,10 +408,10 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
         <p>Lewy joystick – ruch / skręt. Przeciągnij prawą stronę ekranu – kamera. Przyciski: SKOK, BIEG, GAZ, HAMULEC, RĘCZNY, WSIĄDŹ/AKCJA, MAPA, 📻 (panel stacji), 📻▶ (następna stacja).</p>
         <p><b>Panel celu:</b> na krótkim ekranie po kilku sekundach zjeżdża w lewo. Zostaje zakładka pod minimapą (czas i skręt). Dotknij jej, żeby rozwinąć. Na komputerze to samo robi klawisz H.</p>
         <h3>Jak grać</h3>
-        <p><b>Misje:</b> szukaj świecących słupów z „!” albo otwórz dziennik (J / 📒). Po 5 misjach fabularnych odblokujesz finał przy Muzeum Siarki. Nowe wyzwania (kursy, dostawa, próby czasowe, drift, tort) płacą pełną nagrodę raz – potem tylko za rekord.</p>
+        <p><b>Misje:</b> szukaj świecących słupów z „!” albo otwórz dziennik (J / 📒). Po 5 misjach fabularnych odblokujesz finał przy Muzeum Siarki. Wyzwania i dłuższe roboty (placki z The Italiana na Kościuszki 7 do Mokrzyszowa, list z Dzikowa, paczka na Siarkowiec) płacą pełną nagrodę raz – potem tylko za rekord.</p>
         <p><b>GPS:</b> niebieska linia na minimapie idzie po ulicach albo ścieżkach off-road. Nie przecina budynków ani wody. Gdy sieci nie łączy celu, zostaje odległość w linii prostej i komunikat, bez fałszywej kreski.</p>
         <p><b>Policja:</b> potrącenie pieszego, staranowanie radiowozu, kradzież auta czy pędzenie obok policji dają gwiazdki ★ (1–5). Zgub pościg – zniknij policji z oczu, aż gwiazdki przestaną migać, albo wjedź do Lakierni (różowy znacznik, 50 zł). Gdy cię złapią: <b>ZATRZYMANY</b> (mandat, Komenda). Rozbite auto zapala się i wybucha: <b>ROZBITY</b> (Szpital).</p>
-        <p><b>Radio:</b> 12 stacji (Rock, Metal, Jazz, Chillout, Pop, House, Lokalne – Radio Leliwa). Włącza się samo po wejściu do auta.</p>
+        <p><b>Radio:</b> 17 stacji (Rock, Metal, Jazz, Chillout, Pop, House, Opera, Lokalne – Radio Leliwa). Jest Antyradio, Antyradio Classic Rock, Antyradio Hard i Jazz Kultura. Gdy stacja nie działa, radio samo włącza następną. W aucie startuje samo.</p>
       </div>
       <div id="settingsBox" class="box hidden">
         <h3>Ustawienia</h3>
@@ -534,11 +537,16 @@ const STYLE = settings.style;
 const TOON = STYLE !== 'classic';
 
 // ======================= RADIO – lista stacji (jedna tablica konfiguracyjna) =======================
-// Darmowe, publicznie udostępniane strumienie internetowe. np = źródło "teraz gra" (tylko tam, gdzie jest publiczne API z CORS).
+// Darmowe, publicznie udostępniane strumienie HTTPS (MP3/AAC). Kolejność to gatunki.
+// np = źródło "teraz gra" (tylko tam, gdzie jest publiczne API z CORS).
 const RADIO_STATIONS = [
+  { genre: 'Rock', name: 'Antyradio', url: 'https://r.dcs.redcdn.pl/sc/o2/Eurozet/live/antyradio.livx?audio=5', np: null, src: 'antyradio.pl' },
+  { genre: 'Rock', name: 'Antyradio Classic Rock', url: 'https://an.cdn.eurozet.pl/ANTCLA.mp3', np: null, src: 'antyradio.pl' },
+  { genre: 'Rock', name: 'Antyradio Hard', url: 'https://an.cdn.eurozet.pl/ANTHAR.mp3', np: null, src: 'antyradio.pl' },
   { genre: 'Rock', name: 'Radio Paradise – Rock Mix', url: 'https://stream.radioparadise.com/rock-128', np: null, src: 'radioparadise.com' },
   { genre: 'Rock', name: 'SomaFM Left Coast 70s', url: 'https://ice2.somafm.com/seventies-128-mp3', np: { type: 'soma', id: 'seventies' }, src: 'somafm.com' },
   { genre: 'Metal', name: 'SomaFM Metal Detector', url: 'https://ice2.somafm.com/metal-128-mp3', np: { type: 'soma', id: 'metal' }, src: 'somafm.com' },
+  { genre: 'Jazz', name: 'Jazz Kultura', url: 'https://stream.radio.co/s1136b59f3/listen', np: { type: 'radioco', id: 's1136b59f3' }, src: 'jazzkultura.pl' },
   { genre: 'Jazz', name: 'SomaFM Sonic Universe', url: 'https://ice2.somafm.com/sonicuniverse-128-mp3', np: { type: 'soma', id: 'sonicuniverse' }, src: 'somafm.com' },
   { genre: 'Jazz', name: 'SmoothJazz.com', url: 'https://smoothjazz.cdnstream1.com/2585_128.mp3', np: null, src: 'smoothjazz.com' },
   { genre: 'Chillout', name: 'SomaFM Groove Salad', url: 'https://ice2.somafm.com/groovesalad-128-mp3', np: { type: 'soma', id: 'groovesalad' }, src: 'somafm.com' },
@@ -547,7 +555,8 @@ const RADIO_STATIONS = [
   { genre: 'Pop', name: 'SomaFM Indie Pop Rocks!', url: 'https://ice2.somafm.com/indiepop-128-mp3', np: { type: 'soma', id: 'indiepop' }, src: 'somafm.com' },
   { genre: 'House', name: 'SomaFM Beat Blender', url: 'https://ice2.somafm.com/beatblender-128-mp3', np: { type: 'soma', id: 'beatblender' }, src: 'somafm.com' },
   { genre: 'House', name: 'Technolovers Deep House', url: 'https://stream.technolovers.fm/deep-house', np: null, src: 'technolovers.fm' },
-  { genre: 'Lokalne', name: 'Radio Leliwa (Tarnobrzeg)', url: 'https://streaming.g-news.pl/radio/8050/leliwa', np: { type: 'leliwa', url: 'https://streaming.g-news.pl/api/nowplaying/leliwa' }, src: 'g-news.pl / radioleliwa.pl' },
+  { genre: 'Opera', name: 'Opera', url: 'https://stream.klassikradio.de/opera/mp3-128/radiobrowser', np: null, src: 'klassikradio.de' },
+  { genre: 'Lokalne', name: 'Radio Leliwa (Tarnobrzeg)', url: 'https://streaming.g-news.pl/radio/8050/leliwa', np: { type: 'leliwa', url: 'https://streaming.g-news.pl/api/nowplaying/leliwa' }, src: 'leliwa.pl' },
 ];
 
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -3346,6 +3355,66 @@ function buildRoadGraph() {
     }
   }
   W.graph = TR;
+  buildWalkGraph();
+}
+function distEdge(e, x, z) {
+  const p = e.pts; let best = 1e9, sAt = 0, hx = x, hz = z;
+  const n = p.length / 2;
+  for (let i = 1; i < n; i++) {
+    const ax = p[i * 2 - 2], az = p[i * 2 - 1], bx = p[i * 2], bz = p[i * 2 + 1];
+    const vx = bx - ax, vz = bz - az, l2 = vx * vx + vz * vz || 1e-4;
+    let t = ((x - ax) * vx + (z - az) * vz) / l2; if (t < 0) t = 0; else if (t > 1) t = 1;
+    const px = ax + vx * t, pz = az + vz * t, d = Math.hypot(x - px, z - pz);
+    if (d < best) { best = d; hx = px; hz = pz; sAt = e.cum[i - 1] + (e.cum[i] - e.cum[i - 1]) * t; }
+  }
+  return { d: best, s: sAt, x: hx, z: hz };
+}
+function carriageNear(x, z) {
+  const cx = Math.floor(x / 100), cz = Math.floor(z / 100);
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const arr = TR.egrid.get((cx + i) + ',' + (cz + j)); if (!arr) continue;
+    for (const id of arr) {
+      const e = TR.edges[id];
+      if (distEdge(e, x, z).d < e.w * 0.5 + 0.25) return e;
+    }
+  }
+  return null;
+}
+function buildWalkGraph() {
+  TR.walk = []; TR.wnodes = []; TR.wadj = []; TR.wgrid = new Map();
+  const key = (x, z) => Math.round(x * 2) + ',' + Math.round(z * 2);
+  const ways = W.roads.filter((r) => (r.type === 'footway' || r.type === 'pedestrian') && r.pts.length >= 4 && !inOffZone(r.pts[0], r.pts[1]));
+  const cnt = new Map();
+  for (const r of ways) for (let i = 0; i < r.pts.length; i += 2) { const k = key(r.pts[i], r.pts[i + 1]); cnt.set(k, (cnt.get(k) || 0) + 1); }
+  const nid = new Map();
+  const node = (x, z) => { const k = key(x, z); let id = nid.get(k); if (id === undefined) { id = TR.wnodes.length; nid.set(k, id); TR.wnodes.push({ x, z }); TR.wadj.push([]); } return id; };
+  for (const r of ways) {
+    const p = r.pts, n = p.length / 2; let start = 0;
+    for (let i = 1; i < n; i++) {
+      if (i !== n - 1 && cnt.get(key(p[i * 2], p[i * 2 + 1])) <= 1) continue;
+      const pts = Array.from(p.slice(start * 2, i * 2 + 2)); const cum = [0];
+      for (let j = 1; j < pts.length / 2; j++) cum.push(cum[j - 1] + Math.hypot(pts[j * 2] - pts[j * 2 - 2], pts[j * 2 + 1] - pts[j * 2 - 1]));
+      const len = cum[cum.length - 1];
+      if (len > 1.4) {
+        const a = node(pts[0], pts[1]), b = node(pts[pts.length - 2], pts[pts.length - 1]);
+        const e = { id: TR.walk.length, a, b, pts, cum, len, w: r.width || 2, cross: false, use: true };
+        const mid = edgeSample(e, len * 0.5, { x: 0, z: 0, h: 0 });
+        const cell = TR.egrid.get(Math.floor(mid.x / 100) + ',' + Math.floor(mid.z / 100));
+        let onRoad = false;
+        if (cell) for (const id of cell) { const road = TR.edges[id]; if (distEdge(road, mid.x, mid.z).d < road.w * 0.5 + 0.2) { onRoad = true; break; } }
+        if (onRoad) { if (len > 18) e.use = false; else e.cross = true; }
+        if (e.use) {
+          TR.walk.push(e); TR.wadj[a].push({ e: e.id, dir: 1 }); TR.wadj[b].push({ e: e.id, dir: -1 });
+          for (let j = 0; j < pts.length; j += 2) {
+            const ck = Math.floor(pts[j] / 100) + ',' + Math.floor(pts[j + 1] / 100);
+            let arr = TR.wgrid.get(ck); if (!arr) { arr = []; TR.wgrid.set(ck, arr); }
+            if (arr[arr.length - 1] !== e.id) arr.push(e.id);
+          }
+        }
+      }
+      start = i;
+    }
+  }
 }
 // position on edge at arc length u (from a), returns heading too
 function edgeSample(e, u, out) {
@@ -3684,19 +3753,132 @@ function pedShin(idx, root, jx, jy, jz, thigh, thighLen, shin, w, h, d, zf) {
   pedMT.makeTranslation(0, -h / 2, zf || 0); pedMS.makeScale(w, h, d); pedMB.multiplyMatrices(pedMT, pedMS); pedMA.multiply(pedMB); pedMA.premultiply(root);
   TR.pedMesh.setMatrixAt(idx, pedMA);
 }
+const PED_MARGIN = 1.7;
+function pedSide(e, s, side, out) {
+  edgeSample(e, clamp(s, 0, e.len), out);
+  const off = side * (e.w * 0.5 + PED_MARGIN);
+  out.x -= Math.cos(out.h) * off; out.z += Math.sin(out.h) * off; return out;
+}
+function pedBlocked(x, z) { return insideBuilding(x, z, 0.35); }
 function spawnPedAt(x, z) {
   const p = TR.peds.find((q) => !q.on); if (!p) return null;
-  Object.assign(p, { on: true, x, z, h: Math.random() * 6.28, v: 1.4, state: 'walk', t: 0, e: -1, fall: 0 }); pedColors(p); return p;
+  Object.assign(p, { on: true, x, z, h: Math.random() * 6.28, v: 1.25, state: 'walk', t: 0, e: -1, kind: '', side: 1, dir: 1, fall: 0, next: null }); pedColors(p); return p;
+}
+function pedHide(p) { p.on = false; for (let k = 0; k < PED_N; k++) TR.pedMesh.setMatrixAt(p.i * PED_N + k, pedZ); }
+function nearestSidewalk(x, z, maxR) {
+  const cx = Math.floor(x / 100), cz = Math.floor(z / 100); let best = null, bd = maxR;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const arr = TR.wgrid.get((cx + i) + ',' + (cz + j)); if (!arr) continue;
+    for (const id of arr) {
+      const e = TR.walk[id]; if (!e || !e.use || e.cross) continue;
+      const hit = distEdge(e, x, z); if (hit.d < bd && !pedBlocked(hit.x, hit.z) && !carriageNear(hit.x, hit.z)) { bd = hit.d; best = { kind: 'walk', e: e.id, s: hit.s, x: hit.x, z: hit.z, dir: 1, side: 1 }; }
+    }
+  }
+  if (best) return best;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const arr = TR.egrid.get((cx + i) + ',' + (cz + j)); if (!arr) continue;
+    for (const id of arr) {
+      const e = TR.edges[id]; if (!e.ped || e.bridge || e.len < 8) continue;
+      const along = distEdge(e, x, z);
+      for (const side of [1, -1]) {
+        const smp = pedSide(e, along.s, side, { x: 0, z: 0, h: 0 });
+        const d = Math.hypot(smp.x - x, smp.z - z);
+        if (d < bd && !pedBlocked(smp.x, smp.z) && !carriageNear(smp.x, smp.z)) { bd = d; best = { kind: 'side', e: e.id, s: along.s, x: smp.x, z: smp.z, dir: 1, side }; }
+      }
+    }
+  }
+  return best;
+}
+function pedAdopt(p, spot) {
+  p.kind = spot.kind; p.e = spot.e; p.s = spot.s; p.dir = spot.dir; p.side = spot.side; p.x = spot.x; p.z = spot.z; p.state = 'walk'; p.next = null;
+}
+function pedRescue(p) {
+  const spot = nearestSidewalk(p.x, p.z, 14);
+  if (!spot) { pedHide(p); return; }
+  pedAdopt(p, spot);
+}
+function pedReverse(p, len) { p.dir = -p.dir; p.s = p.s < 0 ? Math.min(len, 0.9) : Math.max(0, len - 0.9); }
+function pedCrossTo(p, x, z, next) {
+  const d = Math.hypot(x - p.x, z - p.z);
+  if (d < 0.45 || d > 14) { if (d <= 14) pedAdopt(p, next); return; }
+  p.kind = 'cross'; p.tx = x; p.tz = z; p.t = Math.min(2.8, d / 2.5); p.next = next;
+}
+function pedJunction(p, e, nodeId, walk) {
+  if (walk) {
+    const opts = (TR.wadj[nodeId] || []).filter((o) => o.e !== e.id && TR.walk[o.e] && TR.walk[o.e].use);
+    const stroll = opts.filter((o) => !TR.walk[o.e].cross);
+    const pool = stroll.length ? stroll : opts.filter((o) => TR.walk[o.e].cross);
+    if (pool.length) {
+      const o = pool[Math.floor(Math.random() * pool.length)]; const e2 = TR.walk[o.e];
+      const s = o.dir > 0 ? Math.min(1.1, e2.len) : Math.max(0, e2.len - 1.1);
+      const smp = edgeSample(e2, s, { x: 0, z: 0, h: 0 });
+      if (!e2.cross && Math.hypot(smp.x - p.x, smp.z - p.z) > 14) { pedReverse(p, e.len); return; }
+      pedCrossTo(p, smp.x, smp.z, { kind: 'walk', e: e2.id, s, dir: o.dir, side: 1, x: smp.x, z: smp.z }); return;
+    }
+    pedReverse(p, e.len); return;
+  }
+  const nd = TR.nodes[nodeId];
+  const hop = nearestSidewalk(nd.x, nd.z, 7);
+  if (hop && hop.kind === 'walk' && Math.hypot(hop.x - p.x, hop.z - p.z) < 14) { pedCrossTo(p, hop.x, hop.z, hop); return; }
+  const opts = (TR.adj[nodeId] || []).filter((o) => !o.back && o.e !== e.id && TR.edges[o.e].ped && !TR.edges[o.e].bridge);
+  if (opts.length) {
+    const o = opts[Math.floor(Math.random() * opts.length)]; const e2 = TR.edges[o.e];
+    const s = o.dir > 0 ? Math.min(3, e2.len * 0.45) : Math.max(e2.len * 0.55, e2.len - 3);
+    let pick = null, bd = 1e9;
+    for (const side of [p.side || 1, -(p.side || 1)]) {
+      const smp = pedSide(e2, s, side, { x: 0, z: 0, h: 0 });
+      const d = Math.hypot(smp.x - p.x, smp.z - p.z);
+      if (d < bd && d < 14 && !pedBlocked(smp.x, smp.z) && !carriageNear(smp.x, smp.z)) { bd = d; pick = { smp, side }; }
+    }
+    if (pick) { pedCrossTo(p, pick.smp.x, pick.smp.z, { kind: 'side', e: e2.id, s, dir: o.dir, side: pick.side, x: pick.smp.x, z: pick.smp.z }); return; }
+  }
+  pedReverse(p, e.len);
+}
+function pedStep(p, dt) {
+  if (p.kind === 'cross') {
+    const dx = p.tx - p.x, dz = p.tz - p.z, L = Math.hypot(dx, dz) || 1; p.t -= dt;
+    if (L < 0.4 || p.t <= 0) { if (p.next) pedAdopt(p, p.next); else pedRescue(p); return; }
+    const step = Math.min(L, 2.5 * dt); p.x += dx / L * step; p.z += dz / L * step; p.h = Math.atan2(dx, dz); return;
+  }
+  if (p.kind === 'walk') {
+    const e = TR.walk[p.e]; if (!e) { pedRescue(p); return; }
+    const v = e.cross ? 2.5 : p.v; p.s += p.dir * v * dt;
+    if (p.s < 0 || p.s > e.len) { pedJunction(p, e, p.s < 0 ? e.a : e.b, true); return; }
+    const smp = edgeSample(e, p.s, { x: 0, z: 0, h: 0 });
+    p.h = p.dir > 0 ? smp.h : smp.h + Math.PI; p.x = smp.x; p.z = smp.z;
+    return;
+  }
+  if (p.kind === 'side') {
+    const e = TR.edges[p.e]; if (!e) { pedRescue(p); return; }
+    p.s += p.dir * p.v * dt;
+    if (p.s < 0 || p.s > e.len) { pedJunction(p, e, p.s < 0 ? e.a : e.b, false); return; }
+    const smp = pedSide(e, p.s, p.side || 1, { x: 0, z: 0, h: 0 });
+    if (pedBlocked(smp.x, smp.z)) { p.side = -(p.side || 1); const alt = pedSide(e, p.s, p.side, { x: 0, z: 0, h: 0 }); if (pedBlocked(alt.x, alt.z)) { pedRescue(p); return; } p.x = alt.x; p.z = alt.z; p.h = p.dir > 0 ? alt.h : alt.h + Math.PI; return; }
+    p.h = p.dir > 0 ? smp.h : smp.h + Math.PI; p.x = smp.x; p.z = smp.z; return;
+  }
+  pedRescue(p);
 }
 function spawnPedWalker(f) {
-  for (let t = 0; t < 8; t++) {
-    const ang = Math.random() * 6.283, R = 35 + Math.random() * 150; const x = f.x + Math.cos(ang) * R, z = f.z + Math.sin(ang) * R;
+  for (let t = 0; t < 10; t++) {
+    const ang = Math.random() * 6.283, R = 24 + Math.random() * 110, x = f.x + Math.cos(ang) * R, z = f.z + Math.sin(ang) * R;
+    const wk = TR.wgrid.get(Math.floor(x / 100) + ',' + Math.floor(z / 100));
+    if (wk && wk.length) {
+      const e = TR.walk[wk[Math.floor(Math.random() * wk.length)]];
+      if (e && e.use && !e.cross && e.len > 8) {
+        const s = Math.random() * e.len; const smp = edgeSample(e, s, { x: 0, z: 0, h: 0 });
+        if (!pedBlocked(smp.x, smp.z) && !carriageNear(smp.x, smp.z)) {
+          const p = spawnPedAt(smp.x, smp.z); if (!p) return;
+          p.kind = 'walk'; p.e = e.id; p.s = s; p.dir = Math.random() < 0.5 ? 1 : -1; p.v = 1.15 + Math.random() * 0.4; return;
+        }
+      }
+    }
     const arr = TR.egrid.get(Math.floor(x / 100) + ',' + Math.floor(z / 100)); if (!arr) continue;
-    const e = TR.edges[arr[Math.floor(Math.random() * arr.length)]]; if (!e.ped || e.len < 10) continue;
-    const side = Math.random() < 0.5 ? 1 : -1; const s = Math.random() * e.len; const smp = edgeSample(e, s, {});
-    const off = side * (e.w / 2 + 1.45); const px = smp.x - Math.cos(smp.h) * off, pz = smp.z + Math.sin(smp.h) * off;
-    if (insideBuilding(px, pz, 0.4)) continue;
-    const p = spawnPedAt(px, pz); if (!p) return; p.e = e.id; p.s = s; p.dir = Math.random() < 0.5 ? 1 : -1; p.side = side; p.v = 1.2 + Math.random() * 0.6; return;
+    const e = TR.edges[arr[Math.floor(Math.random() * arr.length)]]; if (!e.ped || e.len < 12 || e.bridge) continue;
+    let side = Math.random() < 0.5 ? 1 : -1; const s = 1 + Math.random() * Math.max(0.2, e.len - 2);
+    let smp = pedSide(e, s, side, { x: 0, z: 0, h: 0 });
+    if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z)) { side = -side; smp = pedSide(e, s, side, { x: 0, z: 0, h: 0 }); if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z)) continue; }
+    const p = spawnPedAt(smp.x, smp.z); if (!p) return;
+    p.kind = 'side'; p.e = e.id; p.s = s; p.dir = Math.random() < 0.5 ? 1 : -1; p.side = side; p.v = 1.15 + Math.random() * 0.4; return;
   }
 }
 const pm4 = new THREE.Matrix4(), pm4b = new THREE.Matrix4(), pq = new THREE.Quaternion(), pe = new THREE.Euler(), pv3 = new THREE.Vector3(), ps3 = new THREE.Vector3();
@@ -3726,18 +3908,12 @@ function updatePeds(dt) {
     if (p.state === 'fall') {
       p.t += dt; const k = Math.max(0, 1 - p.t * 2.2); p.x += p.fvx * dt * k; p.z += p.fvz * dt * k; p.h = p.fh;
       pitch = p.t < 2.4 ? -Math.min(1, p.t * 4) * 1.45 : -1.45 * Math.max(0, 1 - (p.t - 2.4) * 2.5);
-      if (p.t > 2.8) { p.state = 'flee'; p.t = 6; p.fx = f.x; p.fz = f.z; }
+      if (p.t > 2.8) { p.state = 'flee'; p.t = 2.2; p.fx = f.x; p.fz = f.z; }
     } else if (p.state === 'flee') {
       p.t -= dt; const ax = p.x - p.fx, az = p.z - p.fz, L = Math.hypot(ax, az) || 1; p.h = Math.atan2(ax / L, az / L);
-      const nx = p.x + ax / L * 6.5 * dt, nz = p.z + az / L * 6.5 * dt; collideCircle(nx, nz, 0.35, col, true); p.x = col.x; p.z = col.z; run = true;
-      if (p.t <= 0) { p.state = 'walk'; p.e = -1; }
-    } else if (p.e >= 0) {
-      const e = TR.edges[p.e]; p.s += p.dir * p.v * dt;
-      if (p.s < 0 || p.s > e.len) { p.dir = -p.dir; p.s = clamp(p.s, 0, e.len); }
-      const smp = edgeSample(e, p.s, {}); const off = p.side * (e.w / 2 + 1.45);
-      const tx = smp.x - Math.cos(smp.h) * off, tz = smp.z + Math.sin(smp.h) * off; p.h = Math.atan2(tx - p.x, tz - p.z) || p.h;
-      if (Math.hypot(tx - p.x, tz - p.z) > 6) { p.x = tx; p.z = tz; } else { p.x = tx; p.z = tz; }
-    } else { p.v = 0.8; const nx = p.x + Math.sin(p.h) * p.v * dt, nz = p.z + Math.cos(p.h) * p.v * dt; collideCircle(nx, nz, 0.35, col, true); if (col.hit) p.h += 1.5; p.x = col.x; p.z = col.z; }
+      const nx = p.x + ax / L * 3.2 * dt, nz = p.z + az / L * 3.2 * dt; collideCircle(nx, nz, 0.35, col, true); p.x = col.x; p.z = col.z; run = true;
+      if (p.t <= 0) pedRescue(p);
+    } else pedStep(p, dt);
     if (p.state !== 'fall') { p.phase += dt * (run ? 7.2 : Math.max(p.v, 0.8)) * 2.5; swing = Math.sin(p.phase) * (run ? 0.85 : 0.62); }
     const camD = Math.hypot(p.x - camP.x, p.z - camP.z);
     const far = camD > rng.far; const dress = !far && camD < rng.detail; const bones = dress && settings.quality !== 'low';
@@ -4249,6 +4425,20 @@ function legBudget(x1, z1, x2, z2) {
   }
   return Math.round(Math.min(340, Math.max(120, len / 8 + 50)));
 }
+function haulBudget(x1, z1, x2, z2) {
+  let len = Math.hypot(x2 - x1, z2 - z1) * 1.55;
+  const a = nearestNode(x1, z1, 320), b = nearestNode(x2, z2, 320);
+  if (a >= 0 && b >= 0) {
+    const path = astar(a, b, 16000);
+    if (path) {
+      const pts = pathPoints(path); let L = 0, lx = TR.nodes[a].x, lz = TR.nodes[a].z;
+      for (let i = 0; i < pts.length; i += 2) { L += Math.hypot(pts[i] - lx, pts[i + 1] - lz); lx = pts[i]; lz = pts[i + 1]; }
+      if (L > 40) len = L;
+    }
+  }
+  return Math.round(Math.min(720, Math.max(200, len / 11 + 90)));
+}
+function misSay(line) { toast(line, 2400); }
 function chainCheckpoints(anchors, spacing) {
   const cps = []; let prev = null;
   for (const a of anchors) {
@@ -4471,6 +4661,91 @@ const MDEF = [
       if (m.t <= 0) return 'Wesele zaczęło się bez tortu';
       if (inCar(m.car) && at(m.dest, 12, 4)) { m.bestNow = (performance.now() - m.t0) / 1000; return 'win'; }
     } },
+  { id: 'placki', name: 'Dostawa placków ziemniaczanych', giver: [-120, 158], who: 'Szef The Italiana', where: 'ul. Kościuszki 7', reward: 280, recordPay: 40, side: true, bestKey: 'placki', bestLow: true, col: '#e2a122',
+    steps: ['Podejdź pod restaurację The Italiana, ul. Kościuszki 7.', 'Odbierz placki ziemniaczane przy drzwiach.', 'Wsiądź na skuter.', 'Zawieź je do domu przy ul. Chłopskiej w Mokrzyszowie.', 'Nie walnij – placki się rozsypią. Stan widać na pasku.'],
+    text: 'Placki ziemniaczane na stół w Mokrzyszowie! Odbierz je u mnie, na Kościuszki 7, i leć skuterem. Jedno mocne uderzenie i placki się rozsypią.',
+    start(m) {
+      m.pickup = roadSpot(-119.1, 158.1, 40);
+      m.drop = roadSpot(3477.9, 692.2, 90);
+      m.car = misCar(0xe2a122, roadSpot(m.pickup.x + 7, m.pickup.z + 5, 36), { scooter: true });
+      m.limit = haulBudget(m.pickup.x, m.pickup.z, m.drop.x, m.drop.z);
+      m.stage = 0; m.cargo = 100; m.t0 = performance.now();
+    },
+    update(m) {
+      if (m.car.wrecked) return 'Skuter rozbity, placki na asfalcie';
+      if (m.stage === 0) {
+        m.target = m.pickup; m.obj = 'Odbierz placki · The Italiana, Kościuszki 7';
+        if (at(m.pickup, 8, 4)) { m.stage = 1; misSay('Kucharz: „Ciepłe. Trzymaj równo!”'); }
+        return;
+      }
+      if (m.stage === 1) {
+        m.target = m.car; m.obj = 'Wsiądź na skuter z plackami';
+        if (inCar(m.car)) { m.stage = 2; m.t = m.limit; misSay('Szef: „Mokrzyszów, i bez dziur w jezdni!”'); }
+        return;
+      }
+      if (m.cargo <= 0) return 'Placki się rozsypały';
+      if (m.t <= 0) return 'Placki wystygły';
+      m.target = m.drop;
+      m.obj = (inCar(m.car) ? 'Dowieź placki do Mokrzyszowa' : 'Wróć na skuter!') + ' · placki ' + Math.round(m.cargo) + '%';
+      if (inCar(m.car) && at(m.drop, 12, 5)) { m.bestNow = (performance.now() - m.t0) / 1000; misSay('Gospodyni: „Pachną jak u mamy.”'); return 'win'; }
+    },
+    impact(m, v) {
+      if (m.stage < 2 || !inCar(m.car)) return;
+      m.cargo = Math.max(0, m.cargo - Math.min(30, 8 + v * 2));
+      misSay('Placki się trzęsą! Zostało ' + Math.round(m.cargo) + '%');
+    },
+    bonus: (m) => Math.round(Math.min(70, Math.max(0, m.t) / 6)) },
+  { id: 'list', name: 'List z Dzikowa', giver: [250, -450], who: 'Kustosz z Dzikowa', where: 'brama Zamku w Dzikowie', reward: 260, recordPay: 40, side: true, bestKey: 'list', bestLow: true, col: '#7fa8d8',
+    steps: ['Wsiądź do auta przy bramie Dzikowa.', 'Odbierz list przy bramie zamku.', 'Zawieź go do Urzędu Miasta.', 'Odpowiedź odwieź na stację kolejową, zanim odjedzie pociąg.'],
+    text: 'Do parku za zamkiem nie wchodzi ulica. List czeka przy bramie Dzikowa. Potem urząd, a odpowiedź ma złapać pociąg na stacji. Dwa kursy, dwa zegary.',
+    start(m) {
+      const s = roadSpot(225, -470, 80); m.car = misCar(0x7fa8d8, s, { model: 'hatch' });
+      m.pickup = roadSpot(384, -514, 80); m.drop = roadSpot(-87, 370, 80); m.train = roadSpot(478, 162, 80);
+      m.limitA = haulBudget(m.pickup.x, m.pickup.z, m.drop.x, m.drop.z);
+      m.limitB = haulBudget(m.drop.x, m.drop.z, m.train.x, m.train.z);
+      m.stage = 0; m.t0 = performance.now();
+    },
+    update(m) {
+      if (m.car.wrecked) return 'Auto z listem rozbite';
+      if (m.stage === 0) { m.target = m.car; m.obj = 'Wsiądź do niebieskiego auta przy bramie Dzikowa'; if (inCar(m.car)) { m.stage = 1; misSay('Kustosz: „List leży przy drugiej bramie.”'); } return; }
+      if (m.stage === 1) {
+        m.target = m.pickup; m.obj = 'Odbierz list przy bramie zamku' + (inCar(m.car) ? '' : ' · wróć do auta');
+        if (inCar(m.car) && at(m.pickup, 12, 5)) { m.stage = 2; m.t = m.limitA; misSay('Kustosz: „Teraz urząd. Nie gub koperty.”'); }
+        return;
+      }
+      if (m.stage === 2) {
+        if (m.t <= 0) return 'Urząd już zamknięty';
+        m.target = m.drop; m.obj = (inCar(m.car) ? 'Dowieź list do Urzędu Miasta' : 'Wróć do auta z listem!');
+        if (inCar(m.car) && at(m.drop, 12, 5)) { m.stage = 3; m.t = m.limitB; misSay('Urzędniczka: „Odpowiedź na pociąg. Zdążysz.”'); }
+        return;
+      }
+      if (m.t <= 0) return 'Pociąg odjechał bez odpowiedzi';
+      m.target = m.train; m.obj = (inCar(m.car) ? 'Odwiedź odpowiedź na stację kolejową' : 'Wróć do auta!');
+      if (inCar(m.car) && at(m.train, 12, 5)) { m.bestNow = (performance.now() - m.t0) / 1000; misSay('Konduktor: „Koperta jest. Jedziemy.”'); return 'win'; }
+    },
+    bonus: (m) => Math.round(Math.min(60, Math.max(0, m.t) / 6)) },
+  { id: 'paczka', name: 'Paczka na Siarkowiec', giver: [-330, 900], who: 'Heniek z PKS', where: 'Dworzec PKS', reward: 290, recordPay: 40, side: true, bestKey: 'paczka', bestLow: true, col: '#a66bd0',
+    steps: ['Wsiądź do furgonetki przy PKS.', 'Odbierz skrzynkę na stacji kolejowej.', 'Gliny wchodzą na ogon – jedź do kościoła św. Barbary na Siarkowcu.', 'Liczy się czas. Rozbity wóz kończy robotę.'],
+    text: 'Skrzynka czeka na stacji. Jak ją weźmiesz, ktoś puści za tobą radiowozy. Dowieź ją pod kościół św. Barbary, zanim skończy się czas.',
+    start(m) {
+      m.car = misCar(0xc8b4e0, roadSpot(-330, 900, 70));
+      m.pickup = roadSpot(478, 162, 80); m.drop = roadSpot(973, 880, 90);
+      m.limit = haulBudget(m.pickup.x, m.pickup.z, m.drop.x, m.drop.z);
+      m.stage = 0; m.t0 = performance.now();
+    },
+    update(m) {
+      if (m.car.wrecked) return 'Furgonetka rozbita, paczka przepadła';
+      if (m.stage === 0) { m.target = m.car; m.obj = 'Wsiądź do furgonetki Heńka'; if (inCar(m.car)) { m.stage = 1; misSay('Heniek: „Stacja. Skrzynka pod wiatą.”'); } return; }
+      if (m.stage === 1) {
+        m.target = m.pickup; m.obj = 'Odbierz paczkę na stacji kolejowej' + (inCar(m.car) ? '' : ' · wróć do furgonetki');
+        if (inCar(m.car) && at(m.pickup, 12, 5)) { m.stage = 2; m.t = m.limit; setStars(Math.max(2, WANT.stars), 'paczka z dworca'); misSay('Heniek: „Gaz! Gliny na ogonie!”'); }
+        return;
+      }
+      if (m.t <= 0) return 'Za późno – paczkę przejęli';
+      m.target = m.drop; m.obj = (inCar(m.car) ? 'Dowieź paczkę do św. Barbary' : 'Wróć do furgonetki!') + ' · pościg';
+      if (inCar(m.car) && at(m.drop, 14, 6)) { m.bestNow = (performance.now() - m.t0) / 1000; misSay('Ksiądz: „Zostaw pod furtką. I znikaj.”'); return 'win'; }
+    },
+    bonus: (m) => Math.round(Math.min(60, Math.max(0, m.t) / 6)) },
 ];
 function rivalDrive(r, m, dt) {
   const v = r.rv; if (v.cp >= m.cps.length || r.wrecked) { updateCar(r, dt, { thr: 0, steer: 0, hand: true }); return; }
@@ -4493,7 +4768,7 @@ function initMissions() {
   }
   MIS.tgt = makeTarget();
   const hud = $('hud'); const mh = document.createElement('div'); mh.id = 'mhud'; mh.className = 'hidden';
-  mh.innerHTML = '<button type="button" id="objTab" aria-expanded="true" title="Pokaż lub schowaj cel (H)"><b id="objTabKey">H</b><em id="objTabTime"></em><small id="objTabDir"></small></button><div id="objSlide"><div id="objCard"><b id="objTitle"></b><span id="objText"></span><em id="objTime"></em><small id="objGps"></small><button type="button" id="gpsX" class="hidden">Anuluj GPS</button></div></div>';
+  mh.innerHTML = '<button type="button" id="objTab" aria-expanded="true" title="Pokaż lub schowaj cel (H)"><b id="objTabKey">H</b><em id="objTabTime"></em><small id="objTabDir"></small></button><div id="objSlide"><div id="objCard"><b id="objTitle"></b><span id="objText"></span><i id="objCargo" class="hidden"><b></b></i><em id="objTime"></em><small id="objGps"></small><button type="button" id="gpsX" class="hidden">Anuluj GPS</button></div></div>';
   hud.appendChild(mh);
   const dl = document.createElement('div'); dl.id = 'dialog'; dl.className = 'cdialog hidden';
   dl.innerHTML = '<div class="who" id="dlgWho"></div><h3 id="dlgTitle"></h3><p id="dlgText"></p><div class="reward" id="dlgReward"></div><div class="btns"><button id="dlgYes">Przyjmij (E)</button><button id="dlgNo" class="sec">Nie teraz (Esc)</button></div>';
@@ -4516,6 +4791,9 @@ const GIVER_LOOK = {
   jezioro: { hairStyle: 'short', bag: 0x1a6a8a },
   drift: { hairStyle: 'cap', cap: 0x222222, jacket: 0x2a211c },
   tort: { hairStyle: 'bun', skirt: true, jacket: 0xffd0e0 },
+  placki: { hairStyle: 'short', jacket: 0xf4f1ea },
+  list: { hairStyle: 'bun', jacket: 0x7fa8d8 },
+  paczka: { hairStyle: 'cap', cap: 0x2a211c, jacket: 0xc8b4e0 },
 };
 function makeGiver(x, z, col, who, id) {
   const g = new THREE.Group(); g.position.set(x, groundH(x, z), z);
@@ -4645,7 +4923,7 @@ function drawMissionMinimap(g, sc) {
 
 
 // ======================= RADIO (stacje w stylu GTA) =======================
-const RADIO = { i: 0, audio: null, playing: false, auto: false, fails: 0, npTimer: 0, wd: 0, popT: 0, hideT: 0, now: '', msg: '', lastMode: 'foot', userOff: false };
+const RADIO = { i: 0, audio: null, playing: false, auto: false, fails: 0, npTimer: 0, wd: 0, popT: 0, hideT: 0, now: '', msg: '', lastMode: 'foot', userOff: false, live: 0, switching: false };
 function initRadio() {
   RADIO.i = clamp(settings.station | 0, 0, RADIO_STATIONS.length - 1);
   $('radioPlay').onclick = () => radioPower(); $('radioPrev').onclick = () => radioStep(-1); $('radioNext').onclick = () => radioStep(1);
@@ -4674,25 +4952,56 @@ function radioStep(d) {
 }
 function radioPlay() {
   const s = RADIO_STATIONS[RADIO.i]; RADIO.now = '';
-  if (navigator.onLine === false) { RADIO.playing = false; radioMsg('Brak internetu – radio offline. Gra działa normalnie.'); return; }
+  if (navigator.onLine === false) { RADIO.playing = false; RADIO.switching = false; radioMsg('Brak internetu. Gra działa dalej.'); return; }
+  const token = ++RADIO.live;
+  RADIO.failTok = token;
   if (!RADIO.audio) {
     const a = new Audio(); a.preload = 'none'; a.crossOrigin = null;
-    a.addEventListener('playing', () => { RADIO.fails = 0; clearTimeout(RADIO.wd); radioMsg(''); radioNP(); });
+    a.addEventListener('playing', () => {
+      if (!RADIO.playing) return;
+      RADIO.fails = 0; clearTimeout(RADIO.wd);
+      if (settings.station !== RADIO.i) { settings.station = RADIO.i; saveSettings(); }
+      radioMsg(''); radioNP();
+    });
     a.addEventListener('waiting', () => { if (RADIO.playing) radioMsg('Buforowanie…'); });
-    a.addEventListener('error', () => { if (RADIO.playing && a.getAttribute('src')) radioFail('błąd strumienia'); });
+    a.addEventListener('error', () => {
+      if (!RADIO.playing || RADIO.switching) return;
+      if (a.error && a.error.code === 1) return;
+      radioFail();
+    });
     RADIO.audio = a;
   }
-  const a = RADIO.audio; a.volume = settings.radioVol; a.src = s.url + (s.url.includes('?') ? '&' : '?') + 't=' + Date.now();
+  const a = RADIO.audio; a.volume = settings.radioVol;
+  a.src = s.url + (s.url.includes('?') ? '&' : '?') + 't=' + Date.now();
   RADIO.playing = true; radioMsg('Łączenie: ' + s.name + '…');
-  const p = a.play(); const myI = RADIO.i;
-  if (p && p.catch) p.catch((err) => { if (RADIO.i !== myI || !RADIO.playing) return; if (err && err.name === 'NotAllowedError') { RADIO.playing = false; radioMsg('Przeglądarka zablokowała dźwięk – dotknij ⏻ Włącz.'); } else radioFail('brak odpowiedzi'); });
-  clearTimeout(RADIO.wd); RADIO.wd = setTimeout(() => { if (RADIO.playing && RADIO.i === myI && a.readyState < 3) radioFail('przekroczony czas'); }, 8000);
+  const p = a.play();
+  if (p && p.catch) p.catch((err) => {
+    if (RADIO.live !== token || !RADIO.playing) return;
+    if (err && err.name === 'NotAllowedError') { RADIO.playing = false; radioMsg('Dotknij ⏻ Włącz, żeby puścić dźwięk.'); }
+    else radioFail();
+  });
+  clearTimeout(RADIO.wd);
+  RADIO.wd = setTimeout(() => { if (RADIO.playing && RADIO.live === token && a.readyState < 3) radioFail(); }, 8000);
   clearInterval(RADIO.npTimer); RADIO.npTimer = setInterval(radioNP, 20000);
+  RADIO.switching = false;
 }
-function radioFail(why) {
-  RADIO.fails++; const s = RADIO_STATIONS[RADIO.i];
-  if (RADIO.fails >= RADIO_STATIONS.length) { radioStop(); radioMsg('Radio offline – żadna stacja nie odpowiada. Gra działa normalnie.'); return; }
-  RADIO.i = (RADIO.i + 1) % RADIO_STATIONS.length; radioMsg(s.name + ': ' + why + ' – przełączam dalej…'); radioPopup(); radioPlay();
+function radioFail() {
+  if (!RADIO.playing || RADIO.switching) return;
+  if (RADIO.failTok !== RADIO.live) return;
+  RADIO.failTok = 0;
+  RADIO.switching = true;
+  RADIO.fails++;
+  clearTimeout(RADIO.wd);
+  if (RADIO.fails >= RADIO_STATIONS.length) {
+    RADIO.switching = false;
+    radioStop();
+    radioMsg('Żadna stacja nie odpowiada. Gra działa dalej.');
+    return;
+  }
+  RADIO.i = (RADIO.i + 1) % RADIO_STATIONS.length;
+  radioMsg('Stacja nie działa – następna.');
+  radioPopup();
+  radioPlay();
 }
 function radioStop() {
   RADIO.playing = false; RADIO.now = ''; clearTimeout(RADIO.wd); clearInterval(RADIO.npTimer); RADIO.npTimer = 0;
@@ -4710,6 +5019,10 @@ async function radioNP() {
     } else if (s.np.type === 'leliwa') {
       const r = await fetch(s.np.url, { cache: 'no-store' }); const j = await r.json(); const t = j && j.now_playing && j.now_playing.song;
       if (RADIO.i === myI) RADIO.now = t ? (t.text || [t.artist, t.title].filter(Boolean).join(' – ')) : '';
+    } else if (s.np.type === 'radioco') {
+      const r = await fetch('https://public.radio.co/stations/' + s.np.id + '/status', { cache: 'no-store' }); const j = await r.json();
+      const t = j && j.current_track && j.current_track.title;
+      if (RADIO.i === myI) RADIO.now = t || '';
     }
   } catch (e) { RADIO.now = ''; }
   radioUI();
@@ -5788,6 +6101,12 @@ function paintHud() {
   const title = $('objTitle'), text = $('objText'), time = $('objTime'), gps = $('objGps'), btn = $('gpsX');
   if (title) title.textContent = m ? m.name : 'GPS';
   if (text) text.textContent = m && m.obj ? m.obj : (NAV.name || '');
+  const cargo = $('objCargo');
+  if (cargo) {
+    const on = !!(m && typeof m.cargo === 'number');
+    cargo.classList.toggle('hidden', !on);
+    if (on) { const b = cargo.firstChild; if (b) { const p = Math.max(0, Math.min(100, m.cargo)); b.style.width = p + '%'; b.style.background = p > 60 ? '#e2a122' : p > 30 ? '#e07a2f' : '#c0392b'; } }
+  }
   let t = '';
   if (m && typeof m.t === 'number' && m.t >= 0) t = '⏱ ' + fmtT(Math.max(0, m.t)).slice(0, 5);
   if (time) { time.textContent = t; time.classList.toggle('warn', !!(m && m.t < 20 && m.t >= 0 && t)); }
@@ -5935,7 +6254,7 @@ const TUTOR = [
   { h: 'Ruszaj', p: 'Komputer: WASD albo strzałki, mysz rozgląda się po kliknięciu w ekran. Telefon: lewy joystick to ruch, przeciąganie prawej strony obraca kamerę. Shift / BIEG to bieg, w aucie nitro (gdy je masz).' },
   { h: 'Auto, mapa, GPS', p: 'E albo WSIĄDŹ – wsiądź i wysiądź. M otwiera mapę: klik przenosi (gdy nie goni cię policja), przycisk GPS rysuje trasę po ulicach. Trasa omija budynki i wodę. G albo „Anuluj GPS” kasuje wyznaczony cel. Cel misji ustawia się sam przy kolejnym etapie.' },
   { h: 'Misje i dziennik', p: 'Świecące „!” to zleceniodawcy. Dziennik (J albo 📒) ma zakładki Aktywna, Dostępne i Ukończone: kroki, nagroda, rekord. Można przyjąć, przerwać i jechać od nowa. Zegar misji stoi, gdy dziennik albo mapa jest otwarta.' },
-  { h: 'Policja, garaż, radio', p: 'Gwiazdki za potrącenie, taran radiowozu, kradzież i pędzenie obok policji. Zgub pościg albo wpadnij do lakierni. Niebieskie G to garaż i tuning. Q / R zmienia stację (jest Radio Leliwa), T wycisza. Ten samouczek włączysz ponownie z menu.' },
+  { h: 'Policja, garaż, radio', p: 'Gwiazdki za potrącenie, taran radiowozu, kradzież i pędzenie obok policji. Zgub pościg albo wpadnij do lakierni. Niebieskie G to garaż i tuning. Q / R zmienia stację (Antyradio, Jazz Kultura, Opera, Radio Leliwa). T wycisza. Gdy stacja milczy, radio samo bierze następną. Ten samouczek włączysz ponownie z menu.' },
 ];
 let TUT = { i: 0 };
 function openTutor() {
