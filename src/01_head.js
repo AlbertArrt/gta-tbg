@@ -22,6 +22,8 @@ const TOON = STYLE !== 'classic';
 // np = źródło "teraz gra" (tylko tam, gdzie jest publiczne API z CORS).
 const RADIO_STATIONS = [
   { genre: 'Rock', name: 'Antyradio', url: 'https://r.dcs.redcdn.pl/sc/o2/Eurozet/live/antyradio.livx?audio=5', np: null, src: 'antyradio.pl' },
+  { genre: 'Rock', name: 'Antyradio Classic Rock', url: 'https://an.cdn.eurozet.pl/ANTCLA.mp3', np: null, src: 'antyradio.pl' },
+  { genre: 'Rock', name: 'Antyradio Hard', url: 'https://an.cdn.eurozet.pl/ANTHAR.mp3', np: null, src: 'antyradio.pl' },
   { genre: 'Rock', name: 'Radio Paradise – Rock Mix', url: 'https://stream.radioparadise.com/rock-128', np: null, src: 'radioparadise.com' },
   { genre: 'Rock', name: 'SomaFM Left Coast 70s', url: 'https://ice2.somafm.com/seventies-128-mp3', np: { type: 'soma', id: 'seventies' }, src: 'somafm.com' },
   { genre: 'Metal', name: 'SomaFM Metal Detector', url: 'https://ice2.somafm.com/metal-128-mp3', np: { type: 'soma', id: 'metal' }, src: 'somafm.com' },

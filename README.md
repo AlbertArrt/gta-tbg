@@ -137,25 +137,27 @@ Kilka etapów na jedną robotę: odbiór, dojazd, dostawa, czasem pościg. Dzien
 | List z Dzikowa | brama Zamku w Dzikowie | auto, list przy bramie (do parku nie wchodzi ulica), Urząd Miasta, odpowiedź na stację kolejową | 260 zł |
 | Paczka na Siarkowiec | Dworzec PKS | furgonetka, odbiór na stacji, 2 ★ i dojazd do kościoła św. Barbary | 290 zł |
 
-- **📻 Radio (jak w GTA):** 15 stacji w 8 gatunkach. W aucie włącza się samo i pokazuje nazwę stacji, pieszo – ikoną 📻 w HUD. Tytuł utworu pobierany na żywo (SomaFM, Jazz Kultura, Radio Leliwa). Gdy strumień nie wstanie, radio pisze „Stacja nie działa – następna.” i przełącza się dalej. Bez internetu pokazuje krótki komunikat, a gra działa dalej. Lista stacji jest w jednej tablicy `RADIO_STATIONS` w `src/01_head.js`.
+- **📻 Radio (jak w GTA):** 17 stacji w 8 gatunkach. W aucie włącza się samo i pokazuje nazwę stacji, pieszo – ikoną 📻 w HUD. Tytuł utworu pobierany na żywo (SomaFM, Jazz Kultura, Radio Leliwa). Gdy strumień nie wstanie, radio pisze „Stacja nie działa – następna.” i przełącza się dalej. Bez internetu pokazuje krótki komunikat, a gra działa dalej. Lista stacji jest w jednej tablicy `RADIO_STATIONS` w `src/01_head.js`.
 
 | # | Gatunek | Stacja | Strumień | Źródło |
 |---|---|---|---|---|
 | 1 | Rock | Antyradio | `https://r.dcs.redcdn.pl/sc/o2/Eurozet/live/antyradio.livx?audio=5` | antyradio.pl |
-| 2 | Rock | Radio Paradise – Rock Mix | `https://stream.radioparadise.com/rock-128` | radioparadise.com |
-| 3 | Rock | SomaFM Left Coast 70s | `https://ice2.somafm.com/seventies-128-mp3` | somafm.com |
-| 4 | Metal | SomaFM Metal Detector | `https://ice2.somafm.com/metal-128-mp3` | somafm.com |
-| 5 | Jazz | Jazz Kultura | `https://stream.radio.co/s1136b59f3/listen` | jazzkultura.pl |
-| 6 | Jazz | SomaFM Sonic Universe | `https://ice2.somafm.com/sonicuniverse-128-mp3` | somafm.com |
-| 7 | Jazz | SmoothJazz.com | `https://smoothjazz.cdnstream1.com/2585_128.mp3` | smoothjazz.com |
-| 8 | Chillout | SomaFM Groove Salad | `https://ice2.somafm.com/groovesalad-128-mp3` | somafm.com |
-| 9 | Chillout | Radio Paradise – Mellow Mix | `https://stream.radioparadise.com/mellow-128` | radioparadise.com |
-| 10 | Pop | SomaFM PopTron | `https://ice2.somafm.com/poptron-128-mp3` | somafm.com |
-| 11 | Pop | SomaFM Indie Pop Rocks! | `https://ice2.somafm.com/indiepop-128-mp3` | somafm.com |
-| 12 | House | SomaFM Beat Blender | `https://ice2.somafm.com/beatblender-128-mp3` | somafm.com |
-| 13 | House | Technolovers Deep House | `https://stream.technolovers.fm/deep-house` | technolovers.fm |
-| 14 | Opera | Opera | `https://stream.klassikradio.de/opera/mp3-128/radiobrowser` | klassikradio.de |
-| 15 | Lokalne | Radio Leliwa (Tarnobrzeg) | `https://streaming.g-news.pl/radio/8050/leliwa` | leliwa.pl |
+| 2 | Rock | Antyradio Classic Rock | `https://an.cdn.eurozet.pl/ANTCLA.mp3` | antyradio.pl |
+| 3 | Rock | Antyradio Hard | `https://an.cdn.eurozet.pl/ANTHAR.mp3` | antyradio.pl |
+| 4 | Rock | Radio Paradise – Rock Mix | `https://stream.radioparadise.com/rock-128` | radioparadise.com |
+| 5 | Rock | SomaFM Left Coast 70s | `https://ice2.somafm.com/seventies-128-mp3` | somafm.com |
+| 6 | Metal | SomaFM Metal Detector | `https://ice2.somafm.com/metal-128-mp3` | somafm.com |
+| 7 | Jazz | Jazz Kultura | `https://stream.radio.co/s1136b59f3/listen` | jazzkultura.pl |
+| 8 | Jazz | SomaFM Sonic Universe | `https://ice2.somafm.com/sonicuniverse-128-mp3` | somafm.com |
+| 9 | Jazz | SmoothJazz.com | `https://smoothjazz.cdnstream1.com/2585_128.mp3` | smoothjazz.com |
+| 10 | Chillout | SomaFM Groove Salad | `https://ice2.somafm.com/groovesalad-128-mp3` | somafm.com |
+| 11 | Chillout | Radio Paradise – Mellow Mix | `https://stream.radioparadise.com/mellow-128` | radioparadise.com |
+| 12 | Pop | SomaFM PopTron | `https://ice2.somafm.com/poptron-128-mp3` | somafm.com |
+| 13 | Pop | SomaFM Indie Pop Rocks! | `https://ice2.somafm.com/indiepop-128-mp3` | somafm.com |
+| 14 | House | SomaFM Beat Blender | `https://ice2.somafm.com/beatblender-128-mp3` | somafm.com |
+| 15 | House | Technolovers Deep House | `https://stream.technolovers.fm/deep-house` | technolovers.fm |
+| 16 | Opera | Opera | `https://stream.klassikradio.de/opera/mp3-128/radiobrowser` | klassikradio.de |
+| 17 | Lokalne | Radio Leliwa (Tarnobrzeg) | `https://streaming.g-news.pl/radio/8050/leliwa` | leliwa.pl |
 
   Tytuły utworów: `https://somafm.com/songs/<kanał>.json` (SomaFM), `https://public.radio.co/stations/s1136b59f3/status` (Jazz Kultura) i `https://streaming.g-news.pl/api/nowplaying/leliwa` (Leliwa). Radio Paradise i Antyradio nie podają tytułu przeglądarce. Wszystkie strumienie należą do ich nadawców – gra tylko je odtwarza.
 - **HUD:** prędkościomierz, minimapa z obrotem, gwiazdki, gotówka, pasek HP auta, nazwa ulicy, mapa M z szybką podróżą (niedostępna przy gwiazdkach).

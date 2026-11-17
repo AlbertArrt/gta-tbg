@@ -411,7 +411,7 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
         <p><b>Misje:</b> szukaj świecących słupów z „!” albo otwórz dziennik (J / 📒). Po 5 misjach fabularnych odblokujesz finał przy Muzeum Siarki. Wyzwania i dłuższe roboty (placki z The Italiana na Kościuszki 7 do Mokrzyszowa, list z Dzikowa, paczka na Siarkowiec) płacą pełną nagrodę raz – potem tylko za rekord.</p>
         <p><b>GPS:</b> niebieska linia na minimapie idzie po ulicach albo ścieżkach off-road. Nie przecina budynków ani wody. Gdy sieci nie łączy celu, zostaje odległość w linii prostej i komunikat, bez fałszywej kreski.</p>
         <p><b>Policja:</b> potrącenie pieszego, staranowanie radiowozu, kradzież auta czy pędzenie obok policji dają gwiazdki ★ (1–5). Zgub pościg – zniknij policji z oczu, aż gwiazdki przestaną migać, albo wjedź do Lakierni (różowy znacznik, 50 zł). Gdy cię złapią: <b>ZATRZYMANY</b> (mandat, Komenda). Rozbite auto zapala się i wybucha: <b>ROZBITY</b> (Szpital).</p>
-        <p><b>Radio:</b> 15 stacji (Rock, Metal, Jazz, Chillout, Pop, House, Opera, Lokalne – Radio Leliwa). Jest Antyradio i Jazz Kultura. Gdy stacja nie działa, radio samo włącza następną. W aucie startuje samo.</p>
+        <p><b>Radio:</b> 17 stacji (Rock, Metal, Jazz, Chillout, Pop, House, Opera, Lokalne – Radio Leliwa). Jest Antyradio, Antyradio Classic Rock, Antyradio Hard i Jazz Kultura. Gdy stacja nie działa, radio samo włącza następną. W aucie startuje samo.</p>
       </div>
       <div id="settingsBox" class="box hidden">
         <h3>Ustawienia</h3>
@@ -541,6 +541,8 @@ const TOON = STYLE !== 'classic';
 // np = źródło "teraz gra" (tylko tam, gdzie jest publiczne API z CORS).
 const RADIO_STATIONS = [
   { genre: 'Rock', name: 'Antyradio', url: 'https://r.dcs.redcdn.pl/sc/o2/Eurozet/live/antyradio.livx?audio=5', np: null, src: 'antyradio.pl' },
+  { genre: 'Rock', name: 'Antyradio Classic Rock', url: 'https://an.cdn.eurozet.pl/ANTCLA.mp3', np: null, src: 'antyradio.pl' },
+  { genre: 'Rock', name: 'Antyradio Hard', url: 'https://an.cdn.eurozet.pl/ANTHAR.mp3', np: null, src: 'antyradio.pl' },
   { genre: 'Rock', name: 'Radio Paradise – Rock Mix', url: 'https://stream.radioparadise.com/rock-128', np: null, src: 'radioparadise.com' },
   { genre: 'Rock', name: 'SomaFM Left Coast 70s', url: 'https://ice2.somafm.com/seventies-128-mp3', np: { type: 'soma', id: 'seventies' }, src: 'somafm.com' },
   { genre: 'Metal', name: 'SomaFM Metal Detector', url: 'https://ice2.somafm.com/metal-128-mp3', np: { type: 'soma', id: 'metal' }, src: 'somafm.com' },
