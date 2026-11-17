@@ -128,6 +128,15 @@ Pełna kwota tylko za pierwszym razem. Kolejny przejazd zapisuje rekord i daje *
 | Drift pod Lidlem | parking przy Lidlu | 800 pkt driftu w 75 s wewnątrz żółtego kółka | 210 zł (rekord = punkty) |
 | Tort do Dzikowa | piekarnia Skalski | zamek bez utraty HP. Otarcie poniżej progu obrażeń się nie liczy. Kilka sekund na wyjechanie | 240 zł |
 
+### Dłuższe misje
+Kilka etapów na jedną robotę: odbiór, dojazd, dostawa, czasem pościg. Dziennik pokazuje kroki. GPS przelicza się sam przy zmianie etapu. Pełna nagroda raz, potem premia za rekord czasu.
+
+| Misja | Gdzie | Etapy | Nagroda |
+|---|---|---|---|
+| Dostawa placków ziemniaczanych | The Italiana, ul. Kościuszki 7 | odbiór placków, skuter, dom przy ul. Chłopskiej w Mokrzyszowie. Pasek stanu: uderzenie osypuje placki | 280 zł + premia za zapas czasu |
+| List z Dzikowa | brama Zamku w Dzikowie | auto, list przy bramie (do parku nie wchodzi ulica), Urząd Miasta, odpowiedź na stację kolejową | 260 zł |
+| Paczka na Siarkowiec | Dworzec PKS | furgonetka, odbiór na stacji, 2 ★ i dojazd do kościoła św. Barbary | 290 zł |
+
 - **📻 Radio (jak w GTA):** 12 stacji w 7 gatunkach. W aucie włącza się samo i pokazuje nazwę stacji, pieszo – ikoną 📻 w HUD. Tytuł utworu pobierany na żywo (SomaFM, Radio Leliwa). Gdy stacja nie odpowiada, radio przełącza się na następną; bez internetu pokazuje „Radio offline”, a gra działa dalej. Lista stacji jest w jednej tablicy `RADIO_STATIONS` w `src/01_head.js`.
 
 | # | Gatunek | Stacja | Strumień | Źródło |

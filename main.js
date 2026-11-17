@@ -3733,6 +3733,20 @@ function legBudget(x1, z1, x2, z2) {
   }
   return Math.round(Math.min(340, Math.max(120, len / 8 + 50)));
 }
+function haulBudget(x1, z1, x2, z2) {
+  let len = Math.hypot(x2 - x1, z2 - z1) * 1.55;
+  const a = nearestNode(x1, z1, 320), b = nearestNode(x2, z2, 320);
+  if (a >= 0 && b >= 0) {
+    const path = astar(a, b, 16000);
+    if (path) {
+      const pts = pathPoints(path); let L = 0, lx = TR.nodes[a].x, lz = TR.nodes[a].z;
+      for (let i = 0; i < pts.length; i += 2) { L += Math.hypot(pts[i] - lx, pts[i + 1] - lz); lx = pts[i]; lz = pts[i + 1]; }
+      if (L > 40) len = L;
+    }
+  }
+  return Math.round(Math.min(720, Math.max(200, len / 11 + 90)));
+}
+function misSay(line) { toast(line, 2400); }
 function chainCheckpoints(anchors, spacing) {
   const cps = []; let prev = null;
   for (const a of anchors) {
@@ -3955,6 +3969,91 @@ const MDEF = [
       if (m.t <= 0) return 'Wesele zaczęło się bez tortu';
       if (inCar(m.car) && at(m.dest, 12, 4)) { m.bestNow = (performance.now() - m.t0) / 1000; return 'win'; }
     } },
+  { id: 'placki', name: 'Dostawa placków ziemniaczanych', giver: [-120, 158], who: 'Szef The Italiana', where: 'ul. Kościuszki 7', reward: 280, recordPay: 40, side: true, bestKey: 'placki', bestLow: true, col: '#e2a122',
+    steps: ['Podejdź pod restaurację The Italiana, ul. Kościuszki 7.', 'Odbierz placki ziemniaczane przy drzwiach.', 'Wsiądź na skuter.', 'Zawieź je do domu przy ul. Chłopskiej w Mokrzyszowie.', 'Nie walnij – placki się rozsypią. Stan widać na pasku.'],
+    text: 'Placki ziemniaczane na stół w Mokrzyszowie! Odbierz je u mnie, na Kościuszki 7, i leć skuterem. Jedno mocne uderzenie i placki się rozsypią.',
+    start(m) {
+      m.pickup = roadSpot(-119.1, 158.1, 40);
+      m.drop = roadSpot(3477.9, 692.2, 90);
+      m.car = misCar(0xe2a122, roadSpot(m.pickup.x + 7, m.pickup.z + 5, 36), { scooter: true });
+      m.limit = haulBudget(m.pickup.x, m.pickup.z, m.drop.x, m.drop.z);
+      m.stage = 0; m.cargo = 100; m.t0 = performance.now();
+    },
+    update(m) {
+      if (m.car.wrecked) return 'Skuter rozbity, placki na asfalcie';
+      if (m.stage === 0) {
+        m.target = m.pickup; m.obj = 'Odbierz placki · The Italiana, Kościuszki 7';
+        if (at(m.pickup, 8, 4)) { m.stage = 1; misSay('Kucharz: „Ciepłe. Trzymaj równo!”'); }
+        return;
+      }
+      if (m.stage === 1) {
+        m.target = m.car; m.obj = 'Wsiądź na skuter z plackami';
+        if (inCar(m.car)) { m.stage = 2; m.t = m.limit; misSay('Szef: „Mokrzyszów, i bez dziur w jezdni!”'); }
+        return;
+      }
+      if (m.cargo <= 0) return 'Placki się rozsypały';
+      if (m.t <= 0) return 'Placki wystygły';
+      m.target = m.drop;
+      m.obj = (inCar(m.car) ? 'Dowieź placki do Mokrzyszowa' : 'Wróć na skuter!') + ' · placki ' + Math.round(m.cargo) + '%';
+      if (inCar(m.car) && at(m.drop, 12, 5)) { m.bestNow = (performance.now() - m.t0) / 1000; misSay('Gospodyni: „Pachną jak u mamy.”'); return 'win'; }
+    },
+    impact(m, v) {
+      if (m.stage < 2 || !inCar(m.car)) return;
+      m.cargo = Math.max(0, m.cargo - Math.min(30, 8 + v * 2));
+      misSay('Placki się trzęsą! Zostało ' + Math.round(m.cargo) + '%');
+    },
+    bonus: (m) => Math.round(Math.min(70, Math.max(0, m.t) / 6)) },
+  { id: 'list', name: 'List z Dzikowa', giver: [250, -450], who: 'Kustosz z Dzikowa', where: 'brama Zamku w Dzikowie', reward: 260, recordPay: 40, side: true, bestKey: 'list', bestLow: true, col: '#7fa8d8',
+    steps: ['Wsiądź do auta przy bramie Dzikowa.', 'Odbierz list przy bramie zamku.', 'Zawieź go do Urzędu Miasta.', 'Odpowiedź odwieź na stację kolejową, zanim odjedzie pociąg.'],
+    text: 'Do parku za zamkiem nie wchodzi ulica. List czeka przy bramie Dzikowa. Potem urząd, a odpowiedź ma złapać pociąg na stacji. Dwa kursy, dwa zegary.',
+    start(m) {
+      const s = roadSpot(225, -470, 80); m.car = misCar(0x7fa8d8, s, { model: 'hatch' });
+      m.pickup = roadSpot(384, -514, 80); m.drop = roadSpot(-87, 370, 80); m.train = roadSpot(478, 162, 80);
+      m.limitA = haulBudget(m.pickup.x, m.pickup.z, m.drop.x, m.drop.z);
+      m.limitB = haulBudget(m.drop.x, m.drop.z, m.train.x, m.train.z);
+      m.stage = 0; m.t0 = performance.now();
+    },
+    update(m) {
+      if (m.car.wrecked) return 'Auto z listem rozbite';
+      if (m.stage === 0) { m.target = m.car; m.obj = 'Wsiądź do niebieskiego auta przy bramie Dzikowa'; if (inCar(m.car)) { m.stage = 1; misSay('Kustosz: „List leży przy drugiej bramie.”'); } return; }
+      if (m.stage === 1) {
+        m.target = m.pickup; m.obj = 'Odbierz list przy bramie zamku' + (inCar(m.car) ? '' : ' · wróć do auta');
+        if (inCar(m.car) && at(m.pickup, 12, 5)) { m.stage = 2; m.t = m.limitA; misSay('Kustosz: „Teraz urząd. Nie gub koperty.”'); }
+        return;
+      }
+      if (m.stage === 2) {
+        if (m.t <= 0) return 'Urząd już zamknięty';
+        m.target = m.drop; m.obj = (inCar(m.car) ? 'Dowieź list do Urzędu Miasta' : 'Wróć do auta z listem!');
+        if (inCar(m.car) && at(m.drop, 12, 5)) { m.stage = 3; m.t = m.limitB; misSay('Urzędniczka: „Odpowiedź na pociąg. Zdążysz.”'); }
+        return;
+      }
+      if (m.t <= 0) return 'Pociąg odjechał bez odpowiedzi';
+      m.target = m.train; m.obj = (inCar(m.car) ? 'Odwiedź odpowiedź na stację kolejową' : 'Wróć do auta!');
+      if (inCar(m.car) && at(m.train, 12, 5)) { m.bestNow = (performance.now() - m.t0) / 1000; misSay('Konduktor: „Koperta jest. Jedziemy.”'); return 'win'; }
+    },
+    bonus: (m) => Math.round(Math.min(60, Math.max(0, m.t) / 6)) },
+  { id: 'paczka', name: 'Paczka na Siarkowiec', giver: [-330, 900], who: 'Heniek z PKS', where: 'Dworzec PKS', reward: 290, recordPay: 40, side: true, bestKey: 'paczka', bestLow: true, col: '#a66bd0',
+    steps: ['Wsiądź do furgonetki przy PKS.', 'Odbierz skrzynkę na stacji kolejowej.', 'Gliny wchodzą na ogon – jedź do kościoła św. Barbary na Siarkowcu.', 'Liczy się czas. Rozbity wóz kończy robotę.'],
+    text: 'Skrzynka czeka na stacji. Jak ją weźmiesz, ktoś puści za tobą radiowozy. Dowieź ją pod kościół św. Barbary, zanim skończy się czas.',
+    start(m) {
+      m.car = misCar(0xc8b4e0, roadSpot(-330, 900, 70));
+      m.pickup = roadSpot(478, 162, 80); m.drop = roadSpot(973, 880, 90);
+      m.limit = haulBudget(m.pickup.x, m.pickup.z, m.drop.x, m.drop.z);
+      m.stage = 0; m.t0 = performance.now();
+    },
+    update(m) {
+      if (m.car.wrecked) return 'Furgonetka rozbita, paczka przepadła';
+      if (m.stage === 0) { m.target = m.car; m.obj = 'Wsiądź do furgonetki Heńka'; if (inCar(m.car)) { m.stage = 1; misSay('Heniek: „Stacja. Skrzynka pod wiatą.”'); } return; }
+      if (m.stage === 1) {
+        m.target = m.pickup; m.obj = 'Odbierz paczkę na stacji kolejowej' + (inCar(m.car) ? '' : ' · wróć do furgonetki');
+        if (inCar(m.car) && at(m.pickup, 12, 5)) { m.stage = 2; m.t = m.limit; setStars(Math.max(2, WANT.stars), 'paczka z dworca'); misSay('Heniek: „Gaz! Gliny na ogonie!”'); }
+        return;
+      }
+      if (m.t <= 0) return 'Za późno – paczkę przejęli';
+      m.target = m.drop; m.obj = (inCar(m.car) ? 'Dowieź paczkę do św. Barbary' : 'Wróć do furgonetki!') + ' · pościg';
+      if (inCar(m.car) && at(m.drop, 14, 6)) { m.bestNow = (performance.now() - m.t0) / 1000; misSay('Ksiądz: „Zostaw pod furtką. I znikaj.”'); return 'win'; }
+    },
+    bonus: (m) => Math.round(Math.min(60, Math.max(0, m.t) / 6)) },
 ];
 function rivalDrive(r, m, dt) {
   const v = r.rv; if (v.cp >= m.cps.length || r.wrecked) { updateCar(r, dt, { thr: 0, steer: 0, hand: true }); return; }
@@ -3977,7 +4076,7 @@ function initMissions() {
   }
   MIS.tgt = makeTarget();
   const hud = $('hud'); const mh = document.createElement('div'); mh.id = 'mhud'; mh.className = 'hidden';
-  mh.innerHTML = '<button type="button" id="objTab" aria-expanded="true" title="Pokaż lub schowaj cel (H)"><b id="objTabKey">H</b><em id="objTabTime"></em><small id="objTabDir"></small></button><div id="objSlide"><div id="objCard"><b id="objTitle"></b><span id="objText"></span><em id="objTime"></em><small id="objGps"></small><button type="button" id="gpsX" class="hidden">Anuluj GPS</button></div></div>';
+  mh.innerHTML = '<button type="button" id="objTab" aria-expanded="true" title="Pokaż lub schowaj cel (H)"><b id="objTabKey">H</b><em id="objTabTime"></em><small id="objTabDir"></small></button><div id="objSlide"><div id="objCard"><b id="objTitle"></b><span id="objText"></span><i id="objCargo" class="hidden"><b></b></i><em id="objTime"></em><small id="objGps"></small><button type="button" id="gpsX" class="hidden">Anuluj GPS</button></div></div>';
   hud.appendChild(mh);
   const dl = document.createElement('div'); dl.id = 'dialog'; dl.className = 'cdialog hidden';
   dl.innerHTML = '<div class="who" id="dlgWho"></div><h3 id="dlgTitle"></h3><p id="dlgText"></p><div class="reward" id="dlgReward"></div><div class="btns"><button id="dlgYes">Przyjmij (E)</button><button id="dlgNo" class="sec">Nie teraz (Esc)</button></div>';
@@ -4000,6 +4099,9 @@ const GIVER_LOOK = {
   jezioro: { hairStyle: 'short', bag: 0x1a6a8a },
   drift: { hairStyle: 'cap', cap: 0x222222, jacket: 0x2a211c },
   tort: { hairStyle: 'bun', skirt: true, jacket: 0xffd0e0 },
+  placki: { hairStyle: 'short', jacket: 0xf4f1ea },
+  list: { hairStyle: 'bun', jacket: 0x7fa8d8 },
+  paczka: { hairStyle: 'cap', cap: 0x2a211c, jacket: 0xc8b4e0 },
 };
 function makeGiver(x, z, col, who, id) {
   const g = new THREE.Group(); g.position.set(x, groundH(x, z), z);
@@ -5272,6 +5374,12 @@ function paintHud() {
   const title = $('objTitle'), text = $('objText'), time = $('objTime'), gps = $('objGps'), btn = $('gpsX');
   if (title) title.textContent = m ? m.name : 'GPS';
   if (text) text.textContent = m && m.obj ? m.obj : (NAV.name || '');
+  const cargo = $('objCargo');
+  if (cargo) {
+    const on = !!(m && typeof m.cargo === 'number');
+    cargo.classList.toggle('hidden', !on);
+    if (on) { const b = cargo.firstChild; if (b) { const p = Math.max(0, Math.min(100, m.cargo)); b.style.width = p + '%'; b.style.background = p > 60 ? '#e2a122' : p > 30 ? '#e07a2f' : '#c0392b'; } }
+  }
   let t = '';
   if (m && typeof m.t === 'number' && m.t >= 0) t = '⏱ ' + fmtT(Math.max(0, m.t)).slice(0, 5);
   if (time) { time.textContent = t; time.classList.toggle('warn', !!(m && m.t < 20 && m.t >= 0 && t)); }
