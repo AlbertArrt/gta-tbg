@@ -285,7 +285,7 @@ function wasted() {
   const fee = Math.min(SAVE.money, 75 + Math.round(SAVE.money * 0.05));
   if (typeof missionFail === 'function') missionFail('Auto wybuchło');
   G.cut = { t: 2.4, fn: () => {
-    const c = activeCar; if (typeof ownWrecked === 'function') ownWrecked(c); if (c) { activeCar = null; G.mode = 'foot'; player.mesh.visible = true; if (c.rider) c.rider.visible = false; $('speedo').classList.add('hidden'); $('touch').classList.remove('incar'); $('tEnter').textContent = 'WSIĄDŹ'; }
+    const c = activeCar; if (typeof ownWrecked === 'function') ownWrecked(c); if (c) { activeCar = null; G.mode = 'foot'; player.mesh.visible = true; if (c.rider) c.rider.visible = false; $('speedo').classList.add('hidden'); $('touch').classList.remove('incar'); $('tEnter').textContent = 'Wsiądź'; }
     setStars(0); clearPolice(); if (fee) addMoney(-fee, 'rachunek ze szpitala'); respawnAt(PLACES.szpital, 'Szpital – poskładali cię jak nowego');
   } };
 }

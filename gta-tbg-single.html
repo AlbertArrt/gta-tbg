@@ -79,8 +79,9 @@ select{font:inherit;background:#13304d;color:#fff;border:1px solid #ffffff40;bor
 .mapHead #mapClose{margin-left:auto}
 .muted{opacity:.7;font-size:13px}
 .mapBody{flex:1;display:flex;gap:10px;min-height:0}
-#mapCanvasWrap{flex:1;position:relative;min-width:0;display:flex;align-items:center;justify-content:center;background:#cfd8c4;border-radius:10px;overflow:hidden}
-#bigmap{max-width:100%;max-height:100%;cursor:crosshair}
+#mapCanvasWrap{flex:1;position:relative;min-width:0;background:#cfd8c4;border-radius:10px;overflow:hidden;touch-action:none}
+#bigmap{position:absolute;left:0;top:0;transform-origin:0 0;cursor:crosshair}
+#minimapWrap{cursor:pointer}
 #travelList{width:280px;overflow:auto;display:flex;flex-direction:column;gap:5px}
 #travelList .trow{display:flex;gap:6px}
 #travelList .trow button{flex:1;text-align:left;font-size:13px;padding:7px 10px;min-height:44px}
@@ -391,8 +392,8 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
           <tr><td>Mysz</td><td>rozglądanie się (kliknij, aby przechwycić kursor)</td></tr>
           <tr><td>Shift</td><td>bieg · w aucie: nitro (po tuningu, też X)</td></tr>
           <tr><td>Spacja</td><td>skok / hamulec ręczny – drift (punkty driftu = kasa)</td></tr>
-          <tr><td>E</td><td>wsiądź / wysiądź · akcja (misja, teleport, lakiernia, garaż) · porwij auto z ruchu</td></tr>
-          <tr><td>M</td><td>mapa: klik = teleport, przycisk GPS = trasa po ulicach</td></tr>
+          <tr><td>E albo F</td><td>Wsiądź / Wysiądź · akcja (misja, teleport, lakiernia, garaż) · porwij auto z ruchu</td></tr>
+          <tr><td>M albo minimapa</td><td>duża mapa: przesuń, kółko albo uszczypnięcie, dotknięcie = GPS</td></tr>
           <tr><td>J</td><td>dziennik misji (aktywna / dostępne / ukończone)</td></tr>
           <tr><td>G</td><td>wyłącz własny GPS (trasa misji wraca przy kolejnym etapie)</td></tr>
           <tr><td>H</td><td>schowaj / pokaż panel celu (misja i GPS lecą dalej)</td></tr>
@@ -405,7 +406,7 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
           <tr><td>Esc</td><td>pauza / menu</td></tr>
         </table>
         <h3>Sterowanie – telefon</h3>
-        <p>Lewy joystick – ruch / skręt. Przeciągnij prawą stronę ekranu – kamera. Przyciski: SKOK, BIEG, GAZ, HAMULEC, RĘCZNY, WSIĄDŹ/AKCJA, MAPA, 📻 (panel stacji), 📻▶ (następna stacja).</p>
+        <p>Lewy joystick – ruch. Przeciągnij prawą stronę ekranu – kamera zza pleców. Przyciski: SKOK, BIEG, GAZ, HAMULEC, RĘCZNY, Wsiądź/Wysiądź, MAPA. Dotknięcie minimapy otwiera dużą mapę (przesuwanie i uszczypnięcie). Radio: 📻 i 📻▶.</p>
         <p><b>Panel celu:</b> na krótkim ekranie po kilku sekundach zjeżdża w lewo. Zostaje zakładka pod minimapą (czas i skręt). Dotknij jej, żeby rozwinąć. Na komputerze to samo robi klawisz H.</p>
         <h3>Jak grać</h3>
         <p><b>Misje:</b> szukaj świecących słupów z „!” albo otwórz dziennik (J / 📒). Po 5 misjach fabularnych odblokujesz finał przy Muzeum Siarki. Wyzwania i dłuższe roboty (placki z The Italiana na Kościuszki 7 do Mokrzyszowa, list z Dzikowa, paczka na Siarkowiec) płacą pełną nagrodę raz – potem tylko za rekord.</p>
@@ -442,7 +443,7 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
         <label><input id="chkRadioAuto" type="checkbox"> Radio włącza się w aucie</label>
         <label><input id="chkFps" type="checkbox"> Pokaż licznik FPS</label>
       </div>
-      <div class="credits"><b>Źródła</b> Czcionka Fredoka © The Fredoka Project Authors, licencja OFL 1.1 — polskie litery ą ć ę ł ń ó ś ź ż oraz wielkie Ą Ć Ę Ł Ń Ó Ś Ź Ż. Auta w ruchu z Kenney Car Kit (CC0). Autobus miejski to własny model gry. Sklepy przy Rynku: KayKit City Builder Bits, Kay Lousberg (CC0). Na piątej ćwiartce stoi żółty wóz, ciężki i śliski, a za nim gęsty tłum: koń i źrebak.</div>
+      <div class="credits"><b>Źródła</b> Czcionka Fredoka © The Fredoka Project Authors, licencja OFL 1.1 — polskie litery ą ć ę ł ń ó ś ź ż oraz wielkie Ą Ć Ę Ł Ń Ó Ś Ź Ż. Auta w ruchu z Kenney Car Kit (CC0). Autobus miejski to własny model gry. Sklepy przy Rynku: KayKit City Builder Bits, Kay Lousberg (CC0). Szum miasta i kroki: synteza WebAudio w grze (AMBIENCE-CITY, FOOTSTEP), bez zewnętrznych próbek. Na piątej ćwiartce stoi żółty wóz, ciężki i śliski, a za nim gęsty tłum: koń i źrebak.</div>
       <div class="attr">Dane mapy © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> (ODbL)</div>
     </div>
   </div>
@@ -475,7 +476,7 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
   <div id="touch" class="hidden">
     <div id="joy"><div id="joyKnob"></div></div>
     <div id="tbtns">
-      <button id="tEnter" class="tb wide" data-kind="tap" data-key="enter">WSIĄDŹ</button>
+      <button id="tEnter" class="tb wide" data-kind="tap" data-key="enter">Wsiądź</button>
       <button id="tJump" class="tb foot" data-kind="tap" data-key="jump">SKOK</button>
       <button id="tRun" class="tb foot" data-kind="hold" data-key="run">BIEG</button>
       <button id="tHand" class="tb car" data-kind="hold" data-key="hand">RĘCZNY</button>
@@ -488,7 +489,7 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 
   <div id="mapScreen" class="screen hidden">
     <div class="mapPanel">
-      <div class="mapHead"><b>GTA TBG – mapa Tarnobrzega</b> <span class="muted">klik = teleport, GPS = trasa ulicami</span> <button id="mapGpsMode" type="button">Klik: teleport</button> <button id="mapGpsClear" type="button">Anuluj GPS</button> <button id="mapClose" type="button">✕</button></div>
+      <div class="mapHead"><b>GTA TBG – mapa Tarnobrzega</b> <span class="muted">dotknięcie = GPS · dwa palce = zoom</span> <button id="mapGpsMode" type="button" class="on">Klik: GPS</button> <button id="mapGpsClear" type="button">Anuluj GPS</button> <button id="mapClose" type="button">✕</button></div>
       <div class="mapBody">
         <div id="mapCanvasWrap"><canvas id="bigmap"></canvas></div>
         <div id="travelList"></div>
@@ -827,7 +828,8 @@ function makeEdgeMesh(arr) {
   return m;
 }
 
-// ---- facade atlas: 4 columns × 3 rows (piętro, zwykły parter, jedyne wejście)
+// FASADA-ATLAS: 4 columns × 3 rows. Okna na każdym piętrze, gzyms (krawędź dachu i pas między kondygnacjami),
+// boniowanie narożników (quoin) i witryna z pasem nad sklepem. Jedna tekstura, bez dodatkowych plików.
 // mask: R = kolor ściany, G = akcent, B = szyba, która może świecić w nocy
 function makeFacadeAtlas(aniso) {
   const CW = 128, COLS = 4, ROWS = 3, W2 = CW * COLS, H2 = CW * ROWS;
@@ -846,7 +848,23 @@ function makeFacadeAtlas(aniso) {
     if (cross) { rect(col, row, (x0 + x1) / 2 - 0.018, y0, (x0 + x1) / 2 + 0.018, y1, OUT, 'rgb(0,0,0)'); rect(col, row, x0, y0 + (y1 - y0) * 0.62, x1, y0 + (y1 - y0) * 0.62 + 0.03, OUT, 'rgb(0,0,0)'); }
   };
   const sill = (col, row, x0, x1, y) => { rect(col, row, x0, y, x1, y + 0.035, '#ffffff', 'rgb(0,255,0)'); rect(col, row, x0, y - 0.012, x1, y, OUT, 'rgb(0,0,0)'); };
-  const cornice = (col, row) => { rect(col, row, 0, 0.9, 1, 0.97, '#ffffff', 'rgb(0,255,0)'); rect(col, row, 0, 0.97, 1, 1, OUT, 'rgb(0,0,0)'); rect(col, row, 0, 0, 1, 0.045, '#ffffff', 'rgb(0,255,0)'); rect(col, row, 0, 0.045, 1, 0.062, OUT, 'rgb(0,0,0)'); };
+  const cornice = (col, row) => {
+    rect(col, row, 0, 0.78, 1, 0.86, '#f4efe4', 'rgb(0,0,0)');
+    rect(col, row, 0, 0.86, 1, 0.94, '#fffaf2', 'rgb(0,0,0)');
+    rect(col, row, 0, 0.94, 1, 1, OUT, 'rgb(0,0,0)');
+    rect(col, row, 0, 0, 1, 0.055, '#fffaf2', 'rgb(0,0,0)');
+    rect(col, row, 0, 0.055, 1, 0.078, OUT, 'rgb(0,0,0)');
+  };
+  const quoins = (col, row) => {
+    for (let i = 0; i < 7; i++) {
+      const y0 = 0.09 + i * 0.1, y1 = y0 + 0.072;
+      const stone = i % 2 ? '#f7f1e4' : '#d7c6a8';
+      rect(col, row, 0, y0, 0.075, y1, stone, 'rgb(0,0,0)');
+      rect(col, row, 0.925, y0, 1, y1, stone, 'rgb(0,0,0)');
+    }
+    rect(col, row, 0.07, 0.08, 0.084, 0.94, OUT, 'rgb(0,0,0)');
+    rect(col, row, 0.916, 0.08, 0.93, 0.94, OUT, 'rgb(0,0,0)');
+  };
   cornice(0, 0); win(0, 0, 0.22, 0.22, 0.46, 0.72, true); win(0, 0, 0.54, 0.22, 0.78, 0.72, true); sill(0, 0, 0.18, 0.82, 0.16);
   cornice(1, 0); win(1, 0, 0.3, 0.28, 0.7, 0.78, true); sill(1, 0, 0.22, 0.78, 0.2);
   cornice(2, 0); win(2, 0, 0.36, 0.28, 0.64, 0.74, true); sill(2, 0, 0.32, 0.68, 0.22);
@@ -865,10 +883,12 @@ function makeFacadeAtlas(aniso) {
     rect(col, 2, (x0 + x1) / 2 - 0.01, 0.05, (x0 + x1) / 2 + 0.01, y1 - 0.04, OUT, 'rgb(0,0,0)');
     rect(col, 2, x1 - 0.07, y1 * 0.48, x1 - 0.035, y1 * 0.48 + 0.04, '#f6c431', 'rgb(0,0,0)');
   };
-  rect(0, 2, 0, 0, 1, 0.08, '#ffffff', 'rgb(0,255,0)');
-  win(0, 2, 0.06, 0.14, 0.94, 0.62, false);
-  for (let k = 0; k < 7; k++) rect(0, 2, k / 7, 0.66, (k + 0.86) / 7, 0.9, '#ffffff', k % 2 ? 'rgb(0,0,0)' : 'rgb(0,255,0)');
-  rect(0, 2, 0, 0.62, 1, 0.66, OUT, 'rgb(0,0,0)'); rect(0, 2, 0, 0.9, 1, 0.94, OUT, 'rgb(0,0,0)');
+  rect(0, 2, 0, 0, 1, 0.08, '#ffffff', 'rgb(0,0,0)');
+  win(0, 2, 0.1, 0.12, 0.46, 0.58, false); win(0, 2, 0.54, 0.12, 0.9, 0.58, false);
+  rect(0, 2, 0.08, 0.6, 0.92, 0.86, '#e8503a', 'rgb(0,0,0)');
+  rect(0, 2, 0.08, 0.58, 0.92, 0.61, OUT, 'rgb(0,0,0)');
+  rect(0, 2, 0.08, 0.86, 0.92, 0.9, OUT, 'rgb(0,0,0)');
+  rect(0, 2, 0.22, 0.66, 0.78, 0.8, '#fffaf2', 'rgb(0,0,0)');
   rect(1, 2, 0, 0, 1, 0.1, '#ffffff', 'rgb(0,255,0)');
   door(1, 0.34, 0.66, 0.62, '#6b3e2a');
   win(1, 2, 0.08, 0.28, 0.26, 0.62, true); win(1, 2, 0.74, 0.28, 0.92, 0.62, true);
@@ -880,6 +900,7 @@ function makeFacadeAtlas(aniso) {
   rect(3, 2, 0.08, 0, 0.92, 0.78, OUT, 'rgb(0,0,0)');
   rect(3, 2, 0.12, 0, 0.88, 0.74, '#d7d2c8', 'rgb(0,0,0)');
   for (let k = 1; k < 6; k++) rect(3, 2, 0.12, k * 0.12, 0.88, k * 0.12 + 0.018, OUT, 'rgb(0,0,0)');
+  for (let col = 0; col < 4; col++) for (let row = 0; row < 3; row++) quoins(col, row);
   const tex = new THREE.CanvasTexture(cc); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = aniso;
   const mask = new THREE.CanvasTexture(mc); mask.anisotropy = aniso;
   return { tex, mask };
@@ -907,6 +928,7 @@ function makeFacadeMat(aniso) {
           float base = vTile - door * 16.0;
           float tc = mod(base, 4.0);
           float shop = step(3.5, base);
+          if (fl >= 0.5) tc = mod(tc + fl, 4.0);
           float row = 0.0;
           if (fl < 0.5) {
             if (door > 0.5) {
@@ -926,7 +948,7 @@ function makeFacadeMat(aniso) {
       .replace('#include <color_fragment>', '')
       .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance *= facLit;');
   };
-  mat.customProgramCacheKey = () => 'facade4';
+  mat.customProgramCacheKey = () => 'facade5';
   return mat;
 }
 
@@ -1156,6 +1178,7 @@ async function buildWorld(data, scene, renderer) {
   const SHEDS = new Set(['garage', 'garages', 'shed', 'roof', 'farm_auxiliary']);
   const PITCH = new Set(['house', 'detached', 'semidetached_house', 'terrace', 'farm_auxiliary', 'church', 'chapel']);
   const fronts = [];
+  const copeCol = new THREE.Color('#f6f1e6');
   let bi = 0;
   for (const b of data.buildings) {
     const h = b[0] / 10, kind = BK[b[1]] || 'yes', est = b[2];
@@ -1176,7 +1199,6 @@ async function buildWorld(data, scene, renderer) {
     if (TOON) {
       const big = palette === PAL.block || palette === PAL.com;
       tile = palette === PAL.ind || palette === PAL.shed ? 3 : (big ? (rnd() < 0.5 ? 1 : 0) : 2);
-      if (big && (kind === 'commercial' || kind === 'retail' || (Math.hypot(cx0 - W.data.travel[0][1], cz0 - W.data.travel[0][2]) < 900 && rnd() < 0.55))) tile += 4;
       if (kind === 'church' || kind === 'chapel' || kind === 'castle') tile = 2;
       acc = new THREE.Color(pick(rnd, wcol.getHSL({}).l > 0.75 ? ['#7a4a32', '#3f6e9a', '#c8442f', '#5f8f4a', '#8a5a9a'] : ['#fbf6ea', '#fbf6ea', '#f3e6c8', '#3f3a36']));
     }
@@ -1184,9 +1206,37 @@ async function buildWorld(data, scene, renderer) {
     let roofH = 0;
     if (pitched) roofH = (kind === 'church') ? Math.min(12, 3 + Math.sqrt(area) * 0.35) : Math.min(5, 1.6 + Math.sqrt(area) * 0.13);
     const wallH = Math.max(2.4, h - roofH * (est ? 0.6 : 0.7));
+    if (TOON && tile >= 0 && tile < 4 && !SHEDS.has(kind) && kind !== 'church' && kind !== 'chapel' && kind !== 'castle' && wallH > 3.1 && area > 55 && area < 2800) {
+      let shopStreet = kind === 'commercial' || kind === 'retail';
+      if (!shopStreet) {
+        W.roadGrid.query(cx0, cz0, 22, (ri) => {
+          if (shopStreet) return;
+          const road = W.roads[W.roadGrid.meta[ri]];
+          if (road && (road.type === 'primary' || road.type === 'secondary' || road.type === 'tertiary' || road.type === 'trunk')) shopStreet = true;
+        });
+      }
+      if (shopStreet) tile += 4;
+    }
     const rcol = new THREE.Color(pitched ? pick(rnd, ROOF_P) : pick(rnd, ROOF_F));
     let cx = 0, cz = 0; const n = ring.length / 2; for (let i = 0; i < ring.length; i += 2) { cx += ring[i]; cz += ring[i + 1]; } cx /= n; cz /= n;
     const ch = getChunk(cx, cz);
+    const dominican = kind === 'church' && Math.hypot(cx + 87, cz + 69) < 45;
+    if (dominican) {
+      const mm = ring.length / 2;
+      for (let i = 0; i < mm; i++) {
+        const j = (i + 1) % mm;
+        W.bGrid.add(ring[i * 2], ring[i * 2 + 1], ring[j * 2], ring[j * 2 + 1], bi);
+      }
+      W.buildings.push({ ring, cx, cz, h: 34, kind, kay: '', landmark: 'kosciol-wniebowziecia' });
+      let bx0 = 1e9, bx1 = -1e9, bz0 = 1e9, bz1 = -1e9;
+      for (let i = 0; i < ring.length; i += 2) { bx0 = Math.min(bx0, ring[i]); bx1 = Math.max(bx1, ring[i]); bz0 = Math.min(bz0, ring[i + 1]); bz1 = Math.max(bz1, ring[i + 1]); }
+      for (let ix = Math.floor(bx0 / 32); ix <= Math.floor(bx1 / 32); ix++) for (let iz = Math.floor(bz0 / 32); iz <= Math.floor(bz1 / 32); iz++) {
+        const k = ix * 100000 + iz; let a = W.bCells.get(k); if (!a) { a = []; W.bCells.set(k, a); } a.push(bi);
+      }
+      buildDominicanChurch(scene, ring, cx, cz);
+      bi++;
+      continue;
+    }
     if (TOON) ch.walls.setX(acc, tile);
     const floors = Math.max(1, Math.round(wallH / 3)), fh = wallH / floors;
     let doorI = -1, doorL = 0;
@@ -1231,6 +1281,13 @@ async function buildWorld(data, scene, renderer) {
           if (TOON) { u0 = 0; u1 = len < 1.6 ? len / 3 : Math.max(1, Math.round(len / 3)); }
           addQuad(x1, z1, x2, z2, nx, nz, u0, u1, tile);
           uRun = u1;
+        }
+        if (TOON && outer && !kay && !SHEDS.has(kind) && len > 2.4 && wallH > 3 && Math.hypot(cx - W.data.travel[0][1], cz - W.data.travel[0][2]) < 520) {
+          const lip = 0.16, rise = 0.38, ox = nx * lip, oz = nz * lip, y0 = wallH, y1 = wallH + rise;
+          ch.walls.setX(null, -1);
+          ch.walls.tri(x1, y0, z1, x2, y0, z2, x2 + ox, y1, z2 + oz, copeCol, null, nx, 0.4, nz);
+          ch.walls.tri(x1, y0, z1, x2 + ox, y1, z2 + oz, x1 + ox, y1, z1 + oz, copeCol, null, nx, 0.4, nz);
+          ch.edges.push(x1 + ox, y1, z1 + oz, x2 + ox, y1, z2 + oz);
         }
         if (TOON && blockish && outer && len > 7) addBalconies(ch.detail, x1, z1, fx, fz, nx, nz, len, floors, fh, rnd);
         W.bGrid.add(x1, z1, x2, z2, bi);
@@ -1332,7 +1389,9 @@ async function buildWorld(data, scene, renderer) {
   W.treeGroup = new THREE.Group(); scene.add(W.treeGroup);
   buildTrees(QUALITY[settings.quality].trees);
   W.travel = data.travel.slice();
+  if (W.landmarkChurch && !W.travel.some((t) => t[0] === W.landmarkChurch.name)) W.travel.splice(1, 0, [W.landmarkChurch.name, W.landmarkChurch.x, W.landmarkChurch.z]);
   W.landmarks = data.landmarks;
+  G.landmarkChurch = W.landmarkChurch || null;
   setLoad(0.92, 'Chmury i ulica…'); await nextFrame();
   buildLook(scene);
   setLoad(0.95, 'Prawie gotowe…'); await nextFrame();
@@ -2190,6 +2249,85 @@ function placeKayShops(scene) {
   }
 }
 
+// Kościół Wniebowzięcia NMP (dominikanie) przy Placu Bartosza Głowackiego.
+// Pozycja z OSM: budynek kind=church przy landmarkzie „Kościół pw. Wniebowzięcia Najświętszej Maryi Panny”.
+// Własny model komiksowy – nie korzysta z cudzych siatek.
+function clockFaceTexture() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#f7f1e4'; g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 8; g.strokeStyle = '#2a211c'; g.stroke();
+  g.lineWidth = 5; g.lineCap = 'round';
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2;
+    g.beginPath(); g.moveTo(64 + Math.sin(a) * 42, 64 - Math.cos(a) * 42); g.lineTo(64 + Math.sin(a) * 52, 64 - Math.cos(a) * 52); g.stroke();
+  }
+  g.lineWidth = 7; g.beginPath(); g.moveTo(64, 68); g.lineTo(64 + Math.sin(0.55) * 24, 64 - Math.cos(0.55) * 24); g.stroke();
+  g.lineWidth = 4; g.beginPath(); g.moveTo(64, 68); g.lineTo(64 + Math.sin(-0.9) * 36, 64 - Math.cos(-0.9) * 36); g.stroke();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return t;
+}
+function churchSolid(geo, color) {
+  const mesh = new THREE.Mesh(geo, mkMat({ color }));
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  if (TOON) {
+    if (!geo.attributes.hdir) addHdir(geo);
+    mesh.add(new THREE.Mesh(geo, hullMats().small));
+  }
+  return mesh;
+}
+function churchCone(radius, height, color) {
+  const geo = new THREE.ConeGeometry(radius, height, 8);
+  geo.translate(0, height / 2, 0);
+  const mesh = new THREE.Mesh(geo, mkMat({ color }));
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  if (TOON) mesh.add(new THREE.Mesh(geo, hullMats().norm));
+  return mesh;
+}
+function putBox(parent, w, h, d, color, x, y, z) {
+  const mesh = churchSolid(new THREE.BoxGeometry(w, h, d), color);
+  mesh.position.set(x, y, z); parent.add(mesh); return mesh;
+}
+function buildDominicanChurch(scene, ring, cx, cz) {
+  let best = 0, hx = 0, hz = 1;
+  const n = ring.length / 2;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const dx = ring[j * 2] - ring[i * 2], dz = ring[j * 2 + 1] - ring[i * 2 + 1];
+    const L = Math.hypot(dx, dz);
+    if (L > best) { best = L; hx = dx / L; hz = dz / L; }
+  }
+  const g = new THREE.Group();
+  g.position.set(cx, 0, cz);
+  g.rotation.y = Math.atan2(hx, hz);
+  const wall = 0xf4efe4, roof = 0xc8442f, dark = 0x2a211c, stone = 0xd7c6a8;
+  putBox(g, 11.5, 8.2, 22, wall, 0, 4.1, 2);
+  const naveRoof = churchCone(6.4, 4.2, roof); naveRoof.scale.set(1, 1, 2.15); naveRoof.position.set(0, 8.2, 2); g.add(naveRoof);
+  putBox(g, 6.6, 18.5, 6.6, wall, 0, 9.25, -11.2);
+  putBox(g, 7.1, 0.7, 7.1, stone, 0, 18.6, -11.2);
+  for (const face of [[0, 0, 1], [0, 0, -1], [1, 0, 0], [-1, 0, 0]]) {
+    putBox(g, face[0] ? 0.35 : 1.7, 2.4, face[2] ? 0.35 : 1.7, dark, face[0] * 3.15, 15.6, -11.2 + face[2] * 3.15);
+  }
+  const faceTex = clockFaceTexture();
+  const faceMat = new THREE.MeshBasicMaterial({ map: faceTex });
+  for (const face of [[0, 0, 1], [0, 0, -1], [1, 0, 0], [-1, 0, 0]]) {
+    const clock = new THREE.Mesh(new THREE.PlaneGeometry(2.15, 2.15), faceMat);
+    clock.position.set(face[0] * 3.32, 12.4, -11.2 + face[2] * 3.32);
+    if (face[0]) clock.rotation.y = face[0] > 0 ? Math.PI / 2 : -Math.PI / 2;
+    if (face[2] < 0) clock.rotation.y = Math.PI;
+    g.add(clock);
+  }
+  const spire = churchCone(2.5, 8.4, roof); spire.position.set(0, 19.1, -11.2); g.add(spire);
+  putBox(g, 0.28, 2.4, 0.28, dark, 0, 28.2, -11.2);
+  putBox(g, 1.5, 0.22, 0.22, dark, 0, 29.1, -11.2);
+  putBox(g, 2.2, 3.4, 0.28, dark, 0, 1.7, -7.8);
+  putBox(g, 1.15, 1.5, 0.2, 0x8ec5ea, -3.2, 4.6, -8.9);
+  putBox(g, 1.15, 1.5, 0.2, 0x8ec5ea, 3.2, 4.6, -8.9);
+  scene.add(g);
+  W.visObjects.push({ obj: g, x: cx, z: cz, r: 28, bias: 120 });
+  W.landmarkChurch = { name: 'Kościół Wniebowzięcia NMP', x: cx, z: cz, h: 34, landmark: 'kosciol-wniebowziecia' };
+}
+
 
 // ======================= ENTITIES =======================
 function box(w, h, d, color, x, y, z, mat) {
@@ -2229,6 +2367,8 @@ function makeWalker(opt = {}) {
   else if (style === 'pony') specs.push([0.32, 0.12, 0.32, 0, 1.88, 0, hair], [0.12, 0.34, 0.12, 0, 1.5, -0.18, hair]);
   else if (style === 'cap') specs.push([0.28, 0.06, 0.28, 0, 1.84, 0, hair], [0.42, 0.1, 0.46, 0, 1.96, 0.06, accent]);
   else specs.push([0.34, 0.16, 0.34, 0, 1.9, 0, hair]);
+  const comicWalker = !!opt.comic;
+  if (comicWalker) specs.push([0.56, 0.1, 0.32, 0, 1.5, 0.04, 0xf7f1e4]);
   if (opt.jacket) specs.push([0.58, 0.48, 0.34, 0, 1.26, 0.02, opt.jacket]);
   if (opt.skirt) specs.push([0.56, 0.36, 0.4, 0, 0.9, 0, pants]);
   if (opt.bag) specs.push([0.24, 0.3, 0.14, 0, 1.28, -0.22, opt.bag === true ? accent : opt.bag]);
@@ -2676,12 +2816,12 @@ async function init() {
   sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -130; sc.right = 130; sc.top = 130; sc.bottom = -130; sc.near = 10; sc.far = 600; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.05;
   headlight = new THREE.SpotLight(0xfff2d0, 0, 90, 0.55, 0.5, 1.2); scene.add(headlight); scene.add(headlight.target);
 
-  player = { x: 0, z: 0, y: 0, vy: 0, h: 0, mesh: makeWalker({ hairStyle: 'short', bag: 0xe8503a }), speed: 0, onGround: true };
+  player = { x: 0, z: 0, y: 0, vy: 0, h: 0, mesh: makeWalker({ comic: true, hairStyle: 'cap', shirt: 0xf6d34a, jacket: 0xe8503a, pants: 0x243056, bag: 0xf7f1e4 }), speed: 0, onGround: true };
   scene.add(player.mesh);
   spawnAtRynek();
   spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions(); initGarages(); initDriveFx();
   applyTime(); applyQuality();
-  initMinimap(); initBigMap(); initInput(); initRadio(); initMenu(); initNav(); if (typeof initRange === 'function') initRange();
+  initMinimap(); initBigMap(); initInput(); initRadio(); if (typeof initAmbience === 'function') initAmbience(); initMenu(); initNav(); if (typeof initRange === 'function') initRange();
   window.addEventListener('resize', onResize); onResize();
   setLoad(1, 'Gotowe!');
   $('loading').classList.add('hidden'); $('menu').classList.remove('hidden');
@@ -2737,7 +2877,7 @@ function enterExit() {
     if (best.ai) carjack(best); else if (best.police) { if (best.pai) policeLeave(best); crime('carjack'); toast('Kradniesz radiowóz!', 1600); }
     if (best.rider) best.rider.visible = true;
     activeCar = best; G.mode = 'car'; player.mesh.visible = false; G.yaw = best.h;
-    $('speedo').classList.remove('hidden'); $('touch').classList.add('incar'); $('tEnter').textContent = 'WYSIĄDŹ';
+    $('speedo').classList.remove('hidden'); $('touch').classList.add('incar'); $('tEnter').textContent = 'Wysiądź';
     return true;
   }
   const c = activeCar; if (c.speed > 4) { toast('Zwolnij, aby wysiąść'); return false; }
@@ -2747,7 +2887,7 @@ function enterExit() {
   if (insideBuilding(px, pz, 0.5)) { [px, pz] = findFree(c.x - fx * 3.5, c.z - fz * 3.5, 0.6); }
   player.x = px; player.z = pz; player.y = groundH(px, pz); player.h = c.h; player.mesh.visible = true;
   c.vx = c.vz = 0; activeCar = null; G.mode = 'foot'; if (c.rider) c.rider.visible = false;
-  $('speedo').classList.add('hidden'); $('touch').classList.remove('incar'); $('tEnter').textContent = 'WSIĄDŹ';
+  $('speedo').classList.add('hidden'); $('touch').classList.remove('incar'); $('tEnter').textContent = 'Wsiądź';
   return true;
 }
 
@@ -2926,21 +3066,29 @@ function updateCamera(dt) {
     dist = G.camZoom ? 6 : 9.5 + c.speed * 0.06; height = G.camZoom ? 2.4 : 3.4;
     if (!G.mouseLooking) { let d = c.h - G.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); G.yaw += d * Math.min(1, dt * 3.2); }
   } else {
-    tx = player.x; tz = player.z; ty = player.y + 1.6; dist = G.camZoom ? 2.8 : 5.2; height = 0;
+    tx = player.x; tz = player.z; ty = player.y + 1.6; dist = G.camZoom ? 3.6 : 5.6; height = 0.35;
   }
   const cp = Math.cos(G.pitch), sp = Math.sin(G.pitch);
   let px = tx - Math.sin(G.yaw) * dist * cp, pz = tz - Math.cos(G.yaw) * dist * cp, py = ty + height - sp * dist;
   if (G.mode === 'car') py = ty + height - sp * dist * 0.5;
-  // pull camera in when a building is in the way
-  const steps = 8; let lastOk = 1;
-  for (let i = 1; i <= steps; i++) { const t = i / steps; const sx = lerp(tx, px, t), sz = lerp(tz, pz, t); const sy = lerp(ty, py, t); const b = insideBuildingH(sx, sz, sy); if (b) { lastOk = Math.max(0.15, (i - 1) / steps); break; } }
-  px = lerp(tx, px, lastOk); pz = lerp(tz, pz, lastOk); py = Math.max(groundH(px, pz) + 0.4, lerp(ty, py, lastOk));
+  // camPull: chase camera only (no first person). Pull in when a building sits between the lens and the player.
+  const steps = 16; let lastOk = 1;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps; const sx = lerp(tx, px, t), sz = lerp(tz, pz, t), sy = lerp(ty + 0.3, py, t);
+    if (camBlocked(sx, sz, sy)) { lastOk = Math.max(0.08, (i - 1) / steps * 0.92); break; }
+  }
+  px = lerp(tx, px, lastOk); pz = lerp(tz, pz, lastOk); py = Math.max(groundH(px, pz) + 0.45, lerp(ty, py, lastOk));
   camPos.set(px, py, pz);
   if (G.mode === 'car') camera.position.lerp(camPos, Math.min(1, dt * 10)); else camera.position.copy(camPos);
   camLook.set(tx, ty + (G.mode === 'car' ? 0.4 : 0.1), tz);
   camera.lookAt(camLook);
   if (G.shake > 0.001) { const k = G.shake * G.shake * 0.35; camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; camera.position.z += (Math.random() - 0.5) * k; camera.rotation.z += (Math.random() - 0.5) * k * 0.06; G.shake = Math.max(0, G.shake - dt * 2.2); }
   const fov = 65 + (G.mode === 'car' && activeCar && activeCar.nitroOn ? 7 : 0); if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 5); camera.updateProjectionMatrix(); }
+}
+function camBlocked(x, z, y) {
+  if (insideBuildingH(x, z, y)) return true;
+  const o = 0.42;
+  return insideBuildingH(x + o, z, y) || insideBuildingH(x - o, z, y) || insideBuildingH(x, z + o, y) || insideBuildingH(x, z - o, y);
 }
 function insideBuildingH(x, z, y) {
   const a = W.bCells.get(Math.floor(x / 32) * 100000 + Math.floor(z / 32)); if (!a) return false;
@@ -2978,8 +3126,10 @@ function loop() {
     updateEgg(dt); updateMissions(dt); updateNav(dt); updateGarages(dt); updateDriveFx(dt); if (typeof updateRange === 'function') updateRange(dt);
     const eh = G.inRange ? null : (eggHint() || missionHint() || (typeof rangeHint === 'function' ? rangeHint() : null) || garageHint() || shopHint());
     const near = G.mode === 'foot' && cars.some((c) => Math.hypot(c.x - player.x, c.z - player.z) < 3.8);
-    hint(eh || (near ? (isTouch ? 'Naciśnij WSIĄDŹ' : 'Naciśnij E, aby wsiąść') : ''));
-    if (G.mode === 'foot') { const lbl = eh ? (nearEggButton() ? 'TELEPORT' : 'AKCJA') : 'WSIĄDŹ'; if (G.tLbl !== lbl) { G.tLbl = lbl; $('tEnter').textContent = lbl; } } else G.tLbl = '';
+    const ride = (!eh && !near && typeof rideHint === 'function') ? rideHint() : '';
+    hint(eh || (near ? (isTouch ? 'Naciśnij Wsiądź' : 'Naciśnij E albo F, aby wsiąść') : '') || ride);
+    const lbl = G.mode === 'foot' ? (eh ? (nearEggButton() ? 'TELEPORT' : 'AKCJA') : 'Wsiądź') : 'Wysiądź';
+    if (G.tLbl !== lbl) { G.tLbl = lbl; $('tEnter').textContent = lbl; }
   }
   engineTick(rawDt);
   G.updMs = (G.updMs || 0) * 0.95 + (performance.now() - tU) * 0.05;
@@ -2995,6 +3145,7 @@ function loop() {
   visT -= dt; if (visT <= 0) { visT = 0.25; updateVisibility(); }
   if (typeof updateBlobs === 'function') updateBlobs();
   updateRadio(dt);
+  if (typeof updateAmbience === 'function') updateAmbience(dt);
   renderFrame();
   fpsAcc += Math.min(rawDt, 1); fpsN++; if (fpsAcc > 0.5) { G.fps = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; if (settings.fps) $('fps').textContent = G.fps + ' FPS · ' + renderer.info.render.calls + ' dc'; }
   if (G.started) { hudT -= dt; if (hudT <= 0) { hudT = 0.25; updateStreet(); } drawMinimap(); if (G.mode === 'car') drawSpeedo(); }
@@ -4241,7 +4392,7 @@ function wasted() {
   const fee = Math.min(SAVE.money, 75 + Math.round(SAVE.money * 0.05));
   if (typeof missionFail === 'function') missionFail('Auto wybuchło');
   G.cut = { t: 2.4, fn: () => {
-    const c = activeCar; if (typeof ownWrecked === 'function') ownWrecked(c); if (c) { activeCar = null; G.mode = 'foot'; player.mesh.visible = true; if (c.rider) c.rider.visible = false; $('speedo').classList.add('hidden'); $('touch').classList.remove('incar'); $('tEnter').textContent = 'WSIĄDŹ'; }
+    const c = activeCar; if (typeof ownWrecked === 'function') ownWrecked(c); if (c) { activeCar = null; G.mode = 'foot'; player.mesh.visible = true; if (c.rider) c.rider.visible = false; $('speedo').classList.add('hidden'); $('touch').classList.remove('incar'); $('tEnter').textContent = 'Wsiądź'; }
     setStars(0); clearPolice(); if (fee) addMoney(-fee, 'rachunek ze szpitala'); respawnAt(PLACES.szpital, 'Szpital – poskładali cię jak nowego');
   } };
 }
@@ -4822,6 +4973,13 @@ function missionHint() {
   if (MIS.active) return null; const m = nearGiver(); if (!m) return null;
   return (isTouch ? 'Dotknij AKCJA' : 'E') + ': porozmawiaj – ' + m.who + ' (' + m.name + ')';
 }
+function rideHint() {
+  const m = MIS.active;
+  if (!m || G.mode !== 'foot' || !m.car) return '';
+  const o = m.obj || '';
+  if (!/Wsiądź|Wróć/.test(o)) return '';
+  return 'Wsiądź do pojazdu, żeby jechać dalej.';
+}
 function missionAction() { const m = nearGiver(); if (!m) return false; dialogOpen(m); return true; }
 function dialogOpen(m) {
   MIS.dlg = m; G.paused = true; G.dialogOpen = true; if (document.pointerLockElement) document.exitPointerLock();
@@ -5253,7 +5411,7 @@ function leaveCarQuiet() { const c = activeCar; if (!c) return; c.vx = c.vz = 0;
 function enterCarDirect(c) {
   if (G.mode === 'car') leaveCarQuiet();
   activeCar = c; G.mode = 'car'; player.mesh.visible = false; G.yaw = c.h; c.vx = c.vz = 0;
-  $('speedo').classList.remove('hidden'); $('touch').classList.add('incar'); $('tEnter').textContent = 'WYSIĄDŹ';
+  $('speedo').classList.remove('hidden'); $('touch').classList.add('incar'); $('tEnter').textContent = 'Wysiądź';
 }
 function spawnOwn(rec, p) {
   if (GAR.own) removeOwn();
@@ -6252,7 +6410,7 @@ function bindJournal() {
 // ---- samouczek
 const TUTOR = [
   { h: 'Ruszaj', p: 'Komputer: WASD albo strzałki, mysz rozgląda się po kliknięciu w ekran. Telefon: lewy joystick to ruch, przeciąganie prawej strony obraca kamerę. Shift / BIEG to bieg, w aucie nitro (gdy je masz).' },
-  { h: 'Auto, mapa, GPS', p: 'E albo WSIĄDŹ – wsiądź i wysiądź. M otwiera mapę: klik przenosi (gdy nie goni cię policja), przycisk GPS rysuje trasę po ulicach. Trasa omija budynki i wodę. G albo „Anuluj GPS” kasuje wyznaczony cel. Cel misji ustawia się sam przy kolejnym etapie.' },
+  { h: 'Auto, mapa, GPS', p: 'E, F albo Wsiądź – wsiądź i wysiądź. Pieszo: WASD i Shift (bieg), na telefonie joystick i BIEG. M albo minimapa otwiera dużą mapę: przeciągnij, uszczypnij albo kółko, żeby przybliżyć. Dotknięcie punktu ustawia GPS. Lista po prawej nadal teleportuje. G albo „Anuluj GPS” kasuje cel.' },
   { h: 'Misje i dziennik', p: 'Świecące „!” to zleceniodawcy. Dziennik (J albo 📒) ma zakładki Aktywna, Dostępne i Ukończone: kroki, nagroda, rekord. Można przyjąć, przerwać i jechać od nowa. Zegar misji stoi, gdy dziennik albo mapa jest otwarta.' },
   { h: 'Policja, garaż, radio', p: 'Gwiazdki za potrącenie, taran radiowozu, kradzież i pędzenie obok policji. Zgub pościg albo wpadnij do lakierni. Niebieskie G to garaż i tuning. Q / R zmienia stację (Antyradio, Jazz Kultura, Opera, Radio Leliwa). T wycisza. Gdy stacja milczy, radio samo bierze następną. Ten samouczek włączysz ponownie z menu.' },
 ];
@@ -6285,6 +6443,7 @@ function bindTutor() {
 function bindMapGps() {
   const mode = $('mapGpsMode'); const clr = $('mapGpsClear');
   if (mode) mode.onclick = () => { BM.gpsClick = !BM.gpsClick; mode.textContent = BM.gpsClick ? 'Klik: GPS' : 'Klik: teleport'; mode.classList.toggle('on', !!BM.gpsClick); };
+  if (mode && BM.gpsClick) { mode.textContent = 'Klik: GPS'; mode.classList.add('on'); }
   if (clr) clr.onclick = () => { navClear(); toast('GPS wyłączony', 1200); if (BM.c) drawBigMap(); };
 }
 
@@ -6695,6 +6854,70 @@ function drawRangeMinimap(g, sc) {
   g.fillStyle = '#2a211c'; g.font = 'bold ' + (9 / sc) + 'px sans-serif'; g.textAlign = 'center'; g.fillText('S', RANGE.px, RANGE.pz + 1 / sc);
 }
 
+// AMBIENCE-CITY + FOOTSTEP. Synteza WebAudio (szum przefiltrowany), bez pobieranych próbek.
+// Szum miasta cichnie, gdy gra radio. Kroki zostają. Głośność z suwaka efektów (0 = cisza).
+const AMB = { ac: null, city: null, stepBuf: null, stepFilter: null, stepT: 0, unlocked: false };
+function initAmbience() {
+  const kick = () => ambUnlock();
+  addEventListener('pointerdown', kick, { passive: true });
+  addEventListener('keydown', kick);
+}
+function ambUnlock() {
+  if (AMB.unlocked) { if (AMB.ac && AMB.ac.state === 'suspended') AMB.ac.resume(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  let ac;
+  try { ac = new AC(); } catch (e) { return; }
+  AMB.ac = ac; AMB.unlocked = true;
+  const n = ac.sampleRate * 2;
+  const buf = ac.createBuffer(1, n, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  let b0 = 0, b1 = 0;
+  for (let i = 0; i < n; i++) {
+    const w = Math.random() * 2 - 1;
+    b0 = b0 * 0.995 + w * 0.005;
+    b1 = b1 * 0.92 + w * 0.08;
+    d[i] = b0 * 0.85 + b1 * 0.12;
+  }
+  const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380;
+  const g = ac.createGain(); g.gain.value = 0;
+  src.connect(lp); lp.connect(g); g.connect(ac.destination); src.start();
+  AMB.city = g;
+  const sn = Math.floor(ac.sampleRate * 0.07);
+  const sb = ac.createBuffer(1, sn, ac.sampleRate);
+  const sd = sb.getChannelData(0);
+  for (let i = 0; i < sn; i++) sd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ac.sampleRate * 0.012));
+  AMB.stepBuf = sb;
+  const bp = ac.createBiquadFilter(); bp.type = 'lowpass'; bp.frequency.value = 220;
+  bp.connect(ac.destination);
+  AMB.stepFilter = bp;
+  if (ac.state === 'suspended') ac.resume();
+}
+function ambSfx() { return settings.sfxVol == null ? 0.7 : settings.sfxVol; }
+function ambFoot(loud) {
+  const ac = AMB.ac; if (!ac || !AMB.stepBuf) return;
+  const s = ac.createBufferSource(); s.buffer = AMB.stepBuf;
+  const g = ac.createGain();
+  const v = Math.max(0.001, ambSfx() * loud);
+  g.gain.setValueAtTime(v, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.07);
+  s.connect(g); g.connect(AMB.stepFilter); s.start(); s.stop(ac.currentTime + 0.09);
+}
+function updateAmbience(dt) {
+  if (!AMB.ac || !AMB.city) return;
+  const sfx = ambSfx();
+  const cityOn = G.started && !G.paused && sfx > 0.001 && !(RADIO && RADIO.playing);
+  const target = cityOn ? sfx * 0.16 : 0;
+  AMB.city.gain.setTargetAtTime(target, AMB.ac.currentTime, 0.12);
+  if (!(G.started && !G.paused) || G.mode !== 'foot' || !player.onGround || player.speed < 0.45 || sfx <= 0.001) return;
+  AMB.stepT -= dt;
+  if (AMB.stepT > 0) return;
+  const run = player.speed > 6.2;
+  AMB.stepT = run ? 0.28 : 0.46;
+  ambFoot(run ? 0.42 : 0.26);
+}
+
 
 // ======================= HUD =======================
 function updateStreet() {
@@ -6718,6 +6941,8 @@ function updateStreet() {
 const MM = {};
 function initMinimap() {
   MM.c = $('minimap'); MM.g = MM.c.getContext('2d');
+  const wrap = $('minimapWrap');
+  if (wrap) wrap.addEventListener('click', (e) => { e.stopPropagation(); openMap(); });
   // spatial grid of features for fast minimap drawing
   MM.cell = 120; MM.grid = new Map();
   const add = (x0, z0, x1, z1, item) => {
@@ -6750,6 +6975,11 @@ function drawMinimap() {
   g.fillStyle = '#c6b8a6'; for (const it of items[3]) { poly(it.p); g.closePath(); g.fill(); }
   for (const it of items[2]) { g.strokeStyle = it.major ? '#ffd76a' : '#ffffff'; g.lineWidth = Math.max(it.w * 1.2, 3 / sc); poly(it.p); g.stroke(); }
   drawEggMinimap(g, sc);
+  g.fillStyle = '#e8503a';
+  for (const p of MAP_PINS) {
+    if (Math.hypot(p[1] - x, p[2] - z) > R * 0.92) continue;
+    g.beginPath(); g.arc(p[1], p[2], 6 / sc, 0, 7); g.fill();
+  }
   if (typeof drawNavOverlay === 'function') drawNavOverlay(g, sc);
   // cars
   for (const c of cars) { if (c === activeCar || !c.g.visible || c.police) continue; g.fillStyle = c.mission ? '#ffd21f' : c.ai ? '#6c6c74' : '#d33'; g.save(); g.translate(c.x, c.z); g.rotate(-c.h); g.fillRect(-1.2, -2.3, 2.4, 4.6); g.restore(); }
@@ -6775,7 +7005,13 @@ function drawSpeedo() {
 }
 
 // ---------- big map
-const BM = {};
+const BM = { gpsClick: true };
+const MAP_PINS = [
+  ['Pomnik Głowackiego', 50, -21, '#e8503a'],
+  ['The Italiana', -119.1, 158.1, '#e2a122'],
+  ['Mokrzyszów', 3419, 750, '#45b65a'],
+  ['Kościół Wniebowzięcia NMP', -84.2, -69.6, '#f4efe4'],
+];
 function initBigMap() {
   const [MINX, MINZ, MAXX, MAXZ] = W.rect; const w = MAXX - MINX, h = MAXZ - MINZ;
   const S = 1400 / Math.max(w, h); BM.s = S; BM.W = Math.round(w * S); BM.H = Math.round(h * S);
@@ -6791,16 +7027,89 @@ function initBigMap() {
   for (const t of order) for (const r of W.roads) { if (r.type !== t) continue; g.strokeStyle = (t === 'secondary' || t === 'primary' || t === 'trunk') ? '#f7c04a' : (t === 'tertiary' ? '#fde08a' : '#ffffff'); g.lineWidth = Math.max(r.width, (t === 'secondary' ? 3.2 : 1.6) / S); poly(r.pts); g.stroke(); }
   BM.base = base;
   const c = $('bigmap'); c.width = BM.W; c.height = BM.H; BM.c = c; BM.g = c.getContext('2d');
+  BM.view = { x: 0, y: 0, s: 1 };
   buildTravelList();
-  c.addEventListener('click', (e) => {
-    const r = c.getBoundingClientRect(); const mx = (e.clientX - r.left) / r.width * BM.W, my = (e.clientY - r.top) / r.height * BM.H;
-    const x = mx / BM.s + MINX, z = my / BM.s + MINZ;
+  const box = $('mapCanvasWrap');
+  const ptrs = new Map();
+  let drag = null, pinch = null;
+  const applyView = () => { c.style.transform = `translate(${BM.view.x}px,${BM.view.y}px) scale(${BM.view.s})`; };
+  const clampView = () => {
+    const pw = box.clientWidth || 300, ph = box.clientHeight || 300;
+    const w = BM.W * BM.view.s, h = BM.H * BM.view.s, m = 70;
+    BM.view.x = clamp(BM.view.x, m - w, pw - m);
+    BM.view.y = clamp(BM.view.y, m - h, ph - m);
+    applyView();
+  };
+  BM.fit = () => {
+    const pw = box.clientWidth || 300, ph = box.clientHeight || 300;
+    const px = G.mode === 'car' && activeCar ? activeCar.x : player.x;
+    const pz = G.mode === 'car' && activeCar ? activeCar.z : player.z;
+    const mx = (px - MINX) * BM.s, my = (pz - MINZ) * BM.s;
+    const fit = Math.min(pw / BM.W, ph / BM.H);
+    BM.view.s = clamp(Math.min(pw, ph) / (2400 * BM.s), fit, 3.2);
+    BM.view.x = pw / 2 - mx * BM.view.s;
+    BM.view.y = ph / 2 - my * BM.view.s;
+    clampView();
+  };
+  const worldAt = (clientX, clientY) => {
+    const r = box.getBoundingClientRect();
+    const lx = clientX - r.left, ly = clientY - r.top;
+    return { x: (lx - BM.view.x) / BM.view.s / BM.s + MINX, z: (ly - BM.view.y) / BM.view.s / BM.s + MINZ };
+  };
+  const pick = (x, z) => {
     if (BM.gpsClick) {
       if (inWater(x, z)) { toast('To jest woda – GPS nie prowadzi przez jezioro', 2000); return; }
       navSet(x, z, 'punkt na mapie', { src: 'place' }); closeMap(); toast('GPS ustawiony', 1400); return;
     }
     teleport(x, z); closeMap(); toast('Teleport', 1200);
+  };
+  box.addEventListener('pointerdown', (e) => {
+    if (e.target.closest && e.target.closest('#travelList')) return;
+    box.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, ox: BM.view.x, oy: BM.view.y, moved: false };
+    if (ptrs.size === 2) {
+      const a = [...ptrs.values()];
+      pinch = { d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1, s: BM.view.s, cx: (a[0].x + a[1].x) / 2, cy: (a[0].y + a[1].y) / 2 };
+      drag = null;
+    }
   });
+  box.addEventListener('pointermove', (e) => {
+    const p = ptrs.get(e.pointerId); if (!p) return; p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size >= 2 && pinch) {
+      const a = [...ptrs.values()];
+      const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1;
+      const rect = box.getBoundingClientRect();
+      const sx = pinch.cx - rect.left, sy = pinch.cy - rect.top;
+      const next = clamp(pinch.s * d / pinch.d, Math.min(rect.width / BM.W, rect.height / BM.H), 4);
+      const k = next / BM.view.s;
+      BM.view.x = sx - (sx - BM.view.x) * k; BM.view.y = sy - (sy - BM.view.y) * k; BM.view.s = next;
+      clampView(); return;
+    }
+    if (!drag) return;
+    if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) drag.moved = true;
+    BM.view.x = drag.ox + (e.clientX - drag.x); BM.view.y = drag.oy + (e.clientY - drag.y); clampView();
+  });
+  const endPtr = (e) => {
+    const was = drag && !drag.moved && ptrs.size === 1;
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (was) { const w = worldAt(e.clientX, e.clientY); pick(w.x, w.z); }
+    if (!ptrs.size) drag = null;
+  };
+  box.addEventListener('pointerup', endPtr);
+  box.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); pinch = null; drag = null; });
+  box.addEventListener('wheel', (e) => {
+    if ($('mapScreen').classList.contains('hidden')) return;
+    e.preventDefault();
+    const rect = box.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    const next = clamp(BM.view.s * (e.deltaY > 0 ? 0.9 : 1.1), Math.min(rect.width / BM.W, rect.height / BM.H), 4);
+    const k = next / BM.view.s;
+    BM.view.x = sx - (sx - BM.view.x) * k; BM.view.y = sy - (sy - BM.view.y) * k; BM.view.s = next;
+    clampView();
+  }, { passive: false });
+  applyView();
 }
 function buildTravelList() {
   const list = $('travelList'); list.innerHTML = '';
@@ -6818,6 +7127,17 @@ function drawBigMap() {
   g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(BM.base, 0, 0);
   g.font = 'bold 15px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   W.travel.forEach((t, i) => { const x = (t[1] - MINX) * S, y = (t[2] - MINZ) * S; g.fillStyle = t[0][0] === '★' ? '#0a8fa8' : '#123'; g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillText(String(i + 1), x, y + 1); });
+  g.font = 'bold 11px Fredoka, system-ui, sans-serif';
+  for (const p of MAP_PINS) {
+    const x = (p[1] - MINX) * S, y = (p[2] - MINZ) * S;
+    g.fillStyle = p[3] || '#e8503a'; g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill();
+    g.lineWidth = 2; g.strokeStyle = '#2a211c'; g.stroke();
+    g.fillStyle = '#1b140f'; g.fillText(p[0], x, y - 10);
+  }
+  if (typeof MIS !== 'undefined') {
+    g.fillStyle = '#ffd21f';
+    for (const m of MIS.list) if (m.giver) { const x = (m.giver[0] - MINX) * S, y = (m.giver[1] - MINZ) * S; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); }
+  }
   g.fillStyle = '#2b4a6b'; g.font = 'bold 22px system-ui, sans-serif';
   for (const w of W.water) if (w.name && Math.abs(ringArea(w.ring)) > 200000) { let cx = 0, cz = 0; const n = w.ring.length / 2; for (let i = 0; i < w.ring.length; i += 2) { cx += w.ring[i]; cz += w.ring[i + 1]; } g.fillText(w.name, (cx / n - MINX) * S, (cz / n - MINZ) * S); }
   g.save(); g.setTransform(S, 0, 0, S, -MINX * S, -MINZ * S); drawMissionMinimap(g, S * 1.6); if (typeof drawNavOverlay === 'function') drawNavOverlay(g, S); g.restore();
@@ -6825,7 +7145,13 @@ function drawBigMap() {
   g.save(); g.translate((px - MINX) * S, (pz - MINZ) * S); g.rotate(Math.PI - ph); g.fillStyle = '#ff3b30'; g.strokeStyle = '#fff'; g.lineWidth = 3;
   g.beginPath(); g.moveTo(0, -16); g.lineTo(11, 12); g.lineTo(0, 6); g.lineTo(-11, 12); g.closePath(); g.fill(); g.stroke(); g.restore();
 }
-function openMap() { if (!G.started) return; drawBigMap(); $('mapScreen').classList.remove('hidden'); G.paused = true; G.mapOpen = true; if (document.pointerLockElement) document.exitPointerLock(); }
+function openMap() {
+  if (!G.started) return;
+  drawBigMap(); $('mapScreen').classList.remove('hidden'); G.paused = true; G.mapOpen = true;
+  if (document.pointerLockElement) document.exitPointerLock();
+  const fitNow = () => { if (BM.fit) BM.fit(); };
+  requestAnimationFrame(() => requestAnimationFrame(fitNow));
+}
 function closeMap() { $('mapScreen').classList.add('hidden'); G.mapOpen = false; G.paused = false; clock.getDelta(); }
 
 // ======================= INPUT =======================
@@ -6927,6 +7253,13 @@ function initMenu() {
 
 Object.assign(G, {
   teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE,
+  cam: () => {
+    let best = null;
+    const px = G.mode === 'car' && activeCar ? activeCar.x : player.x;
+    const pz = G.mode === 'car' && activeCar ? activeCar.z : player.z;
+    for (const c of cars) { if (!c.g.visible) continue; const d = Math.hypot(c.x - px, c.z - pz); if (!best || d < best.d) best = { x: c.x, z: c.z, d }; }
+    return { x: camera.position.x, y: camera.position.y, z: camera.position.z, inB: insideBuildingH(camera.position.x, camera.position.z, camera.position.y), px, pz, near: best };
+  },
   radioStep, radioPower, radioPlay, radioStop, setStars, crime, busted, wasted, damageCar, missionStart: (id) => missionStart(MIS.list.find((m) => m.id === id)), missionEnd, addMoney,
   traffic: () => ({ agents: TR.agents.length, pool: TR.pool.length, peds: TR.peds.filter((p) => p.on).length, pedList: TR.peds.filter((p) => p.on).map((p) => ({ x: p.x, z: p.z, h: p.h, look: p.look, fit: p.fit })), nodes: TR.nodes.length, edges: TR.edges.length, zebras: W.zebras || 0, moved: TR.stats.moved, spawned: TR.stats.spawned, cars: cars.length,
     list: TR.agents.map((c) => ({ x: c.x, z: c.z, h: c.h, v: c.ai ? c.ai.v : 0, e: c.ai ? c.ai.e : -1, mode: c.ai ? c.ai.mode : '' })) }),

@@ -64,12 +64,12 @@ async function init() {
   sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -130; sc.right = 130; sc.top = 130; sc.bottom = -130; sc.near = 10; sc.far = 600; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.05;
   headlight = new THREE.SpotLight(0xfff2d0, 0, 90, 0.55, 0.5, 1.2); scene.add(headlight); scene.add(headlight.target);
 
-  player = { x: 0, z: 0, y: 0, vy: 0, h: 0, mesh: makeWalker({ hairStyle: 'short', bag: 0xe8503a }), speed: 0, onGround: true };
+  player = { x: 0, z: 0, y: 0, vy: 0, h: 0, mesh: makeWalker({ comic: true, hairStyle: 'cap', shirt: 0xf6d34a, jacket: 0xe8503a, pants: 0x243056, bag: 0xf7f1e4 }), speed: 0, onGround: true };
   scene.add(player.mesh);
   spawnAtRynek();
   spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions(); initGarages(); initDriveFx();
   applyTime(); applyQuality();
-  initMinimap(); initBigMap(); initInput(); initRadio(); initMenu(); initNav(); if (typeof initRange === 'function') initRange();
+  initMinimap(); initBigMap(); initInput(); initRadio(); if (typeof initAmbience === 'function') initAmbience(); initMenu(); initNav(); if (typeof initRange === 'function') initRange();
   window.addEventListener('resize', onResize); onResize();
   setLoad(1, 'Gotowe!');
   $('loading').classList.add('hidden'); $('menu').classList.remove('hidden');
@@ -125,7 +125,7 @@ function enterExit() {
     if (best.ai) carjack(best); else if (best.police) { if (best.pai) policeLeave(best); crime('carjack'); toast('Kradniesz radiowóz!', 1600); }
     if (best.rider) best.rider.visible = true;
     activeCar = best; G.mode = 'car'; player.mesh.visible = false; G.yaw = best.h;
-    $('speedo').classList.remove('hidden'); $('touch').classList.add('incar'); $('tEnter').textContent = 'WYSIĄDŹ';
+    $('speedo').classList.remove('hidden'); $('touch').classList.add('incar'); $('tEnter').textContent = 'Wysiądź';
     return true;
   }
   const c = activeCar; if (c.speed > 4) { toast('Zwolnij, aby wysiąść'); return false; }
@@ -135,7 +135,7 @@ function enterExit() {
   if (insideBuilding(px, pz, 0.5)) { [px, pz] = findFree(c.x - fx * 3.5, c.z - fz * 3.5, 0.6); }
   player.x = px; player.z = pz; player.y = groundH(px, pz); player.h = c.h; player.mesh.visible = true;
   c.vx = c.vz = 0; activeCar = null; G.mode = 'foot'; if (c.rider) c.rider.visible = false;
-  $('speedo').classList.add('hidden'); $('touch').classList.remove('incar'); $('tEnter').textContent = 'WSIĄDŹ';
+  $('speedo').classList.add('hidden'); $('touch').classList.remove('incar'); $('tEnter').textContent = 'Wsiądź';
   return true;
 }
 
@@ -314,21 +314,29 @@ function updateCamera(dt) {
     dist = G.camZoom ? 6 : 9.5 + c.speed * 0.06; height = G.camZoom ? 2.4 : 3.4;
     if (!G.mouseLooking) { let d = c.h - G.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); G.yaw += d * Math.min(1, dt * 3.2); }
   } else {
-    tx = player.x; tz = player.z; ty = player.y + 1.6; dist = G.camZoom ? 2.8 : 5.2; height = 0;
+    tx = player.x; tz = player.z; ty = player.y + 1.6; dist = G.camZoom ? 3.6 : 5.6; height = 0.35;
   }
   const cp = Math.cos(G.pitch), sp = Math.sin(G.pitch);
   let px = tx - Math.sin(G.yaw) * dist * cp, pz = tz - Math.cos(G.yaw) * dist * cp, py = ty + height - sp * dist;
   if (G.mode === 'car') py = ty + height - sp * dist * 0.5;
-  // pull camera in when a building is in the way
-  const steps = 8; let lastOk = 1;
-  for (let i = 1; i <= steps; i++) { const t = i / steps; const sx = lerp(tx, px, t), sz = lerp(tz, pz, t); const sy = lerp(ty, py, t); const b = insideBuildingH(sx, sz, sy); if (b) { lastOk = Math.max(0.15, (i - 1) / steps); break; } }
-  px = lerp(tx, px, lastOk); pz = lerp(tz, pz, lastOk); py = Math.max(groundH(px, pz) + 0.4, lerp(ty, py, lastOk));
+  // camPull: chase camera only (no first person). Pull in when a building sits between the lens and the player.
+  const steps = 16; let lastOk = 1;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps; const sx = lerp(tx, px, t), sz = lerp(tz, pz, t), sy = lerp(ty + 0.3, py, t);
+    if (camBlocked(sx, sz, sy)) { lastOk = Math.max(0.08, (i - 1) / steps * 0.92); break; }
+  }
+  px = lerp(tx, px, lastOk); pz = lerp(tz, pz, lastOk); py = Math.max(groundH(px, pz) + 0.45, lerp(ty, py, lastOk));
   camPos.set(px, py, pz);
   if (G.mode === 'car') camera.position.lerp(camPos, Math.min(1, dt * 10)); else camera.position.copy(camPos);
   camLook.set(tx, ty + (G.mode === 'car' ? 0.4 : 0.1), tz);
   camera.lookAt(camLook);
   if (G.shake > 0.001) { const k = G.shake * G.shake * 0.35; camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; camera.position.z += (Math.random() - 0.5) * k; camera.rotation.z += (Math.random() - 0.5) * k * 0.06; G.shake = Math.max(0, G.shake - dt * 2.2); }
   const fov = 65 + (G.mode === 'car' && activeCar && activeCar.nitroOn ? 7 : 0); if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 5); camera.updateProjectionMatrix(); }
+}
+function camBlocked(x, z, y) {
+  if (insideBuildingH(x, z, y)) return true;
+  const o = 0.42;
+  return insideBuildingH(x + o, z, y) || insideBuildingH(x - o, z, y) || insideBuildingH(x, z + o, y) || insideBuildingH(x, z - o, y);
 }
 function insideBuildingH(x, z, y) {
   const a = W.bCells.get(Math.floor(x / 32) * 100000 + Math.floor(z / 32)); if (!a) return false;
@@ -366,8 +374,10 @@ function loop() {
     updateEgg(dt); updateMissions(dt); updateNav(dt); updateGarages(dt); updateDriveFx(dt); if (typeof updateRange === 'function') updateRange(dt);
     const eh = G.inRange ? null : (eggHint() || missionHint() || (typeof rangeHint === 'function' ? rangeHint() : null) || garageHint() || shopHint());
     const near = G.mode === 'foot' && cars.some((c) => Math.hypot(c.x - player.x, c.z - player.z) < 3.8);
-    hint(eh || (near ? (isTouch ? 'Naciśnij WSIĄDŹ' : 'Naciśnij E, aby wsiąść') : ''));
-    if (G.mode === 'foot') { const lbl = eh ? (nearEggButton() ? 'TELEPORT' : 'AKCJA') : 'WSIĄDŹ'; if (G.tLbl !== lbl) { G.tLbl = lbl; $('tEnter').textContent = lbl; } } else G.tLbl = '';
+    const ride = (!eh && !near && typeof rideHint === 'function') ? rideHint() : '';
+    hint(eh || (near ? (isTouch ? 'Naciśnij Wsiądź' : 'Naciśnij E albo F, aby wsiąść') : '') || ride);
+    const lbl = G.mode === 'foot' ? (eh ? (nearEggButton() ? 'TELEPORT' : 'AKCJA') : 'Wsiądź') : 'Wysiądź';
+    if (G.tLbl !== lbl) { G.tLbl = lbl; $('tEnter').textContent = lbl; }
   }
   engineTick(rawDt);
   G.updMs = (G.updMs || 0) * 0.95 + (performance.now() - tU) * 0.05;
@@ -383,6 +393,7 @@ function loop() {
   visT -= dt; if (visT <= 0) { visT = 0.25; updateVisibility(); }
   if (typeof updateBlobs === 'function') updateBlobs();
   updateRadio(dt);
+  if (typeof updateAmbience === 'function') updateAmbience(dt);
   renderFrame();
   fpsAcc += Math.min(rawDt, 1); fpsN++; if (fpsAcc > 0.5) { G.fps = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; if (settings.fps) $('fps').textContent = G.fps + ' FPS · ' + renderer.info.render.calls + ' dc'; }
   if (G.started) { hudT -= dt; if (hudT <= 0) { hudT = 0.25; updateStreet(); } drawMinimap(); if (G.mode === 'car') drawSpeedo(); }
