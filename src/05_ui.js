@@ -336,14 +336,11 @@ Object.assign(G, {
   libs: () => ({
     kits: Object.keys(KIT),
     kay: Object.keys(KAY),
-    bus: !!(typeof MESH !== 'undefined' && MESH.bus),
     bvh: typeof BVH !== 'undefined' ? { built: BVH.built, chunks: BVH.list.length, dropped: BVH.dropped } : null,
     yuka: typeof Vehicle === 'function',
     yukaPeds: typeof TR !== 'undefined' ? TR.peds.filter((p) => p._yv).length : 0,
     yukaCars: typeof TR !== 'undefined' ? TR.agents.filter((c) => c._yv).length : 0,
     nipple: typeof nipplejs !== 'undefined' && !!nipplejs.create,
-    meshopt: typeof MeshoptDecoder !== 'undefined',
-    paint: KIT.khatch && KIT.khatch.geo.userData.tags ? Array.from(KIT.khatch.geo.userData.tags).filter((t) => t === 1).length : 0,
   }),
   cam: () => {
     let best = null;

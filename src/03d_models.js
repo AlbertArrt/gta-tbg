@@ -53,12 +53,21 @@ function buildKitBody(c, color) {
 }
 function buildBusBody(c, color) {
   c.bus = true; c.offs = [-3.3, -1.15, 1.15, 3.3]; c.rad = 1.22;
-  const B = c.body;
-  // MESHOPT bus body (same boxes, packed by glTF-Transform). Lamps and wheels stay live.
-  c.geo = MESH.bus ? MESH.bus.clone() : new THREE.BoxGeometry(2.3, 2.2, 8);
-  if (MESH.bus) { c.geo.userData.tags = MESH.bus.userData.tags; recolorTag(c.geo, 1, color); }
+  const B = c.body, DK = '#2a211c', GL = TOON ? '#41678c' : '#223344';
+  const specs = [
+    [2.35, 1.05, 8.2, 0, 1.02, 0, color, 1],
+    [2.22, 0.85, 7.15, 0, 1.88, -0.2, GL],
+    [2.4, 0.26, 8.28, 0, 2.42, -0.05, color, 1],
+    [1.7, 0.2, 0.08, 0, 2.54, 3.9, '#f6c431', 2],
+    [0.06, 1.45, 0.95, 1.18, 1.14, 1.45, '#3a322c'],
+    [0.06, 1.45, 0.95, 1.18, 1.14, 2.55, '#3a322c'],
+    [2.42, 0.2, 0.16, 0, 0.42, 4.14, DK],
+    [2.42, 0.2, 0.16, 0, 0.42, -4.14, DK],
+    [2.38, 0.12, 8.22, 0, 0.82, 0, '#f4f1ea', 2],
+  ];
+  c.geo = mergeBoxes(specs);
   const bm = new THREE.Mesh(c.geo, carMat()); bm.castShadow = true; B.add(bm); c.bodyMesh = bm;
-  if (TOON) { c.hull = new THREE.Mesh(c.geo, hullMats().norm); B.add(c.hull); }
+  if (TOON) { c.hull = new THREE.Mesh(c.geo, hullMats().box); B.add(c.hull); }
   lampMats(c);
   addLamps(c,
     [[0.28, 0.16, 0.06, -0.7, 0.7, 4.18], [0.28, 0.16, 0.06, 0.7, 0.7, 4.18]],

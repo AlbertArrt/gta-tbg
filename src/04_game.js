@@ -55,8 +55,6 @@ async function init() {
   camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.3, 2000);
   setLoad(0.05, 'Wczytywanie danych OpenStreetMap…');
   const data = await loadData();
-  setLoad(0.12, 'Modele…'); await nextFrame();
-  if (typeof decodeMeshoptAssets === 'function') await decodeMeshoptAssets();
   setLoad(0.15, 'Teren i zieleń…'); await nextFrame();
   await buildWorld(data, scene, renderer);
   W.treeDensity = QUALITY[settings.quality].trees;
