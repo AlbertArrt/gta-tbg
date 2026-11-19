@@ -41,8 +41,8 @@
           <tr><td>Mysz</td><td>rozglądanie się (kliknij, aby przechwycić kursor)</td></tr>
           <tr><td>Shift</td><td>bieg · w aucie: nitro (po tuningu, też X)</td></tr>
           <tr><td>Spacja</td><td>skok / hamulec ręczny – drift (punkty driftu = kasa)</td></tr>
-          <tr><td>E</td><td>wsiądź / wysiądź · akcja (misja, teleport, lakiernia, garaż) · porwij auto z ruchu</td></tr>
-          <tr><td>M</td><td>mapa: klik = teleport, przycisk GPS = trasa po ulicach</td></tr>
+          <tr><td>E albo F</td><td>Wsiądź / Wysiądź · akcja (misja, teleport, lakiernia, garaż) · porwij auto z ruchu</td></tr>
+          <tr><td>M albo minimapa</td><td>duża mapa: przesuń, kółko albo uszczypnięcie, dotknięcie = GPS</td></tr>
           <tr><td>J</td><td>dziennik misji (aktywna / dostępne / ukończone)</td></tr>
           <tr><td>G</td><td>wyłącz własny GPS (trasa misji wraca przy kolejnym etapie)</td></tr>
           <tr><td>H</td><td>schowaj / pokaż panel celu (misja i GPS lecą dalej)</td></tr>
@@ -55,7 +55,7 @@
           <tr><td>Esc</td><td>pauza / menu</td></tr>
         </table>
         <h3>Sterowanie – telefon</h3>
-        <p>Lewy joystick – ruch / skręt. Przeciągnij prawą stronę ekranu – kamera. Przyciski: SKOK, BIEG, GAZ, HAMULEC, RĘCZNY, WSIĄDŹ/AKCJA, MAPA, 📻 (panel stacji), 📻▶ (następna stacja).</p>
+        <p>Lewy joystick – ruch. Przeciągnij prawą stronę ekranu – kamera zza pleców. Przyciski: SKOK, BIEG, GAZ, HAMULEC, RĘCZNY, Wsiądź/Wysiądź, MAPA. Dotknięcie minimapy otwiera dużą mapę (przesuwanie i uszczypnięcie). Radio: 📻 i 📻▶.</p>
         <p><b>Panel celu:</b> na krótkim ekranie po kilku sekundach zjeżdża w lewo. Zostaje zakładka pod minimapą (czas i skręt). Dotknij jej, żeby rozwinąć. Na komputerze to samo robi klawisz H.</p>
         <h3>Jak grać</h3>
         <p><b>Misje:</b> szukaj świecących słupów z „!” albo otwórz dziennik (J / 📒). Po 5 misjach fabularnych odblokujesz finał przy Muzeum Siarki. Wyzwania i dłuższe roboty (placki z The Italiana na Kościuszki 7 do Mokrzyszowa, list z Dzikowa, paczka na Siarkowiec) płacą pełną nagrodę raz – potem tylko za rekord.</p>
@@ -92,7 +92,7 @@
         <label><input id="chkRadioAuto" type="checkbox"> Radio włącza się w aucie</label>
         <label><input id="chkFps" type="checkbox"> Pokaż licznik FPS</label>
       </div>
-      <div class="credits"><b>Źródła</b> Czcionka Fredoka © The Fredoka Project Authors, licencja OFL 1.1 — polskie litery ą ć ę ł ń ó ś ź ż oraz wielkie Ą Ć Ę Ł Ń Ó Ś Ź Ż. Auta w ruchu z Kenney Car Kit (CC0). Autobus miejski to własny model gry. Sklepy przy Rynku: KayKit City Builder Bits, Kay Lousberg (CC0). Na piątej ćwiartce stoi żółty wóz, ciężki i śliski, a za nim gęsty tłum: koń i źrebak.</div>
+      <div class="credits"><b>Źródła</b> Czcionka Fredoka © The Fredoka Project Authors, licencja OFL 1.1 — polskie litery ą ć ę ł ń ó ś ź ż oraz wielkie Ą Ć Ę Ł Ń Ó Ś Ź Ż. Auta w ruchu z Kenney Car Kit (CC0). Autobus miejski to własny model gry. Sklepy przy Rynku: KayKit City Builder Bits, Kay Lousberg (CC0). Szum miasta i kroki: synteza WebAudio w grze (AMBIENCE-CITY, FOOTSTEP), bez zewnętrznych próbek. Na piątej ćwiartce stoi żółty wóz, ciężki i śliski, a za nim gęsty tłum: koń i źrebak.</div>
       <div class="attr">Dane mapy © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> (ODbL)</div>
     </div>
   </div>
@@ -125,7 +125,7 @@
   <div id="touch" class="hidden">
     <div id="joy"><div id="joyKnob"></div></div>
     <div id="tbtns">
-      <button id="tEnter" class="tb wide" data-kind="tap" data-key="enter">WSIĄDŹ</button>
+      <button id="tEnter" class="tb wide" data-kind="tap" data-key="enter">Wsiądź</button>
       <button id="tJump" class="tb foot" data-kind="tap" data-key="jump">SKOK</button>
       <button id="tRun" class="tb foot" data-kind="hold" data-key="run">BIEG</button>
       <button id="tHand" class="tb car" data-kind="hold" data-key="hand">RĘCZNY</button>
@@ -138,7 +138,7 @@
 
   <div id="mapScreen" class="screen hidden">
     <div class="mapPanel">
-      <div class="mapHead"><b>GTA TBG – mapa Tarnobrzega</b> <span class="muted">klik = teleport, GPS = trasa ulicami</span> <button id="mapGpsMode" type="button">Klik: teleport</button> <button id="mapGpsClear" type="button">Anuluj GPS</button> <button id="mapClose" type="button">✕</button></div>
+      <div class="mapHead"><b>GTA TBG – mapa Tarnobrzega</b> <span class="muted">dotknięcie = GPS · dwa palce = zoom</span> <button id="mapGpsMode" type="button" class="on">Klik: GPS</button> <button id="mapGpsClear" type="button">Anuluj GPS</button> <button id="mapClose" type="button">✕</button></div>
       <div class="mapBody">
         <div id="mapCanvasWrap"><canvas id="bigmap"></canvas></div>
         <div id="travelList"></div>

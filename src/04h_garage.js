@@ -111,7 +111,7 @@ function leaveCarQuiet() { const c = activeCar; if (!c) return; c.vx = c.vz = 0;
 function enterCarDirect(c) {
   if (G.mode === 'car') leaveCarQuiet();
   activeCar = c; G.mode = 'car'; player.mesh.visible = false; G.yaw = c.h; c.vx = c.vz = 0;
-  $('speedo').classList.remove('hidden'); $('touch').classList.add('incar'); $('tEnter').textContent = 'WYSIĄDŹ';
+  $('speedo').classList.remove('hidden'); $('touch').classList.add('incar'); $('tEnter').textContent = 'Wysiądź';
 }
 function spawnOwn(rec, p) {
   if (GAR.own) removeOwn();

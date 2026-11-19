@@ -6,6 +6,7 @@ Przeglądarkowa gra 3D z otwartym światem, której mapą jest **Tarnobrzeg**. M
 > Silnik grafiki: [three.js](https://threejs.org) r160, licencja MIT (dołączony w `vendor/`).
 > Czcionka: [Fredoka](https://fonts.google.com/specimen/Fredoka) (OFL 1.1, podzbiór z polskimi literami). Dodatkowe auta: [Kenney Car Kit](https://kenney.nl/assets/car-kit) (CC0). Autobus jest modelem własnym. Trzy sklepy przy Rynku: [KayKit City Builder Bits](https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0) (CC0, Kay Lousberg).
 > „GTA TBG” to fanowski projekt hobbystyczny. Logo jest własnym projektem i nie korzysta z materiałów Rockstar Games.
+> Szum miasta i kroki są syntetyzowane w przeglądarce (WebAudio, przefiltrowany szum). Nie ma zewnętrznych próbek dźwięku. Szum miasta milknie, gdy gra radio. Suwak „Głośność silnika i efektów” ścisza też te odgłosy; zero to cisza.
 
 ## Jak uruchomić
 
@@ -54,11 +55,11 @@ Plik `gta-tbg-single.html` nie jest potrzebny na Pages. Wystarczy do gry offline
 | Mysz (kliknij ekran) | rozglądanie się |
 | Shift | bieg (pieszo) / **nitro** (w aucie, po kupieniu w garażu) |
 | Spacja | skok (pieszo) / hamulec ręczny i **drift → kasa** (w aucie) |
-| E (lub F) | wsiądź / wysiądź, **porwij auto z ruchu** (kierowca ucieka), rozmowa ze zleceniodawcą misji, przyjęcie misji, **wejście do garażu** |
+| E (lub F) | Wsiądź / Wysiądź, **porwij auto z ruchu** (kierowca ucieka), rozmowa ze zleceniodawcą misji, przyjęcie misji, **wejście do garażu**. Na telefonie ten sam przycisk nazywa się Wsiądź albo Wysiądź. |
 | Esc | zamknięcie okna misji / lakierni, pauza / menu |
 | 1 / 2 | w lakierni: przemaluj (100 zł) / napraw (50 zł) |
 | 1 – 4, ← → | w garażu: zakładki (Moje auta / Salon / Tuning / Lakier) i wybór auta |
-| M | mapa: klik przenosi, przycisk **GPS** rysuje trasę |
+| M albo klik w minimapę | duża mapa: przeciągnij, kółko albo uszczypnięcie. Dotknięcie punktu ustawia GPS. Lista miejsc nadal teleportuje. |
 | J | dziennik misji |
 | G | wyłącz własny punkt GPS |
 | H | schowaj / pokaż panel celu (nie pauzuje misji ani GPS) |
@@ -82,7 +83,8 @@ Plik `gta-tbg-single.html` nie jest potrzebny na Pages. Wystarczy do gry offline
   - ok. 5 500 odcinków dróg, chodniki z krawężnikami, przejścia dla pieszych (zebry), Wisła, jeziora, parki, lasy i ok. 45 000 drzew.
   - Obszar to ok. 9,2 × 9,2 km (50.522–50.605 N, 21.605–21.735 E): centrum, Dzików, Serbinów, Mokrzyszów, Siarkowiec oraz Jezioro Tarnobrzeskie.
 - **Styl komiksowy** (Ustawienia → *Styl*): kontury, ciepłe cieniowanie „cel”, jasnoniebieskie niebo, kolorowe elewacje, czerwone dachówki, płaskie dachy z nadbudówkami, limonkowa trawa, ciemny asfalt z białymi pasami, puszyste drzewa i żywopłoty, czcionka Fredoka.
-- **Elewacje (komiks):** jeden atlas na wszystkie ściany, bez nowych plików z sieci. Piętra są w osobnych pasach: u góry okna w rytmie kondygnacji, na parterze cokół i okno, a na najdłuższej ścianie jedno wejście (drzwi domu, drzwi klatki albo witryna z markizą, gdy OSM mówi sklep albo budynek stoi blisko centrum). Bloki (`apartments`, `residential` i duże `yes`) dostają kilka płyt balkonów. Domy ze stromym dachem mają komin, kościół i kaplica — umowną wieżyczkę. To nie są prawdziwe elewacje z OSM: w danych nie ma położenia drzwi ani balkonów.
+- **Elewacje (komiks):** jeden atlas na wszystkie ściany (FASADA-ATLAS), bez nowych plików z sieci. Każde piętro ma okna i gzyms, narożniki mają boniowanie, a parter przy ulicy głównej (albo sklep z OSM) dostaje witrynę z czerwonym pasem. W centrum nad ścianą jest też cienka krawędź dachu. Bloki dostają kilka płyt balkonów. Domy ze stromym dachem mają komin.
+- **Kościół Wniebowzięcia NMP:** przy Placu Bartosza Głowackiego, na śladzie kościoła dominikanów z OSM (ok. 84 m na zachód i 70 m na południe od środka Rynku). Nawa, wieża z otworami dzwonnicy, tarcze zegara, iglica i krzyż. Obrys budynku zostaje kolizją. To własny model komiksowy, nie siatka z zewnątrz.
   - **Niska:** atlas, kominy i nadbudówki dachów. Balkony są w pamięci, ale się nie rysują.
   - **Średnia:** balkony do około 130 m.
   - **Wysoka:** balkony do około 170 m.

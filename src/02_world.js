@@ -148,6 +148,7 @@ async function buildWorld(data, scene, renderer) {
   const SHEDS = new Set(['garage', 'garages', 'shed', 'roof', 'farm_auxiliary']);
   const PITCH = new Set(['house', 'detached', 'semidetached_house', 'terrace', 'farm_auxiliary', 'church', 'chapel']);
   const fronts = [];
+  const copeCol = new THREE.Color('#f6f1e6');
   let bi = 0;
   for (const b of data.buildings) {
     const h = b[0] / 10, kind = BK[b[1]] || 'yes', est = b[2];
@@ -168,7 +169,6 @@ async function buildWorld(data, scene, renderer) {
     if (TOON) {
       const big = palette === PAL.block || palette === PAL.com;
       tile = palette === PAL.ind || palette === PAL.shed ? 3 : (big ? (rnd() < 0.5 ? 1 : 0) : 2);
-      if (big && (kind === 'commercial' || kind === 'retail' || (Math.hypot(cx0 - W.data.travel[0][1], cz0 - W.data.travel[0][2]) < 900 && rnd() < 0.55))) tile += 4;
       if (kind === 'church' || kind === 'chapel' || kind === 'castle') tile = 2;
       acc = new THREE.Color(pick(rnd, wcol.getHSL({}).l > 0.75 ? ['#7a4a32', '#3f6e9a', '#c8442f', '#5f8f4a', '#8a5a9a'] : ['#fbf6ea', '#fbf6ea', '#f3e6c8', '#3f3a36']));
     }
@@ -176,9 +176,37 @@ async function buildWorld(data, scene, renderer) {
     let roofH = 0;
     if (pitched) roofH = (kind === 'church') ? Math.min(12, 3 + Math.sqrt(area) * 0.35) : Math.min(5, 1.6 + Math.sqrt(area) * 0.13);
     const wallH = Math.max(2.4, h - roofH * (est ? 0.6 : 0.7));
+    if (TOON && tile >= 0 && tile < 4 && !SHEDS.has(kind) && kind !== 'church' && kind !== 'chapel' && kind !== 'castle' && wallH > 3.1 && area > 55 && area < 2800) {
+      let shopStreet = kind === 'commercial' || kind === 'retail';
+      if (!shopStreet) {
+        W.roadGrid.query(cx0, cz0, 22, (ri) => {
+          if (shopStreet) return;
+          const road = W.roads[W.roadGrid.meta[ri]];
+          if (road && (road.type === 'primary' || road.type === 'secondary' || road.type === 'tertiary' || road.type === 'trunk')) shopStreet = true;
+        });
+      }
+      if (shopStreet) tile += 4;
+    }
     const rcol = new THREE.Color(pitched ? pick(rnd, ROOF_P) : pick(rnd, ROOF_F));
     let cx = 0, cz = 0; const n = ring.length / 2; for (let i = 0; i < ring.length; i += 2) { cx += ring[i]; cz += ring[i + 1]; } cx /= n; cz /= n;
     const ch = getChunk(cx, cz);
+    const dominican = kind === 'church' && Math.hypot(cx + 87, cz + 69) < 45;
+    if (dominican) {
+      const mm = ring.length / 2;
+      for (let i = 0; i < mm; i++) {
+        const j = (i + 1) % mm;
+        W.bGrid.add(ring[i * 2], ring[i * 2 + 1], ring[j * 2], ring[j * 2 + 1], bi);
+      }
+      W.buildings.push({ ring, cx, cz, h: 34, kind, kay: '', landmark: 'kosciol-wniebowziecia' });
+      let bx0 = 1e9, bx1 = -1e9, bz0 = 1e9, bz1 = -1e9;
+      for (let i = 0; i < ring.length; i += 2) { bx0 = Math.min(bx0, ring[i]); bx1 = Math.max(bx1, ring[i]); bz0 = Math.min(bz0, ring[i + 1]); bz1 = Math.max(bz1, ring[i + 1]); }
+      for (let ix = Math.floor(bx0 / 32); ix <= Math.floor(bx1 / 32); ix++) for (let iz = Math.floor(bz0 / 32); iz <= Math.floor(bz1 / 32); iz++) {
+        const k = ix * 100000 + iz; let a = W.bCells.get(k); if (!a) { a = []; W.bCells.set(k, a); } a.push(bi);
+      }
+      buildDominicanChurch(scene, ring, cx, cz);
+      bi++;
+      continue;
+    }
     if (TOON) ch.walls.setX(acc, tile);
     const floors = Math.max(1, Math.round(wallH / 3)), fh = wallH / floors;
     let doorI = -1, doorL = 0;
@@ -223,6 +251,13 @@ async function buildWorld(data, scene, renderer) {
           if (TOON) { u0 = 0; u1 = len < 1.6 ? len / 3 : Math.max(1, Math.round(len / 3)); }
           addQuad(x1, z1, x2, z2, nx, nz, u0, u1, tile);
           uRun = u1;
+        }
+        if (TOON && outer && !kay && !SHEDS.has(kind) && len > 2.4 && wallH > 3 && Math.hypot(cx - W.data.travel[0][1], cz - W.data.travel[0][2]) < 520) {
+          const lip = 0.16, rise = 0.38, ox = nx * lip, oz = nz * lip, y0 = wallH, y1 = wallH + rise;
+          ch.walls.setX(null, -1);
+          ch.walls.tri(x1, y0, z1, x2, y0, z2, x2 + ox, y1, z2 + oz, copeCol, null, nx, 0.4, nz);
+          ch.walls.tri(x1, y0, z1, x2 + ox, y1, z2 + oz, x1 + ox, y1, z1 + oz, copeCol, null, nx, 0.4, nz);
+          ch.edges.push(x1 + ox, y1, z1 + oz, x2 + ox, y1, z2 + oz);
         }
         if (TOON && blockish && outer && len > 7) addBalconies(ch.detail, x1, z1, fx, fz, nx, nz, len, floors, fh, rnd);
         W.bGrid.add(x1, z1, x2, z2, bi);
@@ -324,7 +359,9 @@ async function buildWorld(data, scene, renderer) {
   W.treeGroup = new THREE.Group(); scene.add(W.treeGroup);
   buildTrees(QUALITY[settings.quality].trees);
   W.travel = data.travel.slice();
+  if (W.landmarkChurch && !W.travel.some((t) => t[0] === W.landmarkChurch.name)) W.travel.splice(1, 0, [W.landmarkChurch.name, W.landmarkChurch.x, W.landmarkChurch.z]);
   W.landmarks = data.landmarks;
+  G.landmarkChurch = W.landmarkChurch || null;
   setLoad(0.92, 'Chmury i ulica…'); await nextFrame();
   buildLook(scene);
   setLoad(0.95, 'Prawie gotowe…'); await nextFrame();

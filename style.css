@@ -67,8 +67,9 @@ select{font:inherit;background:#13304d;color:#fff;border:1px solid #ffffff40;bor
 .mapHead #mapClose{margin-left:auto}
 .muted{opacity:.7;font-size:13px}
 .mapBody{flex:1;display:flex;gap:10px;min-height:0}
-#mapCanvasWrap{flex:1;position:relative;min-width:0;display:flex;align-items:center;justify-content:center;background:#cfd8c4;border-radius:10px;overflow:hidden}
-#bigmap{max-width:100%;max-height:100%;cursor:crosshair}
+#mapCanvasWrap{flex:1;position:relative;min-width:0;background:#cfd8c4;border-radius:10px;overflow:hidden;touch-action:none}
+#bigmap{position:absolute;left:0;top:0;transform-origin:0 0;cursor:crosshair}
+#minimapWrap{cursor:pointer}
 #travelList{width:280px;overflow:auto;display:flex;flex-direction:column;gap:5px}
 #travelList .trow{display:flex;gap:6px}
 #travelList .trow button{flex:1;text-align:left;font-size:13px;padding:7px 10px;min-height:44px}

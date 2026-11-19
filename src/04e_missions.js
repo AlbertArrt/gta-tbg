@@ -442,6 +442,13 @@ function missionHint() {
   if (MIS.active) return null; const m = nearGiver(); if (!m) return null;
   return (isTouch ? 'Dotknij AKCJA' : 'E') + ': porozmawiaj – ' + m.who + ' (' + m.name + ')';
 }
+function rideHint() {
+  const m = MIS.active;
+  if (!m || G.mode !== 'foot' || !m.car) return '';
+  const o = m.obj || '';
+  if (!/Wsiądź|Wróć/.test(o)) return '';
+  return 'Wsiądź do pojazdu, żeby jechać dalej.';
+}
 function missionAction() { const m = nearGiver(); if (!m) return false; dialogOpen(m); return true; }
 function dialogOpen(m) {
   MIS.dlg = m; G.paused = true; G.dialogOpen = true; if (document.pointerLockElement) document.exitPointerLock();

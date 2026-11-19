@@ -625,7 +625,7 @@ function bindJournal() {
 // ---- samouczek
 const TUTOR = [
   { h: 'Ruszaj', p: 'Komputer: WASD albo strzałki, mysz rozgląda się po kliknięciu w ekran. Telefon: lewy joystick to ruch, przeciąganie prawej strony obraca kamerę. Shift / BIEG to bieg, w aucie nitro (gdy je masz).' },
-  { h: 'Auto, mapa, GPS', p: 'E albo WSIĄDŹ – wsiądź i wysiądź. M otwiera mapę: klik przenosi (gdy nie goni cię policja), przycisk GPS rysuje trasę po ulicach. Trasa omija budynki i wodę. G albo „Anuluj GPS” kasuje wyznaczony cel. Cel misji ustawia się sam przy kolejnym etapie.' },
+  { h: 'Auto, mapa, GPS', p: 'E, F albo Wsiądź – wsiądź i wysiądź. Pieszo: WASD i Shift (bieg), na telefonie joystick i BIEG. M albo minimapa otwiera dużą mapę: przeciągnij, uszczypnij albo kółko, żeby przybliżyć. Dotknięcie punktu ustawia GPS. Lista po prawej nadal teleportuje. G albo „Anuluj GPS” kasuje cel.' },
   { h: 'Misje i dziennik', p: 'Świecące „!” to zleceniodawcy. Dziennik (J albo 📒) ma zakładki Aktywna, Dostępne i Ukończone: kroki, nagroda, rekord. Można przyjąć, przerwać i jechać od nowa. Zegar misji stoi, gdy dziennik albo mapa jest otwarta.' },
   { h: 'Policja, garaż, radio', p: 'Gwiazdki za potrącenie, taran radiowozu, kradzież i pędzenie obok policji. Zgub pościg albo wpadnij do lakierni. Niebieskie G to garaż i tuning. Q / R zmienia stację (Antyradio, Jazz Kultura, Opera, Radio Leliwa). T wycisza. Gdy stacja milczy, radio samo bierze następną. Ten samouczek włączysz ponownie z menu.' },
 ];
@@ -658,5 +658,6 @@ function bindTutor() {
 function bindMapGps() {
   const mode = $('mapGpsMode'); const clr = $('mapGpsClear');
   if (mode) mode.onclick = () => { BM.gpsClick = !BM.gpsClick; mode.textContent = BM.gpsClick ? 'Klik: GPS' : 'Klik: teleport'; mode.classList.toggle('on', !!BM.gpsClick); };
+  if (mode && BM.gpsClick) { mode.textContent = 'Klik: GPS'; mode.classList.add('on'); }
   if (clr) clr.onclick = () => { navClear(); toast('GPS wyłączony', 1200); if (BM.c) drawBigMap(); };
 }

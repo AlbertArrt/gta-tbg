@@ -21,6 +21,8 @@ function updateStreet() {
 const MM = {};
 function initMinimap() {
   MM.c = $('minimap'); MM.g = MM.c.getContext('2d');
+  const wrap = $('minimapWrap');
+  if (wrap) wrap.addEventListener('click', (e) => { e.stopPropagation(); openMap(); });
   // spatial grid of features for fast minimap drawing
   MM.cell = 120; MM.grid = new Map();
   const add = (x0, z0, x1, z1, item) => {
@@ -53,6 +55,11 @@ function drawMinimap() {
   g.fillStyle = '#c6b8a6'; for (const it of items[3]) { poly(it.p); g.closePath(); g.fill(); }
   for (const it of items[2]) { g.strokeStyle = it.major ? '#ffd76a' : '#ffffff'; g.lineWidth = Math.max(it.w * 1.2, 3 / sc); poly(it.p); g.stroke(); }
   drawEggMinimap(g, sc);
+  g.fillStyle = '#e8503a';
+  for (const p of MAP_PINS) {
+    if (Math.hypot(p[1] - x, p[2] - z) > R * 0.92) continue;
+    g.beginPath(); g.arc(p[1], p[2], 6 / sc, 0, 7); g.fill();
+  }
   if (typeof drawNavOverlay === 'function') drawNavOverlay(g, sc);
   // cars
   for (const c of cars) { if (c === activeCar || !c.g.visible || c.police) continue; g.fillStyle = c.mission ? '#ffd21f' : c.ai ? '#6c6c74' : '#d33'; g.save(); g.translate(c.x, c.z); g.rotate(-c.h); g.fillRect(-1.2, -2.3, 2.4, 4.6); g.restore(); }
@@ -78,7 +85,13 @@ function drawSpeedo() {
 }
 
 // ---------- big map
-const BM = {};
+const BM = { gpsClick: true };
+const MAP_PINS = [
+  ['Pomnik Głowackiego', 50, -21, '#e8503a'],
+  ['The Italiana', -119.1, 158.1, '#e2a122'],
+  ['Mokrzyszów', 3419, 750, '#45b65a'],
+  ['Kościół Wniebowzięcia NMP', -84.2, -69.6, '#f4efe4'],
+];
 function initBigMap() {
   const [MINX, MINZ, MAXX, MAXZ] = W.rect; const w = MAXX - MINX, h = MAXZ - MINZ;
   const S = 1400 / Math.max(w, h); BM.s = S; BM.W = Math.round(w * S); BM.H = Math.round(h * S);
@@ -94,16 +107,89 @@ function initBigMap() {
   for (const t of order) for (const r of W.roads) { if (r.type !== t) continue; g.strokeStyle = (t === 'secondary' || t === 'primary' || t === 'trunk') ? '#f7c04a' : (t === 'tertiary' ? '#fde08a' : '#ffffff'); g.lineWidth = Math.max(r.width, (t === 'secondary' ? 3.2 : 1.6) / S); poly(r.pts); g.stroke(); }
   BM.base = base;
   const c = $('bigmap'); c.width = BM.W; c.height = BM.H; BM.c = c; BM.g = c.getContext('2d');
+  BM.view = { x: 0, y: 0, s: 1 };
   buildTravelList();
-  c.addEventListener('click', (e) => {
-    const r = c.getBoundingClientRect(); const mx = (e.clientX - r.left) / r.width * BM.W, my = (e.clientY - r.top) / r.height * BM.H;
-    const x = mx / BM.s + MINX, z = my / BM.s + MINZ;
+  const box = $('mapCanvasWrap');
+  const ptrs = new Map();
+  let drag = null, pinch = null;
+  const applyView = () => { c.style.transform = `translate(${BM.view.x}px,${BM.view.y}px) scale(${BM.view.s})`; };
+  const clampView = () => {
+    const pw = box.clientWidth || 300, ph = box.clientHeight || 300;
+    const w = BM.W * BM.view.s, h = BM.H * BM.view.s, m = 70;
+    BM.view.x = clamp(BM.view.x, m - w, pw - m);
+    BM.view.y = clamp(BM.view.y, m - h, ph - m);
+    applyView();
+  };
+  BM.fit = () => {
+    const pw = box.clientWidth || 300, ph = box.clientHeight || 300;
+    const px = G.mode === 'car' && activeCar ? activeCar.x : player.x;
+    const pz = G.mode === 'car' && activeCar ? activeCar.z : player.z;
+    const mx = (px - MINX) * BM.s, my = (pz - MINZ) * BM.s;
+    const fit = Math.min(pw / BM.W, ph / BM.H);
+    BM.view.s = clamp(Math.min(pw, ph) / (2400 * BM.s), fit, 3.2);
+    BM.view.x = pw / 2 - mx * BM.view.s;
+    BM.view.y = ph / 2 - my * BM.view.s;
+    clampView();
+  };
+  const worldAt = (clientX, clientY) => {
+    const r = box.getBoundingClientRect();
+    const lx = clientX - r.left, ly = clientY - r.top;
+    return { x: (lx - BM.view.x) / BM.view.s / BM.s + MINX, z: (ly - BM.view.y) / BM.view.s / BM.s + MINZ };
+  };
+  const pick = (x, z) => {
     if (BM.gpsClick) {
       if (inWater(x, z)) { toast('To jest woda – GPS nie prowadzi przez jezioro', 2000); return; }
       navSet(x, z, 'punkt na mapie', { src: 'place' }); closeMap(); toast('GPS ustawiony', 1400); return;
     }
     teleport(x, z); closeMap(); toast('Teleport', 1200);
+  };
+  box.addEventListener('pointerdown', (e) => {
+    if (e.target.closest && e.target.closest('#travelList')) return;
+    box.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, ox: BM.view.x, oy: BM.view.y, moved: false };
+    if (ptrs.size === 2) {
+      const a = [...ptrs.values()];
+      pinch = { d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1, s: BM.view.s, cx: (a[0].x + a[1].x) / 2, cy: (a[0].y + a[1].y) / 2 };
+      drag = null;
+    }
   });
+  box.addEventListener('pointermove', (e) => {
+    const p = ptrs.get(e.pointerId); if (!p) return; p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size >= 2 && pinch) {
+      const a = [...ptrs.values()];
+      const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1;
+      const rect = box.getBoundingClientRect();
+      const sx = pinch.cx - rect.left, sy = pinch.cy - rect.top;
+      const next = clamp(pinch.s * d / pinch.d, Math.min(rect.width / BM.W, rect.height / BM.H), 4);
+      const k = next / BM.view.s;
+      BM.view.x = sx - (sx - BM.view.x) * k; BM.view.y = sy - (sy - BM.view.y) * k; BM.view.s = next;
+      clampView(); return;
+    }
+    if (!drag) return;
+    if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) drag.moved = true;
+    BM.view.x = drag.ox + (e.clientX - drag.x); BM.view.y = drag.oy + (e.clientY - drag.y); clampView();
+  });
+  const endPtr = (e) => {
+    const was = drag && !drag.moved && ptrs.size === 1;
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (was) { const w = worldAt(e.clientX, e.clientY); pick(w.x, w.z); }
+    if (!ptrs.size) drag = null;
+  };
+  box.addEventListener('pointerup', endPtr);
+  box.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); pinch = null; drag = null; });
+  box.addEventListener('wheel', (e) => {
+    if ($('mapScreen').classList.contains('hidden')) return;
+    e.preventDefault();
+    const rect = box.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    const next = clamp(BM.view.s * (e.deltaY > 0 ? 0.9 : 1.1), Math.min(rect.width / BM.W, rect.height / BM.H), 4);
+    const k = next / BM.view.s;
+    BM.view.x = sx - (sx - BM.view.x) * k; BM.view.y = sy - (sy - BM.view.y) * k; BM.view.s = next;
+    clampView();
+  }, { passive: false });
+  applyView();
 }
 function buildTravelList() {
   const list = $('travelList'); list.innerHTML = '';
@@ -121,6 +207,17 @@ function drawBigMap() {
   g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(BM.base, 0, 0);
   g.font = 'bold 15px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   W.travel.forEach((t, i) => { const x = (t[1] - MINX) * S, y = (t[2] - MINZ) * S; g.fillStyle = t[0][0] === '★' ? '#0a8fa8' : '#123'; g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillText(String(i + 1), x, y + 1); });
+  g.font = 'bold 11px Fredoka, system-ui, sans-serif';
+  for (const p of MAP_PINS) {
+    const x = (p[1] - MINX) * S, y = (p[2] - MINZ) * S;
+    g.fillStyle = p[3] || '#e8503a'; g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill();
+    g.lineWidth = 2; g.strokeStyle = '#2a211c'; g.stroke();
+    g.fillStyle = '#1b140f'; g.fillText(p[0], x, y - 10);
+  }
+  if (typeof MIS !== 'undefined') {
+    g.fillStyle = '#ffd21f';
+    for (const m of MIS.list) if (m.giver) { const x = (m.giver[0] - MINX) * S, y = (m.giver[1] - MINZ) * S; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); }
+  }
   g.fillStyle = '#2b4a6b'; g.font = 'bold 22px system-ui, sans-serif';
   for (const w of W.water) if (w.name && Math.abs(ringArea(w.ring)) > 200000) { let cx = 0, cz = 0; const n = w.ring.length / 2; for (let i = 0; i < w.ring.length; i += 2) { cx += w.ring[i]; cz += w.ring[i + 1]; } g.fillText(w.name, (cx / n - MINX) * S, (cz / n - MINZ) * S); }
   g.save(); g.setTransform(S, 0, 0, S, -MINX * S, -MINZ * S); drawMissionMinimap(g, S * 1.6); if (typeof drawNavOverlay === 'function') drawNavOverlay(g, S); g.restore();
@@ -128,7 +225,13 @@ function drawBigMap() {
   g.save(); g.translate((px - MINX) * S, (pz - MINZ) * S); g.rotate(Math.PI - ph); g.fillStyle = '#ff3b30'; g.strokeStyle = '#fff'; g.lineWidth = 3;
   g.beginPath(); g.moveTo(0, -16); g.lineTo(11, 12); g.lineTo(0, 6); g.lineTo(-11, 12); g.closePath(); g.fill(); g.stroke(); g.restore();
 }
-function openMap() { if (!G.started) return; drawBigMap(); $('mapScreen').classList.remove('hidden'); G.paused = true; G.mapOpen = true; if (document.pointerLockElement) document.exitPointerLock(); }
+function openMap() {
+  if (!G.started) return;
+  drawBigMap(); $('mapScreen').classList.remove('hidden'); G.paused = true; G.mapOpen = true;
+  if (document.pointerLockElement) document.exitPointerLock();
+  const fitNow = () => { if (BM.fit) BM.fit(); };
+  requestAnimationFrame(() => requestAnimationFrame(fitNow));
+}
 function closeMap() { $('mapScreen').classList.add('hidden'); G.mapOpen = false; G.paused = false; clock.getDelta(); }
 
 // ======================= INPUT =======================
@@ -230,6 +333,13 @@ function initMenu() {
 
 Object.assign(G, {
   teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE,
+  cam: () => {
+    let best = null;
+    const px = G.mode === 'car' && activeCar ? activeCar.x : player.x;
+    const pz = G.mode === 'car' && activeCar ? activeCar.z : player.z;
+    for (const c of cars) { if (!c.g.visible) continue; const d = Math.hypot(c.x - px, c.z - pz); if (!best || d < best.d) best = { x: c.x, z: c.z, d }; }
+    return { x: camera.position.x, y: camera.position.y, z: camera.position.z, inB: insideBuildingH(camera.position.x, camera.position.z, camera.position.y), px, pz, near: best };
+  },
   radioStep, radioPower, radioPlay, radioStop, setStars, crime, busted, wasted, damageCar, missionStart: (id) => missionStart(MIS.list.find((m) => m.id === id)), missionEnd, addMoney,
   traffic: () => ({ agents: TR.agents.length, pool: TR.pool.length, peds: TR.peds.filter((p) => p.on).length, pedList: TR.peds.filter((p) => p.on).map((p) => ({ x: p.x, z: p.z, h: p.h, look: p.look, fit: p.fit })), nodes: TR.nodes.length, edges: TR.edges.length, zebras: W.zebras || 0, moved: TR.stats.moved, spawned: TR.stats.spawned, cars: cars.length,
     list: TR.agents.map((c) => ({ x: c.x, z: c.z, h: c.h, v: c.ai ? c.ai.v : 0, e: c.ai ? c.ai.e : -1, mode: c.ai ? c.ai.mode : '' })) }),

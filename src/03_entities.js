@@ -37,6 +37,8 @@ function makeWalker(opt = {}) {
   else if (style === 'pony') specs.push([0.32, 0.12, 0.32, 0, 1.88, 0, hair], [0.12, 0.34, 0.12, 0, 1.5, -0.18, hair]);
   else if (style === 'cap') specs.push([0.28, 0.06, 0.28, 0, 1.84, 0, hair], [0.42, 0.1, 0.46, 0, 1.96, 0.06, accent]);
   else specs.push([0.34, 0.16, 0.34, 0, 1.9, 0, hair]);
+  const comicWalker = !!opt.comic;
+  if (comicWalker) specs.push([0.56, 0.1, 0.32, 0, 1.5, 0.04, 0xf7f1e4]);
   if (opt.jacket) specs.push([0.58, 0.48, 0.34, 0, 1.26, 0.02, opt.jacket]);
   if (opt.skirt) specs.push([0.56, 0.36, 0.4, 0, 0.9, 0, pants]);
   if (opt.bag) specs.push([0.24, 0.3, 0.14, 0, 1.28, -0.22, opt.bag === true ? accent : opt.bag]);
