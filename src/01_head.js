@@ -1,5 +1,7 @@
 // GTA TBG (Tarnobrzeg) – open-world browser game on OpenStreetMap data (© OpenStreetMap contributors, ODbL)
 import * as THREE from 'three';
+import { Vehicle, Vector3, Path, FollowPathBehavior, SeparationBehavior, FleeBehavior, ObstacleAvoidanceBehavior, GameEntity, MeshBVH, acceleratedRaycast, nipplejs, MeshoptDecoder } from './vendor/game-libs.js';
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 const $ = (id) => document.getElementById(id);
 const isTouch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window && navigator.maxTouchPoints > 0);

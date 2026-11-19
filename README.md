@@ -7,6 +7,8 @@ Przeglądarkowa gra 3D z otwartym światem, której mapą jest **Tarnobrzeg**. M
 > Czcionka: [Fredoka](https://fonts.google.com/specimen/Fredoka) (OFL 1.1, podzbiór z polskimi literami). Dodatkowe auta: [Kenney Car Kit](https://kenney.nl/assets/car-kit) (CC0). Autobus jest modelem własnym. Trzy sklepy przy Rynku: [KayKit City Builder Bits](https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0) (CC0, Kay Lousberg).
 > „GTA TBG” to fanowski projekt hobbystyczny. Logo jest własnym projektem i nie korzysta z materiałów Rockstar Games.
 > Szum miasta i kroki są syntetyzowane w przeglądarce (WebAudio, przefiltrowany szum). Nie ma zewnętrznych próbek dźwięku. Szum miasta milknie, gdy gra radio. Suwak „Głośność silnika i efektów” ścisza też te odgłosy; zero to cisza.
+> Biblioteki (MIT): [Yuka](https://github.com/Mugen87/yuka) © Mugen87 — sterowanie pieszych i ruchu (`YUKA-STEER`). [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) © Garrett Johnson — BVH przy kamerze i kolizjach (`MESH-BVH`). [glTF-Transform](https://github.com/donmccurdy/glTF-Transform) © Don McCurdy oraz [meshoptimizer](https://github.com/zeux/meshoptimizer) © Arseny Kapoulkine — kompresja modeli w czasie budowania, `MeshoptDecoder` w grze (`MESHOPT`). [nipplejs](https://github.com/yoannmoinet/nipplejs) © Yoann Moinet — joystick na telefonie (`NIPPLEJS`).
+> Modele Kenney, KayKit i nadwozie autobusu: 332 KB poprzedniego JS (614 KB nieskompresowanego GLB) → 153 KB GLB po `dedup` / `prune` / `meshopt`. Atlas sklepów to już 9 KB PNG 512², więc nie był zmniejszany.
 
 ## Jak uruchomić
 

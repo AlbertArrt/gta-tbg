@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
-<script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "./vendor/game-libs.js": "./vendor/game-libs.js" } }</script>
 </head>
 <body>
 <!--UI-->
@@ -92,7 +92,7 @@
         <label><input id="chkRadioAuto" type="checkbox"> Radio włącza się w aucie</label>
         <label><input id="chkFps" type="checkbox"> Pokaż licznik FPS</label>
       </div>
-      <div class="credits"><b>Źródła</b> Czcionka Fredoka © The Fredoka Project Authors, licencja OFL 1.1 — polskie litery ą ć ę ł ń ó ś ź ż oraz wielkie Ą Ć Ę Ł Ń Ó Ś Ź Ż. Auta w ruchu z Kenney Car Kit (CC0). Autobus miejski to własny model gry. Sklepy przy Rynku: KayKit City Builder Bits, Kay Lousberg (CC0). Szum miasta i kroki: synteza WebAudio w grze (AMBIENCE-CITY, FOOTSTEP), bez zewnętrznych próbek. Na piątej ćwiartce stoi żółty wóz, ciężki i śliski, a za nim gęsty tłum: koń i źrebak.</div>
+      <div class="credits"><b>Źródła</b> Czcionka Fredoka © The Fredoka Project Authors, licencja OFL 1.1 — polskie litery ą ć ę ł ń ó ś ź ż oraz wielkie Ą Ć Ę Ł Ń Ó Ś Ź Ż. Auta w ruchu z Kenney Car Kit (CC0). Autobus miejski to własny model gry. Sklepy przy Rynku: KayKit City Builder Bits, Kay Lousberg (CC0). Szum miasta i kroki: synteza WebAudio w grze (AMBIENCE-CITY, FOOTSTEP), bez zewnętrznych próbek. Yuka © Mugen87, MIT (YUKA-STEER). three-mesh-bvh © Garrett Johnson, MIT (MESH-BVH). glTF-Transform © Don McCurdy, MIT, oraz meshoptimizer © Arseny Kapoulkine, MIT (MESHOPT). nipplejs © Yoann Moinet, MIT (NIPPLEJS). Na piątej ćwiartce stoi żółty wóz, ciężki i śliski, a za nim gęsty tłum: koń i źrebak.</div>
       <div class="attr">Dane mapy © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> (ODbL)</div>
     </div>
   </div>
@@ -123,6 +123,7 @@
   </div>
 
   <div id="touch" class="hidden">
+    <div id="nippleZone"></div>
     <div id="joy"><div id="joyKnob"></div></div>
     <div id="tbtns">
       <button id="tEnter" class="tb wide" data-kind="tap" data-key="enter">Wsiądź</button>

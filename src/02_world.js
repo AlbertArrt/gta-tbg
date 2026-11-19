@@ -331,7 +331,8 @@ async function buildWorld(data, scene, renderer) {
     const addMesh = (geo, mat, opts = {}) => {
       const m = new THREE.Mesh(geo, mat);
       m.matrixAutoUpdate = false; m.updateMatrix();
-      if (opts.cast) m.castShadow = true; m.receiveShadow = true;
+      if (opts.cast) { m.castShadow = true; if (typeof bvhRegister === 'function') bvhRegister(m); }
+      m.receiveShadow = true;
       W.chunkGroup.add(m);
       const bs = geo.boundingSphere; W.visObjects.push({ obj: m, x: bs.center.x, z: bs.center.z, r: bs.radius, bias: opts.bias || 0 });
     };

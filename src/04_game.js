@@ -55,6 +55,8 @@ async function init() {
   camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.3, 2000);
   setLoad(0.05, 'Wczytywanie danych OpenStreetMap…');
   const data = await loadData();
+  setLoad(0.12, 'Modele…'); await nextFrame();
+  if (typeof decodeMeshoptAssets === 'function') await decodeMeshoptAssets();
   setLoad(0.15, 'Teren i zieleń…'); await nextFrame();
   await buildWorld(data, scene, renderer);
   W.treeDensity = QUALITY[settings.quality].trees;
@@ -158,7 +160,9 @@ function updateFoot(dt) {
   if (ml > 0.05) {
     const k = Math.min(1, ml); mx /= ml; mz /= ml; speed = spd * k;
     const nx = player.x + mx * speed * dt, nz = player.z + mz * speed * dt;
-    collideCircle(nx, nz, 0.35, col, true);
+    const hop = typeof bvhMove === 'function' ? bvhMove(player.x, player.z, nx, nz, 0.35, 0.9) : null;
+    collideCircle(hop ? hop.x : nx, hop ? hop.z : nz, 0.35, col, true, !(hop && hop.used));
+    if (hop && hop.hit) { col.hit = true; col.nx = hop.nx; col.nz = hop.nz; }
     let px = col.x, pz = col.z;
     if (insideBuilding(px, pz, 0) && !insideBuilding(player.x, player.z, 0)) { px = player.x; pz = player.z; }
     for (const c of cars) for (const [cx, cz] of c.circles()) { const dx = px - cx, dz = pz - cz, d = Math.hypot(dx, dz); if (d < 1.3 && d > 1e-4) { px = cx + dx / d * 1.3; pz = cz + dz / d * 1.3; } }
@@ -226,9 +230,17 @@ function updateCar(c, dt, drive) {
   for (let i = 0; i < steps; i++) {
     const ox = c.x, oz = c.z;
     c.x += c.vx * dt / steps; c.z += c.vz * dt / steps;
+    const hop = typeof bvhMove === 'function' ? bvhMove(ox, oz, c.x, c.z, c.rad, 0.7) : null;
+    if (hop && hop.used) {
+      c.x = hop.x; c.z = hop.z;
+      if (hop.hit) {
+        const vn = c.vx * hop.nx + c.vz * hop.nz;
+        if (vn < 0) { impact = Math.max(impact, -vn); c.vx -= vn * hop.nx * 1.35; c.vz -= vn * hop.nz * 1.35; c.vx *= 0.8; c.vz *= 0.8; }
+      }
+    }
     for (const off of c.offs) {
       const cx = c.x + Math.sin(c.h) * off, cz = c.z + Math.cos(c.h) * off;
-      collideCircle(cx, cz, c.rad, col, false);
+      collideCircle(cx, cz, c.rad, col, false, !(hop && hop.used));
       if (col.hit) {
         c.x += col.x - cx; c.z += col.z - cz;
         const vn = c.vx * col.nx + c.vz * col.nz;
@@ -324,6 +336,10 @@ function updateCamera(dt) {
   for (let i = 1; i <= steps; i++) {
     const t = i / steps; const sx = lerp(tx, px, t), sz = lerp(tz, pz, t), sy = lerp(ty + 0.3, py, t);
     if (camBlocked(sx, sz, sy)) { lastOk = Math.max(0.08, (i - 1) / steps * 0.92); break; }
+  }
+  if (typeof bvhCamDist === 'function') {
+    const tB = bvhCamDist(tx, ty + 0.3, tz, px - tx, py - (ty + 0.3), pz - tz);
+    if (tB != null) lastOk = Math.min(lastOk, tB);
   }
   px = lerp(tx, px, lastOk); pz = lerp(tz, pz, lastOk); py = Math.max(groundH(px, pz) + 0.45, lerp(ty, py, lastOk));
   camPos.set(px, py, pz);
