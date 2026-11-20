@@ -4320,7 +4320,8 @@ const MDEF = [
       if (m.t <= 0) return 'Wesele zaczęło się bez tortu';
       if (inCar(m.car) && at(m.dest, 12, 4)) { m.bestNow = (performance.now() - m.t0) / 1000; return 'win'; }
     } },
-  { id: 'placki', name: 'Dostawa placków ziemniaczanych', giver: [-120, 158], who: 'Szef The Italiana', where: 'ul. Kościuszki 7', reward: 280, recordPay: 40, side: true, bestKey: 'placki', bestLow: true, col: '#e2a122',
+  // ITALIANA-BOSS-FRONT: chodnik przed zachodnią ścianą restauracji, twarzą do ul. Tadeusza Kościuszki (nie za budynkiem).
+  { id: 'placki', name: 'Dostawa placków ziemniaczanych', giver: [-128.29, 156.05], face: -1.7, who: 'Szef The Italiana', where: 'ul. Kościuszki 7', reward: 280, recordPay: 40, side: true, bestKey: 'placki', bestLow: true, col: '#e2a122',
     steps: ['Podejdź pod restaurację The Italiana, ul. Kościuszki 7.', 'Odbierz placki ziemniaczane przy drzwiach.', 'Wsiądź na skuter.', 'Zawieź je do domu przy ul. Chłopskiej w Mokrzyszowie.', 'Nie walnij – placki się rozsypią. Stan widać na pasku.'],
     text: 'Placki ziemniaczane na stół w Mokrzyszowie! Odbierz je u mnie, na Kościuszki 7, i leć skuterem. Jedno mocne uderzenie i placki się rozsypią.',
     start(m) {
@@ -4561,7 +4562,7 @@ function updateMissions(dt) {
   for (const m of MIS.list) {
     const o = m.obj3; if (!o) continue; const show = giverOpen(m); o.g.visible = show; if (!show) continue;
     const d = Math.hypot(f.x - m.gx, f.z - m.gz); o.beam.material.opacity = 0.16 + 0.1 * Math.sin(tt + m.gx); o.ex.position.y = 3.2 + Math.sin(tt * 1.5) * 0.25; o.lab.visible = d < 40;
-    o.w.rotation.y = Math.atan2(f.x - m.gx, f.z - m.gz);
+    o.w.rotation.y = m.face != null ? m.face : Math.atan2(f.x - m.gx, f.z - m.gz);
     if (d < 80) animateWalker(o.w, 0, dt, false);
     if (m.cool && d > 9) m.cool = false;
     if (!m.cool && !MIS.dlg && d < (G.mode === 'car' ? 6 : 3) && (G.mode === 'foot' || activeCar.speed < 3) && !G.cut) dialogOpen(m);
