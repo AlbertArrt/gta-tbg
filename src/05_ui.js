@@ -333,6 +333,15 @@ function initMenu() {
 
 Object.assign(G, {
   teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE,
+  libs: () => ({
+    kits: Object.keys(KIT),
+    kay: Object.keys(KAY),
+    bvh: typeof BVH !== 'undefined' ? { built: BVH.built, chunks: BVH.list.length, dropped: BVH.dropped } : null,
+    yuka: typeof Vehicle === 'function',
+    yukaPeds: typeof TR !== 'undefined' ? TR.peds.filter((p) => p._yv).length : 0,
+    yukaCars: typeof TR !== 'undefined' ? TR.agents.filter((c) => c._yv).length : 0,
+    nipple: typeof nipplejs !== 'undefined' && !!nipplejs.create,
+  }),
   cam: () => {
     let best = null;
     const px = G.mode === 'car' && activeCar ? activeCar.x : player.x;

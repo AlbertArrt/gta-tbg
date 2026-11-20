@@ -52,6 +52,10 @@ select{font:inherit;background:#13304d;color:#fff;border:1px solid #ffffff40;bor
 #radioMsg{color:#ffb4a0;font-size:12px;margin-top:4px}
 .hudattr{position:absolute;right:8px;bottom:4px;margin:0;font-size:11px;background:#0007;padding:1px 6px;border-radius:4px}
 #touch{position:fixed;inset:0;z-index:11;pointer-events:none}
+#nippleZone{position:absolute;left:0;top:220px;bottom:0;width:46%;pointer-events:auto;touch-action:none}
+#touch.lefty #nippleZone{left:auto;right:0}
+#touch.nipple #joy{display:none}
+#touch.range #nippleZone{visibility:hidden;pointer-events:none}
 #joy{position:absolute;left:24px;bottom:28px;width:140px;height:140px;border-radius:50%;background:#ffffff18;border:2px solid #ffffff50;pointer-events:auto}
 #joyKnob{position:absolute;left:45px;top:45px;width:50px;height:50px;border-radius:50%;background:#ffffffaa}
 
@@ -78,6 +82,7 @@ select{font:inherit;background:#13304d;color:#fff;border:1px solid #ffffff40;bor
 .mapHead button{min-height:40px}
 @media (max-width:700px),(max-height:500px){
   #minimapWrap{width:120px;height:120px;left:8px;top:8px}
+  #nippleZone{top:132px;width:42%}
   #street{font-size:13px;top:8px;max-width:44vw}
   #speedo{transform:scale(.75);transform-origin:right bottom;right:8px;bottom:auto;top:62px}
   #travelList{width:200px}

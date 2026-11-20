@@ -206,11 +206,11 @@ function carLights(c, braking) {
 }
 
 // circle-vs-segment collision push for buildings; returns impact normal speed info
-function collideCircle(x, z, r, out, withTrees) {
+function collideCircle(x, z, r, out, withTrees, buildings = true) {
   let px = x, pz = z, hit = false, nxs = 0, nzs = 0;
   for (let it = 0; it < 3; it++) {
     let moved = false; const s = W.bGrid.s;
-    W.bGrid.query(px, pz, r + 0.5, (i) => {
+    if (buildings) W.bGrid.query(px, pz, r + 0.5, (i) => {
       closestOnSeg(px, pz, s[i * 4], s[i * 4 + 1], s[i * 4 + 2], s[i * 4 + 3], tmpC);
       const dx = px - tmpC.x, dz = pz - tmpC.z; const d2 = dx * dx + dz * dz;
       if (d2 < r * r) {
