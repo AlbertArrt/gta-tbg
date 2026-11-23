@@ -65,6 +65,13 @@ select{font:inherit;background:#13304d;color:#fff;border:1px solid #ffffff40;bor
 .tb.active{background:#e0861f}
 #touch.incar .foot{display:none}
 #touch:not(.incar) .car{display:none}
+#touch .dive{display:none}
+#touch.dive .dive{display:block}
+#touch.dive .foot,#touch.dive .car{display:none}
+#diveHud{position:fixed;left:16px;bottom:22px;z-index:12;background:#fff6e4;color:#2a211c;border:3px solid #2a211c;border-radius:14px;padding:8px 12px;font-family:Fredoka,system-ui,sans-serif;min-width:168px}
+#diveHud .bar{height:12px;background:#2a211c;border-radius:7px;margin:6px 0;overflow:hidden}
+#diveHud .bar i{display:block;height:100%;width:100%;background:#3ec6c0}
+#diveHud.hidden{display:none}
 #mapScreen{background:rgba(0,0,0,.6)}
 .mapPanel{background:#0d2236;border-radius:14px;padding:10px;width:min(1200px,98vw);height:min(820px,96vh);display:flex;flex-direction:column}
 .mapHead{display:flex;align-items:center;gap:8px;padding:2px 4px 8px}

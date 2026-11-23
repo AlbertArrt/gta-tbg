@@ -535,7 +535,7 @@ function updateMissions(dt) {
     }
     if (d < 80) animateWalker(o.w, (typeof npcPhase === 'function' && npcPhase(m) === 'wander') ? 1.25 : 0, dt, false);
     if (m.cool && d > 9) m.cool = false;
-    if (!m.cool && !MIS.dlg && d < (G.mode === 'car' ? 6 : 3) && (G.mode === 'foot' || activeCar.speed < 3) && !G.cut) dialogOpen(m);
+    if (!G.diving && !m.cool && !MIS.dlg && d < (G.mode === 'car' ? 6 : 3) && (G.mode === 'foot' || activeCar.speed < 3) && !G.cut) dialogOpen(m);
   }
   if (MIS.drop) for (const c of MIS.drop.slice()) if (c !== activeCar && Math.hypot(c.x - f.x, c.z - f.z) > 200) { misDropCar(c); MIS.drop.splice(MIS.drop.indexOf(c), 1); }
   const m = MIS.active; if (!m) return;

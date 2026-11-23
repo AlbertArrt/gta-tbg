@@ -91,6 +91,7 @@ const MAP_PINS = [
   ['The Italiana', -119.1, 158.1, '#e2a122'],
   ['Mokrzyszów', 3419, 750, '#45b65a'],
   ['Kościół Wniebowzięcia NMP', -84.2, -69.6, '#f4efe4'],
+  ['Wypożyczalnia sprzętu nurkowego', -1792, 2348, '#1a8a9a'],
 ];
 function initBigMap() {
   const [MINX, MINZ, MAXX, MAXZ] = W.rect; const w = MAXX - MINX, h = MAXZ - MINZ;
@@ -252,7 +253,7 @@ function initInput() {
     if (G.inRange) { if (e.code === 'Escape' || e.code === 'KeyE') { if (typeof rangeExit === 'function') rangeExit(); } return; }
     if (G.inGarage) { garageKey(e.code); return; }
     if (POL.shop) { if (e.code === 'Digit1') { shopBuy('paint'); return; } if (e.code === 'Digit2') { shopBuy('fix'); return; } if (e.code === 'Escape' || e.code === 'Digit3') { shopClose(); return; } }
-    if (e.code === 'Space' && G.mode === 'foot') G.jumpReq = true;
+    if (e.code === 'Space' && G.mode === 'foot' && !G.diving) G.jumpReq = true;
     if (e.code === 'KeyE' || e.code === 'KeyF') actionE();
     else if (e.code === 'KeyM') { G.mapOpen ? closeMap() : openMap(); }
     else if (e.code === 'KeyJ') { if (!G.mapOpen && !G.inGarage && !POL.shop) openJournal(); }
@@ -269,7 +270,7 @@ function initInput() {
     else if (e.code === 'KeyQ' || e.code === 'Comma') radioStep(-1);
     else if (e.code === 'KeyT') radioPower();
     else if (e.code === 'KeyN') toggleNight();
-    else if (e.code === 'KeyC') G.camZoom = G.camZoom ? 0 : 1;
+    else if (e.code === 'KeyC' && !G.diving) G.camZoom = G.camZoom ? 0 : 1;
     else if (e.code === 'Escape') { if (G.mapOpen) closeMap(); else pauseGame(); }
   });
   addEventListener('keyup', (e) => G.keys.delete(e.code));
@@ -380,6 +381,7 @@ Object.assign(G, {
       return { x: +x.toFixed(1), z: +z.toFixed(1), hit: !!o.hit };
     },
   }),
+  dive: () => ({ on: !!G.diving, x: DIVE.x, y: DIVE.y, z: DIVE.z, o2: DIVE.o2, bag: DIVE.bag.slice(), rent: { ...DIVE_RENT }, n: DIVE_LOOT.length }),
   lights: () => (typeof TL === 'undefined' ? null : {
     n: TL.list.length, near: TL.nearN,
     at: TL.list.map((s) => ({ n: s.name, x: +s.x.toFixed(1), z: +s.z.toFixed(1) })),

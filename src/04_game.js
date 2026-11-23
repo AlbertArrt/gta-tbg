@@ -67,7 +67,7 @@ async function init() {
   player = { x: 0, z: 0, y: 0, vy: 0, h: 0, mesh: makeWalker({ comic: true, hairStyle: 'cap', shirt: 0xf6d34a, jacket: 0xe8503a, pants: 0x243056, bag: 0xf7f1e4 }), speed: 0, onGround: true };
   scene.add(player.mesh);
   spawnAtRynek();
-  spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions(); initGarages(); initDriveFx();
+  spawnCars(); spawnEgg(); initTraffic(); initPolice(); initMissions(); initGarages(); initDriveFx(); if (typeof initDive === 'function') initDive();
   applyTime(); applyQuality();
   initMinimap(); initBigMap(); initInput(); initRadio(); if (typeof initAmbience === 'function') initAmbience(); initMenu(); initNav(); if (typeof initRange === 'function') initRange();
   window.addEventListener('resize', onResize); onResize();
@@ -339,6 +339,7 @@ function updateParked(dt) {
 
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), tmpV = new THREE.Vector3();
 function updateCamera(dt) {
+  if (G.diving && typeof diveCamera === 'function') { diveCamera(); return; }
   if (G.camOverride) { const o = G.camOverride; if (scene.fog.far < 2500) { scene.fog.near = 1200; scene.fog.far = 3200; } camera.position.set(o[0], o[1], o[2]); camera.lookAt(o[3], o[4], o[5]); return; }
   if (!G.started) {
     const t = performance.now() * 0.00005; const r0 = W.travel[0];
@@ -386,6 +387,13 @@ function insideBuildingH(x, z, y) {
 
 let visT = 0;
 function updateVisibility(force) {
+  if (G.diving) {
+    if (W.chunkGroup) W.chunkGroup.visible = false;
+    if (W.treeGroup) W.treeGroup.visible = false;
+    if (TR && TR.pedMesh) TR.pedMesh.visible = false;
+    for (const c of cars) if (c.g && c.g.visible) c.g.visible = false;
+    return;
+  }
   const q = QUALITY[settings.quality]; const cx = camera.position.x, cz = camera.position.z;
   if (W.ground) { W.ground.position.x = Math.round(cx / 125) * 125; W.ground.position.z = Math.round(cz / 125) * 125; }
   // kontury budynków (linie ekranowe) tylko w pobliżu – daleko i tak giną we mgle, a kosztują dużo wierzchołków
@@ -407,16 +415,18 @@ function loop() {
   if (G.started && !G.paused) {
     G.gameT = (G.gameT || 0) + dt;
     if (G.inRange) { /* stanowisko trzyma kamerę; miasto dalej żyje */ }
+    else if (G.diving && typeof updateDive === 'function') updateDive(dt);
     else if (G.cut) { G.cut.t -= dt; if (G.mode === 'car') updateCar(activeCar, dt, { thr: 0, steer: 0, hand: true }); if (G.cut.t <= 0) { const f = G.cut.fn; G.cut = null; f(); } }
     else if (G.mode === 'foot') updateFoot(dt); else updateCar(activeCar, dt, true);
     updateParked(dt);
     updateTraffic(dt); updatePolice(dt); updateDamage(dt); updateShops(dt);
     updateEgg(dt); updateMissions(dt); updateNav(dt); updateGarages(dt); updateDriveFx(dt); if (typeof updateRange === 'function') updateRange(dt);
     const eh = G.inRange ? null : (eggHint() || missionHint() || (typeof rangeHint === 'function' ? rangeHint() : null) || garageHint() || shopHint());
-    const near = G.mode === 'foot' && cars.some((c) => Math.hypot(c.x - player.x, c.z - player.z) < 3.8);
-    const ride = (!eh && !near && typeof rideHint === 'function') ? rideHint() : '';
-    hint(eh || (near ? (isTouch ? 'Naciśnij Wsiądź' : 'Naciśnij E albo F, aby wsiąść') : '') || ride);
-    const lbl = G.mode === 'foot' ? (eh ? (nearEggButton() ? 'TELEPORT' : 'AKCJA') : 'Wsiądź') : 'Wysiądź';
+    const diveH = !eh && typeof diveHint === 'function' ? diveHint() : '';
+    const near = !G.diving && G.mode === 'foot' && cars.some((c) => Math.hypot(c.x - player.x, c.z - player.z) < 3.8);
+    const ride = (!eh && !near && !diveH && typeof rideHint === 'function') ? rideHint() : '';
+    hint(eh || diveH || (near ? (isTouch ? 'Naciśnij Wsiądź' : 'Naciśnij E albo F, aby wsiąść') : '') || ride);
+    const lbl = G.diving ? 'Wynurz' : (diveH ? 'NURKUJ' : (G.mode === 'foot' ? (eh ? (nearEggButton() ? 'TELEPORT' : 'AKCJA') : 'Wsiądź') : 'Wysiądź'));
     if (G.tLbl !== lbl) { G.tLbl = lbl; $('tEnter').textContent = lbl; }
   }
   engineTick(rawDt);
