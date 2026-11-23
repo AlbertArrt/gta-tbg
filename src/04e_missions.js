@@ -453,7 +453,9 @@ function rideHint() {
 function missionAction() { const m = nearGiver(); if (!m) return false; dialogOpen(m); return true; }
 function dialogOpen(m) {
   MIS.dlg = m; G.paused = true; G.dialogOpen = true; if (document.pointerLockElement) document.exitPointerLock();
-  $('dlgWho').textContent = m.who; $('dlgTitle').textContent = (m.done ? '✔ ' : '') + m.name; $('dlgText').textContent = '„' + m.text + '”';
+  if (typeof npcVisit === 'function') npcVisit(m);
+  const greet = typeof npcGreet === 'function' ? npcGreet(m) : '';
+  $('dlgWho').textContent = m.who; $('dlgTitle').textContent = (m.done ? '✔ ' : '') + m.name; $('dlgText').textContent = '„' + (greet ? greet + ' ' : '') + m.text + '”';
   const rep = m.side ? (SAVE.claimed[m.id] ? ' · nagroda już odebrana – liczy się rekord' : ' · pełna nagroda tylko za pierwszym razem') : (m.done ? ' · już zaliczona – możesz powtórzyć' : '');
   $('dlgReward').textContent = 'Nagroda: ' + m.reward + ' zł' + rep;
   $('dialog').classList.remove('hidden');
@@ -499,6 +501,7 @@ function missionEnd(ok, why) {
     if (!m.side && m.id !== 'final' && storyDoneCount() === 5 && !SAVE.finalHint) { SAVE.finalHint = true; saveGame(); setTimeout(() => toast('Odblokowano finał! Wielki Szef czeka przy Muzeum Siarki', 4000), 3800); }
     if (m.id === 'final') setTimeout(() => banner('LEGENDA TARNOBRZEGA! 🏆', 'pass', 5000), 3800);
   } else { banner('MISJA NIEUDANA\n' + (why || ''), 'fail', 3200); }
+  if (typeof npcRemember === 'function') npcRemember(m.id, ok ? 'done' : 'fail', m.name);
   m.cool = true;
   if ($('mhud') && !(typeof NAV !== 'undefined' && NAV.on)) $('mhud').classList.add('hidden');
 }
@@ -521,10 +524,16 @@ function missionEvent(ev) { /* hook: 'lost' when police chase ends */ MIS.lastEv
 function updateMissions(dt) {
   const f = focusXZ(); const tt = performance.now() * 0.003;
   for (const m of MIS.list) {
-    const o = m.obj3; if (!o) continue; const show = giverOpen(m); o.g.visible = show; if (!show) continue;
+    const o = m.obj3; if (!o) continue;
+    if (typeof npcStep === 'function') npcStep(m);
+    const show = giverOpen(m); o.g.visible = show; if (!show) continue;
     const d = Math.hypot(f.x - m.gx, f.z - m.gz); o.beam.material.opacity = 0.16 + 0.1 * Math.sin(tt + m.gx); o.ex.position.y = 3.2 + Math.sin(tt * 1.5) * 0.25; o.lab.visible = d < 40;
     o.w.rotation.y = m.face != null ? m.face : Math.atan2(f.x - m.gx, f.z - m.gz);
-    if (d < 80) animateWalker(o.w, 0, dt, false);
+    if (o.lab && typeof npcPin === 'function') {
+      const pin = m.who + ' · ' + npcPin(m);
+      if (o.lab.userData.txt !== pin) { paintNpcLabel(o.lab, pin, m.col); o.lab.userData.txt = pin; }
+    }
+    if (d < 80) animateWalker(o.w, (typeof npcPhase === 'function' && npcPhase(m) === 'wander') ? 1.25 : 0, dt, false);
     if (m.cool && d > 9) m.cool = false;
     if (!m.cool && !MIS.dlg && d < (G.mode === 'car' ? 6 : 3) && (G.mode === 'foot' || activeCar.speed < 3) && !G.cut) dialogOpen(m);
   }

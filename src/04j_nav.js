@@ -588,7 +588,7 @@ function renderJournal() {
 function journalCard(m) {
   const card = document.createElement('div'); card.className = 'jCard';
   const h = document.createElement('b'); h.textContent = m.name; card.appendChild(h);
-  const who = document.createElement('div'); who.className = 'jWho'; who.textContent = m.who + (m.where ? ' · ' + m.where : ''); card.appendChild(who);
+  const who = document.createElement('div'); who.className = 'jWho'; who.textContent = m.who + (m.where ? ' · ' + m.where : '') + (typeof npcPin === 'function' ? ' · ' + npcPin(m) : ''); card.appendChild(who);
   const rec = document.createElement('div'); rec.className = 'jPay';
   const paid = m.side && SAVE.claimed[m.id];
   rec.textContent = m.range ? ('Wypłata za przebieg, zwykle 150–250 zł' + (bestLabel(m) ? ' · ' + bestLabel(m) : '')) : ('Nagroda: ' + m.reward + ' zł' + (m.side ? (paid ? ' · już odebrana (zostaje premia za rekord)' : ' · pierwszy raz') : ' · można powtarzać') + (bestLabel(m) ? ' · ' + bestLabel(m) : ''));
