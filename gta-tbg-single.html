@@ -3074,6 +3074,7 @@ function updateCar(c, dt, drive) {
     if (vF > MAXV) vF -= (vF - MAXV) * Math.min(1, dt * 1.6);
   }
   if (c.wrecked) { thr = 0; hand = true; } if (c.scooter) MAXV = 22;
+  if (typeof waterAt === 'function' && waterAt(c.x, c.z) !== 'deep') c.dry = { x: c.x, z: c.z };
   // SHALLOWS: bród przez rów albo brzeg jeziora, wolno i z pluskiem.
   if (typeof waterAt === 'function' && waterAt(c.x, c.z) === 'shallow') {
     MAXV = Math.min(MAXV, 6.2); ACC = Math.min(ACC, 4);
@@ -3126,7 +3127,10 @@ function updateCar(c, dt, drive) {
     // WATER-BLOCK: głęboka woda odrzuca auto na ostatni suchy punkt.
     if (typeof waterAt === 'function' && waterAt(c.x, c.z) === 'deep') {
       splashAt(c.x, c.y || 0, c.z, 8);
-      c.x = ox; c.z = oz; c.vx *= -0.2; c.vz *= -0.2;
+      const back = c.dry || (typeof dryNear === 'function' ? dryNear(ox, oz) : null);
+      if (back) { c.x = back.x; c.z = back.z; c.dry = { x: back.x, z: back.z }; }
+      else { c.x = ox; c.z = oz; }
+      c.vx = 0; c.vz = 0;
       if (isPlayer && performance.now() - (G.wetCar || 0) > 1600) { G.wetCar = performance.now(); toast('Auto nie pływa!'); }
       break;
     }
@@ -3162,7 +3166,10 @@ function updateCar(c, dt, drive) {
 // vertical physics: gravity, terrain following, natural jumps over crests/ramps, spring suspension
 function updateCarVertical(c, dt) {
   const zone = W.off && inOffRect(c.x, c.z);
-  if (!zone && !c.y && !c.vy && !c.air && !c.sus && !c.susV && !c.pitch && !c.roll) { c.pgh = 0; return; }
+  if (!zone && !c.y && !c.vy && !c.air && !c.sus && !c.susV && !c.pitch && !c.roll) {
+    const deck = typeof bridgeDeckH === 'function' ? bridgeDeckH(c.x, c.z) : 0;
+    if (deck < 0.25) { c.pgh = 0; return; }
+  }
   const gh = groundH(c.x, c.z, true);
   const gv = (gh - (c.pgh === undefined ? gh : c.pgh)) / Math.max(dt, 1e-3);
   c.vy -= 24 * dt; c.y += c.vy * dt;
@@ -7759,6 +7766,16 @@ function waterAt(x, z) {
     return shore < SHORE_M ? 'shallow' : 'deep';
   }
   return kind;
+}
+function dryNear(x, z) {
+  if (waterAt(x, z) !== 'deep') return { x, z };
+  for (let rad = 24; rad <= 2200; rad += 48) {
+    for (let a = 0; a < 8; a++) {
+      const px = x + Math.cos(a * 0.785) * rad, pz = z + Math.sin(a * 0.785) * rad;
+      if (waterAt(px, pz) !== 'deep' && !insideBuilding(px, pz, 1.2)) return { x: px, z: pz };
+    }
+  }
+  return null;
 }
 function waterSpawnBlocked(x, z) {
   const k = waterAt(x, z);

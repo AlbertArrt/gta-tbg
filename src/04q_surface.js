@@ -63,6 +63,16 @@ function waterAt(x, z) {
   }
   return kind;
 }
+function dryNear(x, z) {
+  if (waterAt(x, z) !== 'deep') return { x, z };
+  for (let rad = 24; rad <= 2200; rad += 48) {
+    for (let a = 0; a < 8; a++) {
+      const px = x + Math.cos(a * 0.785) * rad, pz = z + Math.sin(a * 0.785) * rad;
+      if (waterAt(px, pz) !== 'deep' && !insideBuilding(px, pz, 1.2)) return { x: px, z: pz };
+    }
+  }
+  return null;
+}
 function waterSpawnBlocked(x, z) {
   const k = waterAt(x, z);
   return k === 'deep' || k === 'shallow';
