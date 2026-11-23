@@ -2840,6 +2840,137 @@ function nearestTrailPoint(x, z, maxR) {
   return best;
 }
 
+// OFFROAD-RINGS-DRY: dry trail samples a car can actually drive, joined across fords and bridges.
+function segDrivable(x0, z0, x1, z1) {
+  const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.ceil(L / 8));
+  for (let k = 0; k <= n; k++) {
+    const t = k / n;
+    if (waterAt(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, true) === 'deep') return false;
+  }
+  return true;
+}
+function buildDryNet() {
+  const nodes = [], parent = [];
+  const find = (a) => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
+  const unite = (a, b) => { a = find(a); b = find(b); if (a !== b) parent[a] = b; };
+  const add = (x, z) => { const i = nodes.length; nodes.push({ x, z }); parent.push(i); return i; };
+  for (const t of W.off.trails) {
+    const p = t.pts; let prev = -1, px = 0, pz = 0;
+    for (let i = 0; i < p.length - 2; i += 2) {
+      const x1 = p[i], z1 = p[i + 1], x2 = p[i + 2], z2 = p[i + 3];
+      const L = Math.hypot(x2 - x1, z2 - z1) || 1, steps = Math.max(1, Math.ceil(L / 16));
+      for (let s = (i === 0 ? 0 : 1); s <= steps; s++) {
+        const x = x1 + (x2 - x1) * (s / steps), z = z1 + (z2 - z1) * (s / steps);
+        if (waterAt(x, z, true) === 'deep') { prev = -1; continue; }
+        if (prev >= 0 && Math.hypot(x - px, z - pz) < 8) continue;
+        const id = add(x, z);
+        if (prev >= 0 && Math.hypot(x - px, z - pz) < 28 && segDrivable(px, pz, x, z)) unite(prev, id);
+        prev = id; px = x; pz = z;
+      }
+    }
+  }
+  const cell = 24, buckets = new Map();
+  nodes.forEach((n, i) => { const k = Math.floor(n.x / cell) + ',' + Math.floor(n.z / cell); const a = buckets.get(k); if (a) a.push(i); else buckets.set(k, [i]); });
+  for (let i = 0; i < nodes.length; i++) {
+    const cx = Math.floor(nodes[i].x / cell), cz = Math.floor(nodes[i].z / cell);
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      const a = buckets.get((cx + dx) + ',' + (cz + dz)); if (!a) continue;
+      for (const j of a) {
+        if (j <= i || find(i) === find(j)) continue;
+        const d = Math.hypot(nodes[i].x - nodes[j].x, nodes[i].z - nodes[j].z);
+        if (d > 22 || d < 0.4) continue;
+        if (segDrivable(nodes[i].x, nodes[i].z, nodes[j].x, nodes[j].z)) unite(i, j);
+      }
+    }
+  }
+  const nearestIn = (comp, x, z, maxR) => {
+    let best = -1, bd = maxR * maxR;
+    for (let i = 0; i < nodes.length; i++) {
+      if (comp >= 0 && find(i) !== comp) continue;
+      const d = (nodes[i].x - x) ** 2 + (nodes[i].z - z) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  };
+  return { nodes, find, nearest: (x, z, maxR) => nearestIn(-1, x, z, maxR), nearestIn };
+}
+function nearestDryReach(x0, z0, tx, tz) {
+  const pad = 900, cell = 18;
+  const minx = Math.min(x0, tx) - pad, minz = Math.min(z0, tz) - pad;
+  const maxx = Math.max(x0, tx) + pad, maxz = Math.max(z0, tz) + pad;
+  const nx = Math.ceil((maxx - minx) / cell), nz = Math.ceil((maxz - minz) / cell);
+  if (nx < 2 || nz < 2 || nx * nz > 50000) return null;
+  const ix = (x) => Math.max(0, Math.min(nx - 1, Math.floor((x - minx) / cell)));
+  const iz = (z) => Math.max(0, Math.min(nz - 1, Math.floor((z - minz) / cell)));
+  const id = (i, j) => j * nx + i;
+  const blocked = new Uint8Array(nx * nz);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    if (waterAt(minx + (i + 0.5) * cell, minz + (j + 0.5) * cell, true) === 'deep') blocked[id(i, j)] = 1;
+  }
+  const start = id(ix(x0), iz(z0)), goal = id(ix(tx), iz(tz));
+  blocked[start] = 0;
+  const q = [start]; const seen = new Uint8Array(nx * nz); seen[start] = 1;
+  for (let qi = 0; qi < q.length && !seen[goal]; qi++) {
+    const cur = q[qi], i = cur % nx, j = (cur / nx) | 0;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const ni = i + di, nj = j + dj; if (ni < 0 || nj < 0 || ni >= nx || nj >= nz) continue;
+      const nid = id(ni, nj); if (seen[nid] || blocked[nid]) continue;
+      seen[nid] = 1; q.push(nid);
+    }
+  }
+  if (seen[goal]) return { x: tx, z: tz, reached: true };
+  let best = null, bd = 1e18;
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    if (!seen[id(i, j)]) continue;
+    const x = minx + (i + 0.5) * cell, z = minz + (j + 0.5) * cell;
+    if (Math.hypot(x - x0, z - z0) < 90) continue;
+    const d = (x - tx) ** 2 + (z - tz) ** 2;
+    if (d < bd) { bd = d; best = { x, z, reached: false }; }
+  }
+  return best;
+}
+function placeDryRings(o, raw) {
+  const net = buildDryNet();
+  o.ringMoves = []; o.ringGaps = []; o.cps = [];
+  o.ringScan = raw.map(([x, z], i) => ({ i, x: +x.toFixed(1), z: +z.toFixed(1), w: waterAt(x, z), car: waterAt(x, z, true) }));
+  let comp = -1;
+  raw.forEach(([rx, rz], i) => {
+    const wet = waterAt(rx, rz, true) === 'deep';
+    let id = net.nearest(rx, rz, wet ? 450 : 60);
+    if (wet && comp >= 0 && (id < 0 || net.find(id) !== comp)) {
+      const alt = net.nearestIn(comp, rx, rz, 450);
+      if (alt >= 0) id = alt;
+    }
+    let x = rx, z = rz;
+    if (wet && id >= 0) { x = net.nodes[id].x; z = net.nodes[id].z; }
+    if (Math.hypot(x - rx, z - rz) > 2) o.ringMoves.push({ i, ox: +rx.toFixed(1), oz: +rz.toFixed(1), x: +x.toFixed(1), z: +z.toFixed(1) });
+    o.cps.push([x, z]);
+    if (id >= 0 && Math.hypot(net.nodes[id].x - x, net.nodes[id].z - z) < 30) comp = net.find(id);
+    else { const n = net.nearest(x, z, 36); if (n >= 0) comp = net.find(n); }
+  });
+  for (let i = 1; i < o.cps.length; i++) {
+    const a = o.cps[i - 1], b = o.cps[i];
+    if (segDrivable(a[0], a[1], b[0], b[1])) continue;
+    const hit = nearestDryReach(a[0], a[1], b[0], b[1]);
+    if (hit && hit.reached) continue;
+    if (!hit) { o.ringGaps.push({ i: i - 1, j: i }); continue; }
+    let x = hit.x, z = hit.z;
+    const tr = nearestTrailPoint(x, z, 36);
+    if (tr && waterAt(tr.x, tr.z, true) !== 'deep' && Math.hypot(tr.x - x, tr.z - z) < 36) { x = tr.x; z = tr.z; }
+    o.ringMoves.push({ i, ox: +b[0].toFixed(1), oz: +b[1].toFixed(1), x: +x.toFixed(1), z: +z.toFixed(1), why: 'odcięty' });
+    o.cps[i] = [x, z];
+  }
+  for (let i = 1; i < o.cps.length; i++) {
+    const a = o.cps[i - 1], b = o.cps[i];
+    if (segDrivable(a[0], a[1], b[0], b[1])) continue;
+    const hit = nearestDryReach(a[0], a[1], b[0], b[1]);
+    if (!hit || !hit.reached) o.ringGaps.push({ i: i - 1, j: i, ax: +a[0].toFixed(1), az: +a[1].toFixed(1), bx: +b[0].toFixed(1), bz: +b[1].toFixed(1) });
+  }
+  if (o.th && waterAt(o.th.x, o.th.z, true) === 'deep') {
+    const id = net.nearest(o.th.x, o.th.z, 300);
+    if (id >= 0) { o.ringMoves.push({ i: 'start', ox: +o.th.x.toFixed(1), oz: +o.th.z.toFixed(1), x: +net.nodes[id].x.toFixed(1), z: +net.nodes[id].z.toFixed(1) }); o.th.x = net.nodes[id].x; o.th.z = net.nodes[id].z; }
+  }
+}
 // Called from buildWorld after roads/buildings/water exist and before trees are planted.
 function buildOffroad(scene) {
   const c = OFFZ.cell; const nx = Math.ceil((OFFZ.x1 - OFFZ.x0) / c) + 1, nz = Math.ceil((OFFZ.z1 - OFFZ.z0) / c) + 1;
@@ -2848,7 +2979,12 @@ function buildOffroad(scene) {
   // trailhead + checkpoints snapped to real OSM tracks/paths
   const th = nearestTrailPoint(TH_GUESS[0], TH_GUESS[1], 250) || { x: TH_GUESS[0], z: TH_GUESS[1], h: 0 };
   o.th = th;
-  for (const [gx, gz] of CP_GUESS) { const p = nearestTrailPoint(gx, gz, 160); o.cps.push(p ? [p.x, p.z] : [gx, gz]); }
+  const raw = [];
+  for (const [gx, gz] of CP_GUESS) { const p = nearestTrailPoint(gx, gz, 160); raw.push(p ? [p.x, p.z] : [gx, gz]); }
+  o.cps = raw.map((p) => [p[0], p[1]]);
+  // OFFROAD-RINGS-DRY
+  if (typeof indexWater === 'function') indexWater();
+  placeDryRings(o, raw);
   // rasterise "flat" features (water, buildings, paved roads) into a mask, 1 = hills allowed
   const cv = document.createElement('canvas'); cv.width = nx; cv.height = nz; const g = cv.getContext('2d', { willReadFrequently: true });
   g.fillStyle = '#fff'; g.fillRect(0, 0, nx, nz);
@@ -3034,7 +3170,7 @@ function spawnEgg() {
   try { EGG.disc = JSON.parse(localStorage.getItem('gtatbg_egg') || '{}') || {}; } catch (e) { EGG.disc = {}; }
   if (EGG.disc.monument) discover('monument', true); if (EGG.disc.trails) discover('trails', true);
   EGG.race = { i: 0, t0: 0, running: false, done: false, best: EGG.disc.best || 0 };
-  window.__egg = EGG; EGG.action = actionE; EGG.groundH = groundH;
+  window.__egg = EGG; EGG.action = actionE; EGG.groundH = groundH; EGG.showCp = showCp;
   const hud = document.createElement('div'); hud.id = 'race'; hud.className = 'hidden'; $('hud').appendChild(hud); EGG.hud = hud;
 }
 function discover(what, silent) {
@@ -7222,9 +7358,25 @@ function indexWater() {
     return { ring: w.ring, holes: w.holes, x0, x1, z0, z1 };
   });
 }
-function waterAt(x, z) {
+function onPaved(x, z) {
+  const g = W.roadGrid; if (!g || !g.stamp) return false;
+  let hit = false;
+  g.query(x, z, 14, (i) => {
+    if (hit) return;
+    const r = W.roads[g.meta[i]]; if (!r || !r.drivable) return;
+    closestOnSeg(x, z, g.s[i * 4], g.s[i * 4 + 1], g.s[i * 4 + 2], g.s[i * 4 + 3], tmpC);
+    if (Math.hypot(tmpC.x - x, tmpC.z - z) < r.width / 2 + 0.4) hit = true;
+  });
+  return hit;
+}
+function waterAt(x, z, pavedOnly) {
   if (bridgeDeckH(x, z) > 0.08) return 'bridge';
-  if (typeof nearRoad === 'function' && nearRoad(x, z, 0.15)) return 'dry';
+  if (W.fords) for (const f of W.fords) {
+    closestOnSeg(x, z, f.x0, f.z0, f.x1, f.z1, tmpC);
+    if (Math.hypot(tmpC.x - x, tmpC.z - z) <= f.hw) return 'shallow';
+  }
+  if (pavedOnly) { if (onPaved(x, z)) return 'dry'; }
+  else if (typeof nearRoad === 'function' && nearRoad(x, z, 0.15)) return 'dry';
   let kind = 'dry';
   const g = W.wwGrid;
   if (g && g.stamp) {
@@ -7254,6 +7406,44 @@ function waterAt(x, z) {
     return shore < SHORE_M ? 'shallow' : 'deep';
   }
   return kind;
+}
+// OFFROAD-RINGS-DRY: a footpath painted across the lake is not a place a car can stop.
+function ringBlocked(x, z) { return waterAt(x, z) === 'deep' || waterAt(x, z, true) === 'deep'; }
+function vehicleRingPoints() {
+  const out = [];
+  if (W.off && W.off.cps) W.off.cps.forEach(([x, z], i) => out.push({ id: 'offroad-' + i, x, z }));
+  if (typeof chainCheckpoints === 'function') {
+    for (const c of chainCheckpoints([[-733, 661, 'start'], [-290, 700, 'Stadion'], [-68, 776, 'Szpital'], [-87, 370, 'Urząd'], [-7, 10, 'Rynek']], 170)) out.push({ id: 'uliczna', x: c.x, z: c.z, name: c.name || '' });
+  }
+  if (typeof nearestNode === 'function' && typeof astar === 'function' && typeof pathPoints === 'function' && typeof roadSpot === 'function') {
+    const s = roadSpot(-87, 370);
+    const n0 = nearestNode(s.x, s.z), n1 = nearestNode(478, 162), n2 = nearestNode(1216, -49);
+    if (n0 >= 0 && n1 >= 0 && n2 >= 0) {
+      const p1 = astar(n0, n1) || [n0, n1], p2 = astar(n1, n2) || [n1, n2];
+      const pts = pathPoints(p1.concat(p2.slice(1)));
+      let acc = 0, lx = s.x, lz = s.z;
+      for (let i = 0; i < pts.length; i += 2) {
+        acc += Math.hypot(pts[i] - lx, pts[i + 1] - lz); lx = pts[i]; lz = pts[i + 1];
+        if (acc > 140 || i >= pts.length - 2) { out.push({ id: 'wyscig', x: lx, z: lz }); acc = 0; }
+      }
+    }
+    for (const [id, x, z] of [['taxi', 300, -575], ['apteka', -165, 788], ['final', 300, -575]]) {
+      const p = roadSpot(x, z, 140); out.push({ id, x: p.x, z: p.z });
+    }
+  }
+  return out;
+}
+function auditVehicleRings() {
+  const bad = [];
+  for (const c of vehicleRingPoints()) {
+    const w = waterAt(c.x, c.z);
+    const car = waterAt(c.x, c.z, true);
+    if (w === 'deep' || (String(c.id).startsWith('offroad') && car === 'deep')) bad.push({ id: c.id, x: +c.x.toFixed(1), z: +c.z.toFixed(1), name: c.name || '', w, car });
+  }
+  const gaps = (W.off && W.off.ringGaps) || [];
+  if (bad.length || gaps.length) console.warn('OFFROAD-RINGS-DRY', { bad, gaps });
+  else console.log('OFFROAD-RINGS-DRY ok', vehicleRingPoints().length);
+  return { bad, gaps, moves: (W.off && W.off.ringMoves) || [], scan: (W.off && W.off.ringScan) || [], n: vehicleRingPoints().length };
 }
 function dryNear(x, z) {
   if (waterAt(x, z) !== 'deep') return { x, z };
@@ -8121,6 +8311,7 @@ Object.assign(G, {
     },
   }),
   dive: () => ({ on: !!G.diving, x: DIVE.x, y: DIVE.y, z: DIVE.z, o2: DIVE.o2, bag: DIVE.bag.slice(), rent: { ...DIVE_RENT }, n: DIVE_LOOT.length }),
+  rings: () => (typeof auditVehicleRings === 'function' ? auditVehicleRings() : null),
   lights: () => (typeof TL === 'undefined' ? null : {
     n: TL.list.length, near: TL.nearN,
     at: TL.list.map((s) => ({ n: s.name, x: +s.x.toFixed(1), z: +s.z.toFixed(1) })),

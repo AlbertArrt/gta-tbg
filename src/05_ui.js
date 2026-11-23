@@ -397,6 +397,7 @@ Object.assign(G, {
     },
   }),
   dive: () => ({ on: !!G.diving, x: DIVE.x, y: DIVE.y, z: DIVE.z, o2: DIVE.o2, bag: DIVE.bag.slice(), rent: { ...DIVE_RENT }, n: DIVE_LOOT.length }),
+  rings: () => (typeof auditVehicleRings === 'function' ? auditVehicleRings() : null),
   lights: () => (typeof TL === 'undefined' ? null : {
     n: TL.list.length, near: TL.nearN,
     at: TL.list.map((s) => ({ n: s.name, x: +s.x.toFixed(1), z: +s.z.toFixed(1) })),
