@@ -390,6 +390,7 @@ function updateVisibility(force) {
   if (G.diving) {
     if (W.chunkGroup) W.chunkGroup.visible = false;
     if (W.treeGroup) W.treeGroup.visible = false;
+    if (W.ground) W.ground.visible = false;
     if (TR && TR.pedMesh) TR.pedMesh.visible = false;
     for (const c of cars) if (c.g && c.g.visible) c.g.visible = false;
     return;
@@ -421,11 +422,11 @@ function loop() {
     updateParked(dt);
     updateTraffic(dt); updatePolice(dt); updateDamage(dt); updateShops(dt);
     updateEgg(dt); updateMissions(dt); updateNav(dt); updateGarages(dt); updateDriveFx(dt); if (typeof updateRange === 'function') updateRange(dt);
-    const eh = G.inRange ? null : (eggHint() || missionHint() || (typeof rangeHint === 'function' ? rangeHint() : null) || garageHint() || shopHint());
-    const diveH = !eh && typeof diveHint === 'function' ? diveHint() : '';
+    const eh = G.diving || G.inRange ? null : (eggHint() || missionHint() || (typeof rangeHint === 'function' ? rangeHint() : null) || garageHint() || shopHint());
+    const diveH = !G.diving && !eh && typeof diveHint === 'function' ? diveHint() : '';
     const near = !G.diving && G.mode === 'foot' && cars.some((c) => Math.hypot(c.x - player.x, c.z - player.z) < 3.8);
     const ride = (!eh && !near && !diveH && typeof rideHint === 'function') ? rideHint() : '';
-    hint(eh || diveH || (near ? (isTouch ? 'Naciśnij Wsiądź' : 'Naciśnij E albo F, aby wsiąść') : '') || ride);
+    hint(G.diving ? '' : (eh || diveH || (near ? (isTouch ? 'Naciśnij Wsiądź' : 'Naciśnij E albo F, aby wsiąść') : '') || ride));
     const lbl = G.diving ? 'Wynurz' : (diveH ? 'NURKUJ' : (G.mode === 'foot' ? (eh ? (nearEggButton() ? 'TELEPORT' : 'AKCJA') : 'Wsiądź') : 'Wysiądź'));
     if (G.tLbl !== lbl) { G.tLbl = lbl; $('tEnter').textContent = lbl; }
   }

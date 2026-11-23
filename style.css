@@ -66,12 +66,20 @@ select{font:inherit;background:#13304d;color:#fff;border:1px solid #ffffff40;bor
 #touch.incar .foot{display:none}
 #touch:not(.incar) .car{display:none}
 #touch .dive{display:none}
-#touch.dive .dive{display:block}
-#touch.dive .foot,#touch.dive .car{display:none}
-#diveHud{position:fixed;left:16px;bottom:22px;z-index:12;background:#fff6e4;color:#2a211c;border:3px solid #2a211c;border-radius:14px;padding:8px 12px;font-family:Fredoka,system-ui,sans-serif;min-width:168px}
+#touch.dive .tb.dive{display:flex;align-items:center;justify-content:center}
+#touch.dive .foot,#touch.dive .car,#touch.dive #tEnter{display:none}
+#touch.dive.dive-exit #tEnter{display:block}
+#diveHud{position:fixed;left:12px;top:108px;bottom:auto;z-index:14;background:#fff6e4;color:#2a211c;border:3px solid #2a211c;border-radius:14px;padding:8px 12px;font-family:Fredoka,system-ui,sans-serif;min-width:168px;pointer-events:none}
 #diveHud .bar{height:12px;background:#2a211c;border-radius:7px;margin:6px 0;overflow:hidden}
 #diveHud .bar i{display:block;height:100%;width:100%;background:#3ec6c0}
+#diveHud em{display:flex;align-items:center;gap:6px;font-style:normal;font-weight:700}
+#diveArrow{display:inline-block;font-style:normal}
 #diveHud.hidden{display:none}
+#diveFade{position:fixed;inset:0;z-index:40;background:#02181c;color:#fff6e4;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font:700 22px Fredoka,system-ui,sans-serif;opacity:0;pointer-events:none;transition:opacity .45s}
+#diveFade.on{opacity:1}
+.divePop{position:fixed;left:50%;top:36%;z-index:30;font:800 28px Fredoka,system-ui,sans-serif;color:#ffe14a;-webkit-text-stroke:4px #2a211c;paint-order:stroke fill;pointer-events:none;animation:divePop .9s ease-out forwards}
+@keyframes divePop{to{transform:translate(-50%,-48px);opacity:0}}
+#touch.dive #tbtns{bottom:22%;grid-template-columns:1fr}
 #mapScreen{background:rgba(0,0,0,.6)}
 .mapPanel{background:#0d2236;border-radius:14px;padding:10px;width:min(1200px,98vw);height:min(820px,96vh);display:flex;flex-direction:column}
 .mapHead{display:flex;align-items:center;gap:8px;padding:2px 4px 8px}
