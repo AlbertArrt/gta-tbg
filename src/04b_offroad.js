@@ -23,13 +23,16 @@ function offMask(x, z) {
 function terrainH(x, z) { if (!W.off || !inOffRect(x, z)) return 0; const m = offMask(x, z); return m > 0.002 ? m * hillRaw(x, z) : 0; }
 // physical ground height (terrain + ramps [+ small bumps for vehicles])
 function groundH(x, z, bumps) {
-  if (!W.off || !inOffRect(x, z)) return 0;
-  const m = offMask(x, z); let h = m > 0.002 ? m * hillRaw(x, z) : 0;
-  if (bumps && m > 0.15) h += m * 0.09 * (Math.sin(x * 2.3) * Math.sin(z * 1.9) + 0.6 * Math.sin(x * 0.9 + z * 1.3));
-  for (const r of W.off.ramps) {
-    const dx = x - r.x, dz = z - r.z; const u = dx * r.fx + dz * r.fz, v = dx * r.fz - dz * r.fx;
-    if (u > 0 && u < r.L && Math.abs(v) < r.w / 2) { const y = r.base + u / r.L * r.H; if (y > h) h = y; }
+  let h = 0;
+  if (W.off && inOffRect(x, z)) {
+    const m = offMask(x, z); h = m > 0.002 ? m * hillRaw(x, z) : 0;
+    if (bumps && m > 0.15) h += m * 0.09 * (Math.sin(x * 2.3) * Math.sin(z * 1.9) + 0.6 * Math.sin(x * 0.9 + z * 1.3));
+    for (const r of W.off.ramps) {
+      const dx = x - r.x, dz = z - r.z; const u = dx * r.fx + dz * r.fz, v = dx * r.fz - dz * r.fx;
+      if (u > 0 && u < r.L && Math.abs(v) < r.w / 2) { const y = r.base + u / r.L * r.H; if (y > h) h = y; }
+    }
   }
+  if (typeof bridgeDeckH === 'function') { const b = bridgeDeckH(x, z); if (b > h) h = b; }
   return h;
 }
 function boxBlur(src, nx, nz, r) {

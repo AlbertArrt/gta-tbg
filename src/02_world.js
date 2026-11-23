@@ -81,7 +81,7 @@ async function buildWorld(data, scene, renderer) {
   W.waterways = [];
   data.waterways.forEach((w) => {
     const width = w[0] / 10; const pts = dec(w[2]);
-    W.waterways.push({ width, pts });
+    W.waterways.push({ width, pts, name: w[1] >= 0 ? data.names[w[1]] : '' });
     ribbon(pts, width, 0.095, waterCol, (x, z) => getChunk(x, z).water, false);
   });
 
@@ -102,9 +102,10 @@ async function buildWorld(data, scene, renderer) {
     W.roads.push(rec);
     const y = 0.13 + ROAD_RANK[type] * 0.006;
     const c2 = new THREE.Color(ROAD_COL[type] || '#666');
-    if (!trailInZone(type, pts)) ribbon(pts, width, y, c2, (x, z) => getChunk(x, z).road, true); // off-road trails are draped over the terrain later
+    if (rec.bridge) paintSpan(pts, width, c2, getChunk, rec);
+    else if (!trailInZone(type, pts)) ribbon(pts, width, y, c2, (x, z) => getChunk(x, z).road, true); // off-road trails are draped over the terrain later
     for (let i = 0; i < pts.length - 2; i += 2) W.roadGrid.add(pts[i], pts[i + 1], pts[i + 2], pts[i + 3], W.roads.length - 1);
-    if (type === 'secondary' || type === 'tertiary' || type === 'primary' || type === 'trunk') {
+    if (!rec.bridge && (type === 'secondary' || type === 'tertiary' || type === 'primary' || type === 'trunk')) {
       if (!rec.oneway) dashes(pts, 0.14, 3, 6, y + 0.02, white, (x, z) => getChunk(x, z).mark, 0);
       if (type !== 'tertiary') { dashes(pts, 0.12, 1e9, 0, y + 0.02, edge, (x, z) => getChunk(x, z).mark, width / 2 - 0.45); dashes(pts, 0.12, 1e9, 0, y + 0.02, edge, (x, z) => getChunk(x, z).mark, -(width / 2 - 0.45)); }
     }
@@ -112,7 +113,6 @@ async function buildWorld(data, scene, renderer) {
       const wf = (x, z) => getChunk(x, z).walk; const yw = 0.1;
       for (const sg of [1, -1]) { dashes(pts, 2.4, 1e9, 0, yw, walkCol, wf, sg * (width / 2 + 1.45)); dashes(pts, 0.4, 1e9, 0, yw + 0.002, curbCol, wf, sg * (width / 2 + 0.15)); }
     }
-    if (rec.bridge && rec.drivable) railings(pts, width, (x, z) => getChunk(x, z).walls);
   });
   W.roadGrid.finish();
   buildRoadGraph();
@@ -123,7 +123,9 @@ async function buildWorld(data, scene, renderer) {
     ribbon(pts, 3.2, 0.12, ballast, (x, z) => getChunk(x, z).road, false);
     dashes(pts, 0.09, 1e9, 0, 0.2, railCol, (x, z) => getChunk(x, z).mark, 0.72);
     dashes(pts, 0.09, 1e9, 0, 0.2, railCol, (x, z) => getChunk(x, z).mark, -0.72);
+    paintRailSpan(pts, getChunk);
   });
+  if (W.spanGrid) W.spanGrid.finish();
 
   // ---- buildings
   setLoad(0.55, 'Budynki…'); await nextFrame();
@@ -366,6 +368,7 @@ async function buildWorld(data, scene, renderer) {
   setLoad(0.92, 'Chmury i ulica…'); await nextFrame();
   buildLook(scene);
   setLoad(0.95, 'Prawie gotowe…'); await nextFrame();
+  if (typeof indexWater === 'function') indexWater();
 }
 
 function sealStreetWalls(fronts, getChunk) {
@@ -656,6 +659,103 @@ function dashes(pts, w, dashLen, gap, y, color, bufFor, offset) {
     }
   }
 }
+// BRIDGES: własny pomost (pokład + poręcze) na drogach i torach z OSM bridge=yes albo tam, gdzie tory idą przez głęboką wodę.
+const SPAN_DECK = new THREE.Color('#3c3e43');
+const SPAN_RAIL = new THREE.Color('#2a211c');
+const SPAN_CAP = new THREE.Color('#f4f1ea');
+function spanHeight(u, total) {
+  const deck = total > 80 ? 3.3 : total > 28 ? 2.35 : 1.55;
+  const ramp = Math.min(16, Math.max(4, total * 0.22));
+  let k = 1;
+  if (u < ramp) k = u / ramp;
+  else if (u > total - ramp) k = (total - u) / ramp;
+  return deck * Math.max(0, Math.min(1, k));
+}
+function spanSamples(pts) {
+  const n = pts.length / 2; const out = [pts[0], pts[1]]; const step = 8; let acc = 0;
+  for (let i = 0; i < n - 1; i++) {
+    const x1 = pts[i * 2], z1 = pts[i * 2 + 1], x2 = pts[i * 2 + 2], z2 = pts[i * 2 + 3];
+    const len = Math.hypot(x2 - x1, z2 - z1); if (len < 0.05) continue;
+    let d = step - (acc % step); if (acc % step < 0.05) d = step;
+    while (d < len - 0.4) { const t = d / len; out.push(x1 + (x2 - x1) * t, z1 + (z2 - z1) * t); d += step; }
+    acc += len; out.push(x2, z2);
+  }
+  return out;
+}
+function paintSpan(pts, width, color, getChunk, rec) {
+  pts = spanSamples(pts);
+  const n = pts.length / 2; if (n < 2) return;
+  const cum = [0];
+  for (let i = 1; i < n; i++) cum.push(cum[i - 1] + Math.hypot(pts[i * 2] - pts[i * 2 - 2], pts[i * 2 + 1] - pts[i * 2 - 1]));
+  const total = cum[n - 1]; if (total < 1.2) return;
+  if (!W.spanGrid) { W.spanGrid = new SegGrid(28); W.spans = []; }
+  const hw = Math.max(width * 0.5, 1.15);
+  const deckCol = color || SPAN_DECK;
+  let mx = 0, mz = 0;
+  for (let i = 0; i < n - 1; i++) {
+    const x1 = pts[i * 2], z1 = pts[i * 2 + 1], x2 = pts[i * 2 + 2], z2 = pts[i * 2 + 3];
+    const len = cum[i + 1] - cum[i]; if (len < 0.15) continue;
+    const dx = (x2 - x1) / len, dz = (z2 - z1) / len, nx = -dz, nz = dx;
+    const y1 = spanHeight(cum[i], total), y2 = spanHeight(cum[i + 1], total);
+    const ch = getChunk((x1 + x2) / 2, (z1 + z2) / 2);
+    const slab = (y, dy, col, ny) => {
+      const ax = x1 + nx * hw, az = z1 + nz * hw, bx = x2 + nx * hw, bz = z2 + nz * hw;
+      const cx = x2 - nx * hw, cz = z2 - nz * hw, dx2 = x1 - nx * hw, dz2 = z1 - nz * hw;
+      ch.road.tri(ax, y + dy, az, bx, y2 + dy, bz, cx, y2 + dy, cz, col, null, 0, ny, 0);
+      ch.road.tri(ax, y + dy, az, cx, y2 + dy, cz, dx2, y + dy, dz2, col, null, 0, ny, 0);
+    };
+    slab(y1, 0.16, deckCol, 1);
+    slab(y1, -0.08, SPAN_DECK, -1);
+    for (const side of [1, -1]) {
+      const o = hw + 0.08;
+      const ax = x1 + nx * o * side, az = z1 + nz * o * side, bx = x2 + nx * o * side, bz = z2 + nz * o * side;
+      const h1 = y1 + 0.95, h2 = y2 + 0.95;
+      ch.walls.tri(ax, y1 + 0.2, az, bx, y2 + 0.2, bz, bx, h2, bz, SPAN_RAIL, null, nx * side, 0, nz * side);
+      ch.walls.tri(ax, y1 + 0.2, az, bx, h2, bz, ax, h1, az, SPAN_RAIL, null, nx * side, 0, nz * side);
+      ch.walls.tri(ax, h1, az, bx, h2, bz, bx, h2 + 0.12, bz, SPAN_CAP, null, 0, 1, 0);
+      ch.walls.tri(ax, h1, az, bx, h2 + 0.12, bz, ax, h1 + 0.12, az, SPAN_CAP, null, 0, 1, 0);
+    }
+    W.spanGrid.add(x1, z1, x2, z2, { hw: hw + 0.35, y0: y1 + 0.16, y1: y2 + 0.16 });
+    mx += (x1 + x2) * 0.5; mz += (z1 + z2) * 0.5;
+  }
+  const segN = Math.max(1, n - 1);
+  W.spans.push({ name: (rec && rec.name) || (rec && rec.type) || 'most', type: (rec && rec.type) || 'road', len: Math.round(total), x: mx / segN, z: mz / segN, deck: spanHeight(total * 0.5, total) });
+}
+function paintRailSpan(pts, getChunk) {
+  const n = pts.length / 2; if (n < 2) return;
+  const keep = [];
+  for (let i = 0; i < n - 1; i++) {
+    const x = (pts[i * 2] + pts[i * 2 + 2]) / 2, z = (pts[i * 2 + 1] + pts[i * 2 + 3]) / 2;
+    if (railNeedsDeck(x, z)) keep.push(i);
+  }
+  if (!keep.length) return;
+  // group consecutive wet segments into one span
+  let run = [keep[0]];
+  const flush = () => {
+    if (!run.length) return;
+    const a = run[0], b = run[run.length - 1] + 1;
+    const sub = pts.slice(a * 2, b * 2 + 2);
+    paintSpan(sub, 3.4, new THREE.Color('#6a6258'), getChunk, { name: 'tory', type: 'rail' });
+    run = [];
+  };
+  for (let k = 1; k < keep.length; k++) {
+    if (keep[k] === run[run.length - 1] + 1) run.push(keep[k]);
+    else { flush(); run = [keep[k]]; }
+  }
+  flush();
+}
+function railNeedsDeck(x, z) {
+  for (const w of W.water) if (pointInRing(x, z, w.ring) && !w.holes.some((h) => pointInRing(x, z, h))) return true;
+  for (const w of W.waterways) {
+    if (w.width < 6) continue;
+    const p = w.pts;
+    for (let i = 0; i < p.length - 2; i += 2) {
+      closestOnSeg(x, z, p[i], p[i + 1], p[i + 2], p[i + 3], tmpC);
+      if (Math.hypot(tmpC.x - x, tmpC.z - z) < w.width * 0.32) return true;
+    }
+  }
+  return false;
+}
 function railings(pts, width, bufFor) {
   const c = new THREE.Color('#b8b8b4'); const n = pts.length / 2; const h = 1.0, t = 0.25;
   for (const side of [1, -1]) {
@@ -752,6 +852,7 @@ function buildTrees(density) {
     W.treeGrid.add(tr[0] - 0.01, tr[1], tr[0] + 0.01, tr[1], 0);
   }
   W.treeGrid.finish();
+  W.treeColliders = W.treeGrid.meta.length;
   if (TOON) { W.treeDensityNow = density; W.treeCount = buildTreesToon(list, rnd, cells); return; }
   if (!W.treeGeo) {
     const trunkGeo = new THREE.CylinderGeometry(0.16, 0.24, 2.4, 5); trunkGeo.translate(0, 1.2, 0);

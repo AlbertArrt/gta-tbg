@@ -230,7 +230,7 @@ function spawnAgent(f) {
     c.ai = { e: e.id, dir, s, v: e.vmax * 0.6, next: null, mode: 'drive', stuck: 0 };
     const p = agentPose(c); const d = Math.hypot(p.x - f.x, p.z - f.z); if (d < 80) continue;
     if (cars.some((o) => Math.hypot(o.x - p.x, o.z - p.z) < 15)) continue;
-    if (insideBuilding(p.x, p.z, 1.0)) continue;
+    if (insideBuilding(p.x, p.z, 1.0) || (typeof waterSpawnBlocked === 'function' && waterSpawnBlocked(p.x, p.z))) continue;
     c.x = p.x; c.z = p.z; c.h = p.h; c.vx = c.vz = 0; c.y = 0; c.vy = 0; c.hp = 100; c.wrecked = false; c.burn = 0; c.pooled = false; c.g.visible = true; c.sync();
     if (c.smokeT) c.smokeT = 0; TR.agents.push(c); cars.push(c); TR.stats.spawned++; return true;
   }
@@ -250,7 +250,7 @@ function spawnBus(f) {
     c.ai = { e: e.id, dir, s, v: Math.min(e.vmax, 9) * 0.55, next: null, mode: 'drive', stuck: 0 };
     const p = agentPose(c); const d = Math.hypot(p.x - f.x, p.z - f.z); if (d < 55 || d > 380) continue;
     if (cars.some((o) => o !== c && Math.hypot(o.x - p.x, o.z - p.z) < 14)) continue;
-    if (insideBuilding(p.x, p.z, 1.1)) continue;
+    if (insideBuilding(p.x, p.z, 1.1) || (typeof waterSpawnBlocked === 'function' && waterSpawnBlocked(p.x, p.z))) continue;
     c.x = p.x; c.z = p.z; c.h = p.h; c.vx = c.vz = 0; c.y = 0; c.vy = 0; c.hp = 100; c.wrecked = false; c.burn = 0; c.pooled = false; c.g.visible = true; c.sync();
     if (c.smokeT) c.smokeT = 0; TR.agents.push(c); cars.push(c); TR.stats.spawned++; return true;
   }
@@ -516,6 +516,7 @@ function pedJunction(p, e, nodeId, walk) {
   pedReverse(p, e.len);
 }
 function pedStep(p, dt) {
+  if (typeof waterAt === 'function' && waterAt(p.x, p.z) === 'deep') { pedRescue(p); return; }
   if (p.kind === 'cross') {
     const dx = p.tx - p.x, dz = p.tz - p.z, L = Math.hypot(dx, dz) || 1;
     if (typeof lightPedHold === 'function' && lightPedHold((p.x + p.tx) * 0.5, (p.z + p.tz) * 0.5)) { p.h = Math.atan2(dx, dz); return; }
@@ -560,7 +561,7 @@ function spawnPedWalker(f) {
       const e = TR.walk[wk[Math.floor(Math.random() * wk.length)]];
       if (e && e.use && !e.cross && e.len > 8) {
         const s = Math.random() * e.len; const smp = edgeSample(e, s, { x: 0, z: 0, h: 0 });
-        if (!pedBlocked(smp.x, smp.z) && !carriageNear(smp.x, smp.z)) {
+        if (!pedBlocked(smp.x, smp.z) && !carriageNear(smp.x, smp.z) && !(typeof waterSpawnBlocked === 'function' && waterSpawnBlocked(smp.x, smp.z))) {
           const p = spawnPedAt(smp.x, smp.z); if (!p) return;
           p.kind = 'walk'; p.e = e.id; p.s = s; p.dir = Math.random() < 0.5 ? 1 : -1; p.v = 1.15 + Math.random() * 0.4; return;
         }
@@ -570,7 +571,7 @@ function spawnPedWalker(f) {
     const e = TR.edges[arr[Math.floor(Math.random() * arr.length)]]; if (!e.ped || e.len < 12 || e.bridge) continue;
     let side = Math.random() < 0.5 ? 1 : -1; const s = 1 + Math.random() * Math.max(0.2, e.len - 2);
     let smp = pedSide(e, s, side, { x: 0, z: 0, h: 0 });
-    if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z)) { side = -side; smp = pedSide(e, s, side, { x: 0, z: 0, h: 0 }); if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z)) continue; }
+    if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z) || (typeof waterSpawnBlocked === 'function' && waterSpawnBlocked(smp.x, smp.z))) { side = -side; smp = pedSide(e, s, side, { x: 0, z: 0, h: 0 }); if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z) || (typeof waterSpawnBlocked === 'function' && waterSpawnBlocked(smp.x, smp.z))) continue; }
     const p = spawnPedAt(smp.x, smp.z); if (!p) return;
     p.kind = 'side'; p.e = e.id; p.s = s; p.dir = Math.random() < 0.5 ? 1 : -1; p.side = side; p.v = 1.15 + Math.random() * 0.4; return;
   }

@@ -219,8 +219,9 @@ function collideCircle(x, z, r, out, withTrees, buildings = true) {
         const push = r - d; px += nx * push; pz += nz * push; nxs += nx; nzs += nz; hit = true; moved = true;
       }
     });
+    // TREE-COLLIDE: pień to walec. Siatka ma komórki 16 m, więc sprawdzane są tylko drzewa obok.
     if (withTrees && W.treeGrid) {
-      const ts = W.treeGrid.s; const tr = 0.3;
+      const ts = W.treeGrid.s; const tr = 0.52;
       W.treeGrid.query(px, pz, r + tr + 0.5, (i) => {
         const tx = ts[i * 4] + 0.01, tz = ts[i * 4 + 1]; const dx = px - tx, dz = pz - tz; const d = Math.hypot(dx, dz); const R = r + tr;
         if (d < R && d > 1e-4) { const nx = dx / d, nz = dz / d; px += nx * (R - d); pz += nz * (R - d); nxs += nx; nzs += nz; hit = true; moved = true; }

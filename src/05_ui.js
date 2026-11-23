@@ -346,6 +346,8 @@ Object.assign(G, {
     yukaCars: typeof TR !== 'undefined' ? TR.agents.filter((c) => c._yv).length : 0,
     nipple: typeof nipplejs !== 'undefined' && !!nipplejs.create,
     lights: typeof TL !== 'undefined' ? TL.list.length : 0,
+    trees: typeof W !== 'undefined' ? W.treeColliders || 0 : 0,
+    spans: typeof W !== 'undefined' && W.spans ? W.spans.length : 0,
     lightNear: typeof TL !== 'undefined' ? TL.nearN : 0,
   }),
   cam: () => {
@@ -366,6 +368,18 @@ Object.assign(G, {
   touchStats: () => ({ ...TP.stats, ptrs: TP.ptrs.size, joy: !!TP.joy, look: !!TP.look, jx: G.touch.jx, jy: G.touch.jy, gas: !!G.touch.gas, brake: !!G.touch.brake, hand: !!G.touch.hand, steer: activeCar ? activeCar.steer : 0 }), touchReset,
   dialogAction, dialogClose, shopBuy, shopClose, places: PLACES, money: () => SAVE.money,
   npcGreet: (id) => npcGreet(MIS.list.find((m) => m.id === id)), npcPhase: (id) => npcPhase(MIS.list.find((m) => m.id === id)), npcMood: (id) => npcMood(id), npcRemember, npcBag,
+  surface: () => ({
+    trees: W.treeColliders || 0,
+    at: (x, z) => waterAt(x, z),
+    deck: (x, z) => bridgeDeckH(x, z),
+    spans: (W.spans || []).map((s) => ({ name: s.name, type: s.type, len: s.len, x: +s.x.toFixed(0), z: +s.z.toFixed(0), deck: +s.deck.toFixed(2) })),
+    tree: () => {
+      const s = W.treeGrid && W.treeGrid.s; if (!s || !s.length) return null;
+      const x = s[0] + 0.01, z = s[1]; const o = { x: 0, z: 0, hit: false };
+      collideCircle(x + 0.25, z, 0.95, o, true, false);
+      return { x: +x.toFixed(1), z: +z.toFixed(1), hit: !!o.hit };
+    },
+  }),
   lights: () => (typeof TL === 'undefined' ? null : {
     n: TL.list.length, near: TL.nearN,
     at: TL.list.map((s) => ({ n: s.name, x: +s.x.toFixed(1), z: +s.z.toFixed(1) })),
