@@ -3,6 +3,31 @@
 // Każdy palec (pointerId) śledzony osobno: pływający joystick + przyciski (przytrzymanie z przesuwaniem palca
 // między GAZ/HAM.) + kamera jednocześnie. Brak opóźnień (pointerdown), brak przewijania/zoomu (touch-action:none).
 const TP = { ptrs: new Map(), joy: null, look: null, btns: [], held: {}, pads: 14, stats: { down: 0, up: 0, cancel: 0, reset: 0 } };
+// NIPPLEJS: dynamic joystick on the left (or the right when left-handed). The right side stays a look drag.
+let NIPPLE = null;
+function initNipple() {
+  const zone = $('nippleZone');
+  if (!zone || !isTouch || typeof nipplejs === 'undefined' || !nipplejs.create) return;
+  if (NIPPLE && NIPPLE.destroy) NIPPLE.destroy();
+  NIPPLE = nipplejs.create({
+    zone,
+    mode: 'dynamic',
+    color: '#f6c431',
+    size: Math.round(110 * (settings.btnScale || 1)),
+    restOpacity: 0.45,
+    fadeTime: 90,
+    multitouch: false,
+  });
+  $('touch').classList.add('nipple');
+  NIPPLE.on('move', (_evt, data) => {
+    const f = data.force || 0;
+    if (f < 0.12) { G.touch.jx = G.touch.jy = 0; G.touch.jon = false; return; }
+    G.touch.jx = data.vector.x;
+    G.touch.jy = -data.vector.y;
+    G.touch.jon = true;
+  });
+  NIPPLE.on('end', () => { G.touch.jx = G.touch.jy = 0; G.touch.jon = false; });
+}
 function initTouch() {
   const root = $('touch');
   TP.btns = [...root.querySelectorAll('.tb')].map((el) => ({ el, kind: el.dataset.kind || 'tap', key: el.dataset.key || el.id }));
@@ -17,6 +42,7 @@ function initTouch() {
   addEventListener('blur', touchReset); addEventListener('pagehide', touchReset);
   document.addEventListener('visibilitychange', () => { if (document.hidden) touchReset(); });
   applyTouchLayout();
+  initNipple();
 }
 function applyTouchLayout() {
   const r = document.documentElement.style; r.setProperty('--bs', settings.btnScale || 1);
@@ -47,12 +73,13 @@ function joyLeftSide(x) { return settings.leftHanded ? x > innerWidth * 0.5 : x 
 function joyR() { return Math.max(48, Math.min(innerWidth, innerHeight) * 0.13) * (settings.btnScale || 1); }
 function tDown(e) {
   if (e.cancelable) e.preventDefault(); TP.stats.down++;
+  if (NIPPLE && e.target.closest && e.target.closest('#nippleZone')) return;
   const x = e.clientX, y = e.clientY, id = e.pointerId;
   try { $('touch').setPointerCapture(id); } catch (err) { /* ignore */ }
   const b = btnAt(x, y);
   if (b) { TP.ptrs.set(id, { t: 'btn', b }); bPress(b); return; }
   if (G.inRange && typeof rangeAimEvent === 'function') { rangeAimEvent(e); TP.ptrs.set(id, { t: 'aim' }); return; }
-  if (!TP.joy && joyLeftSide(x) && y > innerHeight * 0.25) {
+  if (!NIPPLE && !TP.joy && joyLeftSide(x) && y > innerHeight * 0.25) {
     TP.joy = { id, ox: x, oy: y }; TP.ptrs.set(id, { t: 'joy' });
     const base = $('joy'); base.classList.add('on'); base.style.left = x + 'px'; base.style.top = y + 'px'; base.style.right = 'auto'; base.style.bottom = 'auto';
     joySet(x, y); return;

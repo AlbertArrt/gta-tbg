@@ -27,15 +27,16 @@ def build_single(main):
             'url("data:font/woff;base64,' + base64.b64encode(font).decode("ascii") + '") format("woff")',
         )
     three = (ROOT / "vendor" / "three.module.min.js").read_bytes()
+    libs = (ROOT / "vendor" / "game-libs.js").read_bytes()
     icon = (ROOT / "icon.svg").read_bytes()
     data = (ROOT / "data" / "tarnobrzeg.json").read_text(encoding="utf-8")
     # drop external assets; the single file carries them inline
     index = index.replace('<link rel="manifest" href="manifest.webmanifest">\n', "")
     index = index.replace('<link rel="icon" href="icon.svg" type="image/svg+xml">\n', "")
     index = index.replace('<link rel="stylesheet" href="style.css">\n', "")
-    index = index.replace('<script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>\n', "")
+    index = index.replace('<script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "./vendor/game-libs.js": "./vendor/game-libs.js" } }</script>\n', "")
     icon_tag = '<link rel="icon" href="data:image/svg+xml;base64,' + base64.b64encode(icon).decode("ascii") + '" type="image/svg+xml">\n'
-    importmap = '<script type="importmap">{"imports":{"three":"data:text/javascript;base64,' + base64.b64encode(three).decode("ascii") + '"}}</script>\n'
+    importmap = '<script type="importmap">{"imports":{"three":"data:text/javascript;base64,' + base64.b64encode(three).decode("ascii") + '","' + './vendor/game-libs.js' + '":"data:text/javascript;base64,' + base64.b64encode(libs).decode("ascii") + '"}}</script>\n'
     inject = icon_tag + "<style>\n" + css + "</style>\n" + importmap
     index = index.replace("</head>", inject + "</head>", 1)
     module = '<script id="mapdata" type="application/json">' + data + "</script>\n<script type=\"module\">\n" + main + "</script>\n"
@@ -50,7 +51,7 @@ def build_zip():
         "index.html", "main.js", "style.css", "manifest.webmanifest", "icon.svg",
         "data/tarnobrzeg.json",
         "fonts/fredoka-400.woff", "fonts/fredoka-600.woff", "fonts/fredoka-700.woff", "fonts/OFL-Fredoka.txt",
-        "vendor/three.module.js",
+        "vendor/three.module.js", "vendor/game-libs.js",
     ]
     dest = ROOT / "gta-tbg-web.zip"
     with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED) as z:

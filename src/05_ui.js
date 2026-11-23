@@ -216,7 +216,11 @@ function drawBigMap() {
   }
   if (typeof MIS !== 'undefined') {
     g.fillStyle = '#ffd21f';
-    for (const m of MIS.list) if (m.giver) { const x = (m.giver[0] - MINX) * S, y = (m.giver[1] - MINZ) * S; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); }
+    g.font = 'bold 11px Fredoka, system-ui, sans-serif'; g.fillStyle = '#1b140f';
+    for (const m of MIS.list) if (m.giver) {
+      const x = (m.giver[0] - MINX) * S, y = (m.giver[1] - MINZ) * S; g.fillStyle = '#ffd21f'; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill();
+      if (typeof npcPin === 'function' && giverOpen(m)) { g.fillStyle = '#1b140f'; g.fillText(npcPin(m), x, y + 16); }
+    }
   }
   g.fillStyle = '#2b4a6b'; g.font = 'bold 22px system-ui, sans-serif';
   for (const w of W.water) if (w.name && Math.abs(ringArea(w.ring)) > 200000) { let cx = 0, cz = 0; const n = w.ring.length / 2; for (let i = 0; i < w.ring.length; i += 2) { cx += w.ring[i]; cz += w.ring[i + 1]; } g.fillText(w.name, (cx / n - MINX) * S, (cz / n - MINZ) * S); }
@@ -333,6 +337,17 @@ function initMenu() {
 
 Object.assign(G, {
   teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE,
+  libs: () => ({
+    kits: Object.keys(KIT),
+    kay: Object.keys(KAY),
+    bvh: typeof BVH !== 'undefined' ? { built: BVH.built, chunks: BVH.list.length, dropped: BVH.dropped } : null,
+    yuka: typeof Vehicle === 'function',
+    yukaPeds: typeof TR !== 'undefined' ? TR.peds.filter((p) => p._yv).length : 0,
+    yukaCars: typeof TR !== 'undefined' ? TR.agents.filter((c) => c._yv).length : 0,
+    nipple: typeof nipplejs !== 'undefined' && !!nipplejs.create,
+    lights: typeof TL !== 'undefined' ? TL.list.length : 0,
+    lightNear: typeof TL !== 'undefined' ? TL.nearN : 0,
+  }),
   cam: () => {
     let best = null;
     const px = G.mode === 'car' && activeCar ? activeCar.x : player.x;
@@ -346,10 +361,16 @@ Object.assign(G, {
   police: () => ({ stars: WANT.stars, seen: WANT.seen, evade: WANT.evade, chasers: chasers().length, blocks: POL.blocks.length, foot: POL.foot.filter((p) => p.on).length, bustT: POL.bustT, busted: G.bustedN || 0, footList: POL.foot.filter((p) => p.on).map((p) => Math.round(Math.hypot(p.x - focusXZ().x, p.z - focusXZ().z))), wasted: G.wastedN || 0, cut: !!G.cut, events: POL.events.slice(-10), siren: G.sirenVol || 0,
     list: POL.cars.filter((c) => c.g.visible).map((c) => ({ x: c.x, z: c.z, sp: c.speed, chase: !!c.pai, block: !!c.block, patrol: !!c.patrol, wrecked: !!c.wrecked, hp: Math.round(c.hp || 0), h: c.h, pi: c.pai ? c.pai.pi : -1, pl: c.pai && c.pai.path ? c.pai.path.length / 2 : 0, rev: c.pai ? +(c.pai.rev || 0).toFixed(1) : 0, srch: !!(c.pai && c.pai.search) })) }),
   mission: () => ({ active: MIS.active ? MIS.active.id : null, stage: MIS.active ? MIS.active.stage : null, obj: MIS.active ? MIS.active.obj : '', t: MIS.active ? MIS.active.t : null, target: MIS.active && MIS.active.target ? { x: MIS.active.target.x, z: MIS.active.target.z } : null, events: MIS.events.slice(-10), done: { ...SAVE.done }, money: SAVE.money, dialog: MIS.dlg ? MIS.dlg.id : null,
-    givers: MIS.list.map((m) => ({ id: m.id, x: m.gx, z: m.gz, open: giverOpen(m) })), car: MIS.active && MIS.active.car ? { x: MIS.active.car.x, z: MIS.active.car.z } : null, cps: MIS.active && MIS.active.cps ? MIS.active.cps.length : 0, i: MIS.active ? MIS.active.i : 0 }),
+    givers: MIS.list.map((m) => ({ id: m.id, x: m.gx, z: m.gz, hx: m.hx, hz: m.hz, open: giverOpen(m), phase: typeof npcPhase === 'function' ? npcPhase(m) : '' })), car: MIS.active && MIS.active.car ? { x: MIS.active.car.x, z: MIS.active.car.z } : null, cps: MIS.active && MIS.active.cps ? MIS.active.cps.length : 0, i: MIS.active ? MIS.active.i : 0 }),
   path: (ax, az, bx, bz) => { const p = astar(nearestNode(ax, az), nearestNode(bx, bz)); return p ? pathPoints(p) : null; },
   touchStats: () => ({ ...TP.stats, ptrs: TP.ptrs.size, joy: !!TP.joy, look: !!TP.look, jx: G.touch.jx, jy: G.touch.jy, gas: !!G.touch.gas, brake: !!G.touch.brake, hand: !!G.touch.hand, steer: activeCar ? activeCar.steer : 0 }), touchReset,
   dialogAction, dialogClose, shopBuy, shopClose, places: PLACES, money: () => SAVE.money,
+  npcGreet: (id) => npcGreet(MIS.list.find((m) => m.id === id)), npcPhase: (id) => npcPhase(MIS.list.find((m) => m.id === id)), npcMood: (id) => npcMood(id), npcRemember, npcBag,
+  lights: () => (typeof TL === 'undefined' ? null : {
+    n: TL.list.length, near: TL.nearN,
+    at: TL.list.map((s) => ({ n: s.name, x: +s.x.toFixed(1), z: +s.z.toFixed(1) })),
+    phase: (i) => lightPhase(TL.list[i], performance.now()),
+  }),
   navState: () => ({ on: NAV.on, status: NAV.status, note: NAV.note, instr: NAV.instr, dist: NAV.dist, src: NAV.src, n: NAV.pts ? NAV.pts.length / 2 : 0, plans: NAV.plans, tail: !!NAV.tail, cls: NAV.cls, name: NAV.name, dx: NAV.dx, dz: NAV.dz, sig: NAV.sig, bridges: NAV.bridges || 0, comps: NAV.comps || 0 }),
   navSet: (x, z, name, opt) => navSet(x, z, name, opt || { src: 'place' }), navClear, navAudit, openJournal, closeJournal, openTutor, closeTutor, missionCancel,
   storyDone: () => storyDoneCount(), save: () => SAVE,

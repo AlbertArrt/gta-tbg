@@ -1,5 +1,7 @@
 // GTA TBG (Tarnobrzeg) – open-world browser game on OpenStreetMap data (© OpenStreetMap contributors, ODbL)
 import * as THREE from 'three';
+import { Vehicle, Vector3, Path, FollowPathBehavior, SeparationBehavior, FleeBehavior, ObstacleAvoidanceBehavior, GameEntity, MeshBVH, acceleratedRaycast, nipplejs } from './vendor/game-libs.js';
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 const $ = (id) => document.getElementById(id);
 const isTouch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
@@ -841,7 +843,8 @@ async function buildWorld(data, scene, renderer) {
     const addMesh = (geo, mat, opts = {}) => {
       const m = new THREE.Mesh(geo, mat);
       m.matrixAutoUpdate = false; m.updateMatrix();
-      if (opts.cast) m.castShadow = true; m.receiveShadow = true;
+      if (opts.cast) { m.castShadow = true; if (typeof bvhRegister === 'function') bvhRegister(m); }
+      m.receiveShadow = true;
       W.chunkGroup.add(m);
       const bs = geo.boundingSphere; W.visObjects.push({ obj: m, x: bs.center.x, z: bs.center.z, r: bs.radius, bias: opts.bias || 0 });
     };
@@ -2016,11 +2019,11 @@ function carLights(c, braking) {
 }
 
 // circle-vs-segment collision push for buildings; returns impact normal speed info
-function collideCircle(x, z, r, out, withTrees) {
+function collideCircle(x, z, r, out, withTrees, buildings = true) {
   let px = x, pz = z, hit = false, nxs = 0, nzs = 0;
   for (let it = 0; it < 3; it++) {
     let moved = false; const s = W.bGrid.s;
-    W.bGrid.query(px, pz, r + 0.5, (i) => {
+    if (buildings) W.bGrid.query(px, pz, r + 0.5, (i) => {
       closestOnSeg(px, pz, s[i * 4], s[i * 4 + 1], s[i * 4 + 2], s[i * 4 + 3], tmpC);
       const dx = px - tmpC.x, dz = pz - tmpC.z; const d2 = dx * dx + dz * dz;
       if (d2 < r * r) {
@@ -2390,7 +2393,9 @@ function updateFoot(dt) {
   if (ml > 0.05) {
     const k = Math.min(1, ml); mx /= ml; mz /= ml; speed = spd * k;
     const nx = player.x + mx * speed * dt, nz = player.z + mz * speed * dt;
-    collideCircle(nx, nz, 0.35, col, true);
+    const hop = typeof bvhMove === 'function' ? bvhMove(player.x, player.z, nx, nz, 0.35, 0.9) : null;
+    collideCircle(hop ? hop.x : nx, hop ? hop.z : nz, 0.35, col, true, !(hop && hop.used));
+    if (hop && hop.hit) { col.hit = true; col.nx = hop.nx; col.nz = hop.nz; }
     let px = col.x, pz = col.z;
     if (insideBuilding(px, pz, 0) && !insideBuilding(player.x, player.z, 0)) { px = player.x; pz = player.z; }
     for (const c of cars) for (const [cx, cz] of c.circles()) { const dx = px - cx, dz = pz - cz, d = Math.hypot(dx, dz); if (d < 1.3 && d > 1e-4) { px = cx + dx / d * 1.3; pz = cz + dz / d * 1.3; } }
@@ -2458,9 +2463,17 @@ function updateCar(c, dt, drive) {
   for (let i = 0; i < steps; i++) {
     const ox = c.x, oz = c.z;
     c.x += c.vx * dt / steps; c.z += c.vz * dt / steps;
+    const hop = typeof bvhMove === 'function' ? bvhMove(ox, oz, c.x, c.z, c.rad, 0.7) : null;
+    if (hop && hop.used) {
+      c.x = hop.x; c.z = hop.z;
+      if (hop.hit) {
+        const vn = c.vx * hop.nx + c.vz * hop.nz;
+        if (vn < 0) { impact = Math.max(impact, -vn); c.vx -= vn * hop.nx * 1.35; c.vz -= vn * hop.nz * 1.35; c.vx *= 0.8; c.vz *= 0.8; }
+      }
+    }
     for (const off of c.offs) {
       const cx = c.x + Math.sin(c.h) * off, cz = c.z + Math.cos(c.h) * off;
-      collideCircle(cx, cz, c.rad, col, false);
+      collideCircle(cx, cz, c.rad, col, false, !(hop && hop.used));
       if (col.hit) {
         c.x += col.x - cx; c.z += col.z - cz;
         const vn = c.vx * col.nx + c.vz * col.nz;
@@ -2556,6 +2569,10 @@ function updateCamera(dt) {
   for (let i = 1; i <= steps; i++) {
     const t = i / steps; const sx = lerp(tx, px, t), sz = lerp(tz, pz, t), sy = lerp(ty + 0.3, py, t);
     if (camBlocked(sx, sz, sy)) { lastOk = Math.max(0.08, (i - 1) / steps * 0.92); break; }
+  }
+  if (typeof bvhCamDist === 'function') {
+    const tB = bvhCamDist(tx, ty + 0.3, tz, px - tx, py - (ty + 0.3), pz - tz);
+    if (tB != null) lastOk = Math.min(lastOk, tB);
   }
   px = lerp(tx, px, lastOk); pz = lerp(tz, pz, lastOk); py = Math.max(groundH(px, pz) + 0.45, lerp(ty, py, lastOk));
   camPos.set(px, py, pz);
@@ -3152,6 +3169,7 @@ function initTraffic() {
   placeBusStop();
   for (let i = 0; i < roster.buses; i++) spawnBus({ x: -7, z: 10 });
   initPeds();
+  if (typeof initTrafficLights === 'function') initTrafficLights();
 }
 function laneOffset(e) { return e.ow ? 0 : Math.min(e.w / 4, 1.8); }
 function agentPose(c) {
@@ -3237,6 +3255,7 @@ function despawnCar(c) {
   if (c.bus) TR.busPool.push(c); else if (c.police) POL.pool.push(c); else TR.pool.push(c); TR.stats.despawned++;
 }
 function updateTraffic(dt) {
+  if (typeof updateTrafficLights === 'function') updateTrafficLights(dt);
   const f = focusPos(); const max = trafficMax();
   const busCap = TR.roster ? TR.roster.buses : 1;
   TR.spawnT -= dt; if (TR.spawnT <= 0) { TR.spawnT = 0.35; if (!inOffZone(f.x, f.z)) { const carsN = TR.agents.reduce((n, a) => n + (a.bus ? 0 : 1), 0); const k = carsN < max * 0.5 ? 3 : 1; for (let q = 0; q < k && TR.agents.reduce((n, a) => n + (a.bus ? 0 : 1), 0) < max; q++) spawnAgent(f); } }
@@ -3261,6 +3280,8 @@ function updateTraffic(dt) {
     if (a.next && rem < 22 && a.next.turn > 0.5) target = Math.min(target, 5.5 + rem * 0.35);
     if (a.next && a.next.turn > 2.5 && rem < 10) target = Math.min(target, 3);
     if (c.bus) target = Math.min(target, 9.5);
+    if (typeof yukaTrafficSpeed === 'function') target = Math.min(target, yukaTrafficSpeed(c, a, e, dt, target));
+    if (typeof lightCarSpeed === 'function') target = Math.min(target, lightCarSpeed(c, a, e));
     const look = 7 + a.v * 1.4; let block = 1e9;
     const chk = (ox, oz, rr) => { const dx = ox - c.x, dz = oz - c.z; const fw = dx * fx + dz * fz; if (fw <= 0 || fw > look) return; const lat = Math.abs(dx * fz - dz * fx); if (lat < (c.rad || 0.95) + 1.15 + rr) block = Math.min(block, fw); };
     for (const o of cars) if (o !== c && o.g.visible && Math.abs(o.x - c.x) < look && Math.abs(o.z - c.z) < look) chk(o.x, o.z, 0);
@@ -3467,12 +3488,20 @@ function pedJunction(p, e, nodeId, walk) {
 }
 function pedStep(p, dt) {
   if (p.kind === 'cross') {
-    const dx = p.tx - p.x, dz = p.tz - p.z, L = Math.hypot(dx, dz) || 1; p.t -= dt;
+    const dx = p.tx - p.x, dz = p.tz - p.z, L = Math.hypot(dx, dz) || 1;
+    if (typeof lightPedHold === 'function' && lightPedHold((p.x + p.tx) * 0.5, (p.z + p.tz) * 0.5)) { p.h = Math.atan2(dx, dz); return; }
+    p.t -= dt;
     if (L < 0.4 || p.t <= 0) { if (p.next) pedAdopt(p, p.next); else pedRescue(p); return; }
     const step = Math.min(L, 2.5 * dt); p.x += dx / L * step; p.z += dz / L * step; p.h = Math.atan2(dx, dz); return;
   }
   if (p.kind === 'walk') {
     const e = TR.walk[p.e]; if (!e) { pedRescue(p); return; }
+    if (!e.cross && typeof yukaPedNudge === 'function') {
+      const smp0 = edgeSample(e, Math.min(e.len, Math.max(0, p.s)), { x: 0, z: 0, h: 0 });
+      let tx = Math.sin(smp0.h), tz = Math.cos(smp0.h); if (p.dir < 0) { tx = -tx; tz = -tz; }
+      if (yukaPedNudge(p, dt, tx, tz) < 0) p.dir = -p.dir;
+    }
+    if (e.cross && typeof lightPedHold === 'function' && lightPedHold(p.x, p.z)) return;
     const v = e.cross ? 2.5 : p.v; p.s += p.dir * v * dt;
     if (p.s < 0 || p.s > e.len) { pedJunction(p, e, p.s < 0 ? e.a : e.b, true); return; }
     const smp = edgeSample(e, p.s, { x: 0, z: 0, h: 0 });
@@ -3481,6 +3510,11 @@ function pedStep(p, dt) {
   }
   if (p.kind === 'side') {
     const e = TR.edges[p.e]; if (!e) { pedRescue(p); return; }
+    if (typeof yukaPedNudge === 'function') {
+      const smp0 = pedSide(e, Math.min(e.len, Math.max(0, p.s)), p.side || 1, { x: 0, z: 0, h: 0 });
+      let tx = Math.sin(smp0.h), tz = Math.cos(smp0.h); if (p.dir < 0) { tx = -tx; tz = -tz; }
+      if (yukaPedNudge(p, dt, tx, tz) < 0) p.dir = -p.dir;
+    }
     p.s += p.dir * p.v * dt;
     if (p.s < 0 || p.s > e.len) { pedJunction(p, e, p.s < 0 ? e.a : e.b, false); return; }
     const smp = pedSide(e, p.s, p.side || 1, { x: 0, z: 0, h: 0 });
@@ -4292,7 +4326,8 @@ const MDEF = [
       if (m.t <= 0) return 'Wesele zaczęło się bez tortu';
       if (inCar(m.car) && at(m.dest, 12, 4)) { m.bestNow = (performance.now() - m.t0) / 1000; return 'win'; }
     } },
-  { id: 'placki', name: 'Dostawa placków ziemniaczanych', giver: [-120, 158], who: 'Szef The Italiana', where: 'ul. Kościuszki 7', reward: 280, recordPay: 40, side: true, bestKey: 'placki', bestLow: true, col: '#e2a122',
+  // ITALIANA-BOSS-FRONT: chodnik przed zachodnią ścianą restauracji, twarzą do ul. Tadeusza Kościuszki (nie za budynkiem).
+  { id: 'placki', name: 'Dostawa placków ziemniaczanych', giver: [-128.29, 156.05], face: -1.7, who: 'Szef The Italiana', where: 'ul. Kościuszki 7', reward: 280, recordPay: 40, side: true, bestKey: 'placki', bestLow: true, col: '#e2a122',
     steps: ['Podejdź pod restaurację The Italiana, ul. Kościuszki 7.', 'Odbierz placki ziemniaczane przy drzwiach.', 'Wsiądź na skuter.', 'Zawieź je do domu przy ul. Chłopskiej w Mokrzyszowie.', 'Nie walnij – placki się rozsypią. Stan widać na pasku.'],
     text: 'Placki ziemniaczane na stół w Mokrzyszowie! Odbierz je u mnie, na Kościuszki 7, i leć skuterem. Jedno mocne uderzenie i placki się rozsypią.',
     start(m) {
@@ -4463,7 +4498,9 @@ function rideHint() {
 function missionAction() { const m = nearGiver(); if (!m) return false; dialogOpen(m); return true; }
 function dialogOpen(m) {
   MIS.dlg = m; G.paused = true; G.dialogOpen = true; if (document.pointerLockElement) document.exitPointerLock();
-  $('dlgWho').textContent = m.who; $('dlgTitle').textContent = (m.done ? '✔ ' : '') + m.name; $('dlgText').textContent = '„' + m.text + '”';
+  if (typeof npcVisit === 'function') npcVisit(m);
+  const greet = typeof npcGreet === 'function' ? npcGreet(m) : '';
+  $('dlgWho').textContent = m.who; $('dlgTitle').textContent = (m.done ? '✔ ' : '') + m.name; $('dlgText').textContent = '„' + (greet ? greet + ' ' : '') + m.text + '”';
   const rep = m.side ? (SAVE.claimed[m.id] ? ' · nagroda już odebrana – liczy się rekord' : ' · pełna nagroda tylko za pierwszym razem') : (m.done ? ' · już zaliczona – możesz powtórzyć' : '');
   $('dlgReward').textContent = 'Nagroda: ' + m.reward + ' zł' + rep;
   $('dialog').classList.remove('hidden');
@@ -4509,6 +4546,7 @@ function missionEnd(ok, why) {
     if (!m.side && m.id !== 'final' && storyDoneCount() === 5 && !SAVE.finalHint) { SAVE.finalHint = true; saveGame(); setTimeout(() => toast('Odblokowano finał! Wielki Szef czeka przy Muzeum Siarki', 4000), 3800); }
     if (m.id === 'final') setTimeout(() => banner('LEGENDA TARNOBRZEGA! 🏆', 'pass', 5000), 3800);
   } else { banner('MISJA NIEUDANA\n' + (why || ''), 'fail', 3200); }
+  if (typeof npcRemember === 'function') npcRemember(m.id, ok ? 'done' : 'fail', m.name);
   m.cool = true;
   if ($('mhud') && !(typeof NAV !== 'undefined' && NAV.on)) $('mhud').classList.add('hidden');
 }
@@ -4531,10 +4569,16 @@ function missionEvent(ev) { /* hook: 'lost' when police chase ends */ MIS.lastEv
 function updateMissions(dt) {
   const f = focusXZ(); const tt = performance.now() * 0.003;
   for (const m of MIS.list) {
-    const o = m.obj3; if (!o) continue; const show = giverOpen(m); o.g.visible = show; if (!show) continue;
+    const o = m.obj3; if (!o) continue;
+    if (typeof npcStep === 'function') npcStep(m);
+    const show = giverOpen(m); o.g.visible = show; if (!show) continue;
     const d = Math.hypot(f.x - m.gx, f.z - m.gz); o.beam.material.opacity = 0.16 + 0.1 * Math.sin(tt + m.gx); o.ex.position.y = 3.2 + Math.sin(tt * 1.5) * 0.25; o.lab.visible = d < 40;
-    o.w.rotation.y = Math.atan2(f.x - m.gx, f.z - m.gz);
-    if (d < 80) animateWalker(o.w, 0, dt, false);
+    o.w.rotation.y = m.face != null ? m.face : Math.atan2(f.x - m.gx, f.z - m.gz);
+    if (o.lab && typeof npcPin === 'function') {
+      const pin = m.who + ' · ' + npcPin(m);
+      if (o.lab.userData.txt !== pin) { paintNpcLabel(o.lab, pin, m.col); o.lab.userData.txt = pin; }
+    }
+    if (d < 80) animateWalker(o.w, (typeof npcPhase === 'function' && npcPhase(m) === 'wander') ? 1.25 : 0, dt, false);
     if (m.cool && d > 9) m.cool = false;
     if (!m.cool && !MIS.dlg && d < (G.mode === 'car' ? 6 : 3) && (G.mode === 'foot' || activeCar.speed < 3) && !G.cut) dialogOpen(m);
   }
@@ -4680,6 +4724,31 @@ function updateRadio() {
 // Każdy palec (pointerId) śledzony osobno: pływający joystick + przyciski (przytrzymanie z przesuwaniem palca
 // między GAZ/HAM.) + kamera jednocześnie. Brak opóźnień (pointerdown), brak przewijania/zoomu (touch-action:none).
 const TP = { ptrs: new Map(), joy: null, look: null, btns: [], held: {}, pads: 14, stats: { down: 0, up: 0, cancel: 0, reset: 0 } };
+// NIPPLEJS: dynamic joystick on the left (or the right when left-handed). The right side stays a look drag.
+let NIPPLE = null;
+function initNipple() {
+  const zone = $('nippleZone');
+  if (!zone || !isTouch || typeof nipplejs === 'undefined' || !nipplejs.create) return;
+  if (NIPPLE && NIPPLE.destroy) NIPPLE.destroy();
+  NIPPLE = nipplejs.create({
+    zone,
+    mode: 'dynamic',
+    color: '#f6c431',
+    size: Math.round(110 * (settings.btnScale || 1)),
+    restOpacity: 0.45,
+    fadeTime: 90,
+    multitouch: false,
+  });
+  $('touch').classList.add('nipple');
+  NIPPLE.on('move', (_evt, data) => {
+    const f = data.force || 0;
+    if (f < 0.12) { G.touch.jx = G.touch.jy = 0; G.touch.jon = false; return; }
+    G.touch.jx = data.vector.x;
+    G.touch.jy = -data.vector.y;
+    G.touch.jon = true;
+  });
+  NIPPLE.on('end', () => { G.touch.jx = G.touch.jy = 0; G.touch.jon = false; });
+}
 function initTouch() {
   const root = $('touch');
   TP.btns = [...root.querySelectorAll('.tb')].map((el) => ({ el, kind: el.dataset.kind || 'tap', key: el.dataset.key || el.id }));
@@ -4694,6 +4763,7 @@ function initTouch() {
   addEventListener('blur', touchReset); addEventListener('pagehide', touchReset);
   document.addEventListener('visibilitychange', () => { if (document.hidden) touchReset(); });
   applyTouchLayout();
+  initNipple();
 }
 function applyTouchLayout() {
   const r = document.documentElement.style; r.setProperty('--bs', settings.btnScale || 1);
@@ -4724,12 +4794,13 @@ function joyLeftSide(x) { return settings.leftHanded ? x > innerWidth * 0.5 : x 
 function joyR() { return Math.max(48, Math.min(innerWidth, innerHeight) * 0.13) * (settings.btnScale || 1); }
 function tDown(e) {
   if (e.cancelable) e.preventDefault(); TP.stats.down++;
+  if (NIPPLE && e.target.closest && e.target.closest('#nippleZone')) return;
   const x = e.clientX, y = e.clientY, id = e.pointerId;
   try { $('touch').setPointerCapture(id); } catch (err) { /* ignore */ }
   const b = btnAt(x, y);
   if (b) { TP.ptrs.set(id, { t: 'btn', b }); bPress(b); return; }
   if (G.inRange && typeof rangeAimEvent === 'function') { rangeAimEvent(e); TP.ptrs.set(id, { t: 'aim' }); return; }
-  if (!TP.joy && joyLeftSide(x) && y > innerHeight * 0.25) {
+  if (!NIPPLE && !TP.joy && joyLeftSide(x) && y > innerHeight * 0.25) {
     TP.joy = { id, ox: x, oy: y }; TP.ptrs.set(id, { t: 'joy' });
     const base = $('joy'); base.classList.add('on'); base.style.left = x + 'px'; base.style.top = y + 'px'; base.style.right = 'auto'; base.style.bottom = 'auto';
     joySet(x, y); return;
@@ -5853,7 +5924,7 @@ function renderJournal() {
 function journalCard(m) {
   const card = document.createElement('div'); card.className = 'jCard';
   const h = document.createElement('b'); h.textContent = m.name; card.appendChild(h);
-  const who = document.createElement('div'); who.className = 'jWho'; who.textContent = m.who + (m.where ? ' · ' + m.where : ''); card.appendChild(who);
+  const who = document.createElement('div'); who.className = 'jWho'; who.textContent = m.who + (m.where ? ' · ' + m.where : '') + (typeof npcPin === 'function' ? ' · ' + npcPin(m) : ''); card.appendChild(who);
   const rec = document.createElement('div'); rec.className = 'jPay';
   const paid = m.side && SAVE.claimed[m.id];
   rec.textContent = m.range ? ('Wypłata za przebieg, zwykle 150–250 zł' + (bestLabel(m) ? ' · ' + bestLabel(m) : '')) : ('Nagroda: ' + m.reward + ' zł' + (m.side ? (paid ? ' · już odebrana (zostaje premia za rekord)' : ' · pierwszy raz') : ' · można powtarzać') + (bestLabel(m) ? ' · ' + bestLabel(m) : ''));
@@ -6398,6 +6469,581 @@ function updateAmbience(dt) {
   ambFoot(run ? 0.42 : 0.26);
 }
 
+// YUKA-STEER. Nearby pedestrians and traffic only (LOD). Sidewalks stay the authority:
+// a pedestrian may speed up, slow down or turn around, but the step stays on the path.
+function yukaRadius() { return { low: 180, med: 260, high: 340 }[settings.quality] || 220; }
+function yukaNear(x, z) {
+  const f = focusPos();
+  return Math.hypot(x - f.x, z - f.z) < yukaRadius();
+}
+function yukaPedNudge(p, dt, tx, tz) {
+  if (!yukaNear(p.x, p.z)) return 1;
+  if (!p._yv) {
+    p._yv = new Vehicle();
+    p._yv.maxSpeed = 2.4;
+    p._yv.maxForce = 10;
+    p._yv.boundingRadius = 0.35;
+    p._sep = new SeparationBehavior();
+    p._flee = new FleeBehavior(new Vector3(p.x, 0, p.z), 8);
+    p._flee.active = false;
+    p._yv.steering.add(p._sep);
+    p._yv.steering.add(p._flee);
+  }
+  const neighbors = [];
+  for (const o of TR.peds) {
+    if (!o.on || o === p) continue;
+    if (Math.hypot(o.x - p.x, o.z - p.z) > 1.7) continue;
+    if (!o._ent) { o._ent = new GameEntity(); o._ent.boundingRadius = 0.35; }
+    o._ent.position.set(o.x, 0, o.z);
+    neighbors.push(o._ent);
+  }
+  if (G.mode === 'foot' && Math.hypot(player.x - p.x, player.z - p.z) < 1.7) {
+    if (!yukaPedNudge._player) { yukaPedNudge._player = new GameEntity(); yukaPedNudge._player.boundingRadius = 0.4; }
+    yukaPedNudge._player.position.set(player.x, 0, player.z);
+    neighbors.push(yukaPedNudge._player);
+  }
+  p._yv.neighbors = neighbors;
+  p._yv.position.set(p.x, 0, p.z);
+  p._yv.velocity.set(tx * p.v, 0, tz * p.v);
+  let threat = null, td = 8;
+  for (const c of cars) {
+    if (!c.g.visible || c.speed < 2.4) continue;
+    const d = Math.hypot(c.x - p.x, c.z - p.z);
+    if (d < td) { td = d; threat = c; }
+  }
+  if (threat) { p._flee.active = true; p._flee.target.set(threat.x, 0, threat.z); p._flee.panicDistance = 8; }
+  else p._flee.active = false;
+  p._yv.update(dt);
+  if (p._baseV == null) p._baseV = p.v;
+  if (threat && td < 7) {
+    const away = (p.x - threat.x) * tx + (p.z - threat.z) * tz;
+    p.v = Math.min(2.6, p._baseV + 1.1);
+    return away < 0 ? -1 : 1;
+  }
+  p.v = p._baseV;
+  for (const n of neighbors) {
+    const dx = n.position.x - p.x, dz = n.position.z - p.z;
+    if (dx * tx + dz * tz > 0.15 && Math.hypot(dx, dz) < 1.15) { p.v = Math.min(p.v, 0.4); break; }
+  }
+  return 1;
+}
+function yukaTrafficSpeed(c, a, e, dt, cap) {
+  if (!yukaNear(c.x, c.z)) return cap;
+  if (!c._yv) {
+    c._yv = new Vehicle();
+    c._yv.maxForce = 18;
+    c._yv.boundingRadius = c.rad || 1.1;
+    c._path = new Path();
+    c._follow = new FollowPathBehavior(c._path, 4);
+    c._avoid = new ObstacleAvoidanceBehavior([]);
+    c._avoid.dBoxMinLength = 6;
+    c._avoid.brakingWeight = 0.85;
+    c._yv.steering.add(c._follow);
+    c._yv.steering.add(c._avoid);
+    c._obs = [];
+  }
+  c._yv.maxSpeed = cap;
+  c._yv.position.set(c.x, 0, c.z);
+  const spd = Math.max(a.v, 0.4);
+  c._yv.velocity.set(Math.sin(c.h) * spd, 0, Math.cos(c.h) * spd);
+  const pts = [];
+  const pose = agentPose(c);
+  pts.push(new Vector3(pose.x, 0, pose.z));
+  const ahead = Math.min(e.len, a.s + 8);
+  const far = edgeSample(e, a.dir > 0 ? ahead : e.len - ahead, { x: 0, z: 0, h: 0 });
+  pts.push(new Vector3(far.x, 0, far.z));
+  c._path.clear();
+  for (const p of pts) c._path.add(p);
+  c._path.loop = false;
+  const obstacles = [];
+  for (const o of cars) {
+    if (o === c || !o.g.visible) continue;
+    if (Math.hypot(o.x - c.x, o.z - c.z) > 16) continue;
+    if (!o._ent) { o._ent = new GameEntity(); }
+    o._ent.position.set(o.x, 0, o.z);
+    o._ent.boundingRadius = (o.rad || 1) + 0.4;
+    obstacles.push(o._ent);
+  }
+  if (G.mode === 'foot' && Math.hypot(player.x - c.x, player.z - c.z) < 14) {
+    if (!yukaTrafficSpeed._player) { yukaTrafficSpeed._player = new GameEntity(); yukaTrafficSpeed._player.boundingRadius = 0.6; }
+    yukaTrafficSpeed._player.position.set(player.x, 0, player.z);
+    obstacles.push(yukaTrafficSpeed._player);
+  }
+  c._avoid.obstacles = obstacles;
+  c._yv.update(dt);
+  return Math.min(cap, c._yv.getSpeed ? c._yv.getSpeed() : c._yv.velocity.length());
+}
+
+// MESH-BVH. Lazy bounds trees on the chunk meshes near the player. Camera pull and
+// movement raycasts use them; chunks farther away drop the tree to save memory.
+const BVH = { list: [], ray: new THREE.Raycaster(), built: 0, dropped: 0 };
+function bvhCap() { return { low: 2, med: 4, high: 6 }[settings.quality] || 3; }
+function bvhRadius() { return { low: 220, med: 360, high: 520 }[settings.quality] || 280; }
+function bvhRegister(mesh) {
+  const bs = mesh.geometry.boundingSphere;
+  if (!bs) return;
+  BVH.list.push({ mesh, x: bs.center.x, z: bs.center.z, r: bs.radius });
+}
+function bvhEnsure(x, z) {
+  const R = bvhRadius(), cap = bvhCap();
+  const near = [];
+  for (const rec of BVH.list) if (Math.hypot(rec.x - x, rec.z - z) - rec.r < R) near.push(rec);
+  near.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z));
+  const keep = new Set(near.slice(0, cap));
+  for (const rec of BVH.list) {
+    const geo = rec.mesh.geometry;
+    if (keep.has(rec)) {
+      if (!geo.boundsTree && !rec.failed) {
+        const n = geo.getAttribute('position').count;
+        const capN = settings.quality === 'low' ? 70000 : 140000;
+        if (n > capN) { rec.failed = true; continue; }
+        try {
+          if (!geo.index) {
+            const idx = n > 65535 ? new Uint32Array(n) : new Uint16Array(n);
+            for (let i = 0; i < n; i++) idx[i] = i;
+            geo.setIndex(new THREE.BufferAttribute(idx, 1));
+          }
+          geo.boundsTree = new MeshBVH(geo);
+          BVH.built++;
+        } catch (e) { rec.failed = true; }
+      }
+    } else if (geo.boundsTree) {
+      geo.boundsTree = null;
+      BVH.dropped++;
+    }
+  }
+}
+function bvhHits(ox, oy, oz, dx, dy, dz, far) {
+  const len = Math.hypot(dx, dy, dz) || 1;
+  BVH.ray.ray.origin.set(ox, oy, oz);
+  BVH.ray.ray.direction.set(dx / len, dy / len, dz / len);
+  BVH.ray.near = 0;
+  BVH.ray.far = far;
+  BVH.ray.firstHitOnly = true;
+  let best = null;
+  for (const rec of BVH.list) {
+    if (!rec.mesh.geometry.boundsTree) continue;
+    const hits = [];
+    rec.mesh.raycast(BVH.ray, hits);
+    if (hits.length && (!best || hits[0].distance < best.distance)) best = hits[0];
+  }
+  return best;
+}
+// Shorten a ground move when a wall mesh is in the way. Returns null if no tree is ready.
+function bvhMove(x, z, nx, nz, radius, height) {
+  bvhEnsure(x, z);
+  let ready = false;
+  for (const rec of BVH.list) if (rec.mesh.geometry.boundsTree) { ready = true; break; }
+  if (!ready) return null;
+  const dist = Math.hypot(nx - x, nz - z);
+  if (dist < 1e-4) return { x: nx, z: nz, hit: false, used: true };
+  const hit = bvhHits(x, height, z, nx - x, 0, nz - z, dist + radius);
+  if (!hit || hit.distance > dist + radius * 0.25) return { x: nx, z: nz, hit: false, used: true };
+  const keep = Math.max(0, hit.distance - radius);
+  const k = keep / dist;
+  const hx = hit.face ? hit.face.normal.x : (x - nx) / dist;
+  const hz = hit.face ? hit.face.normal.z : (z - nz) / dist;
+  return { x: x + (nx - x) * k, z: z + (nz - z) * k, hit: true, used: true, nx: hx, nz: hz };
+}
+function bvhCamDist(ox, oy, oz, dx, dy, dz) {
+  bvhEnsure(ox, oz);
+  const dist = Math.hypot(dx, dy, dz);
+  if (dist < 0.2) return null;
+  const hit = bvhHits(ox, oy, oz, dx, dy, dz, dist);
+  if (!hit) return null;
+  return Math.max(0.15, hit.distance - 0.3) / dist;
+}
+
+// TRAFFIC-LIGHTS
+// Własna, lokalna sygnalizacja (bez sieci, bez kopiowania cudzych projektów).
+// Wypiek OSM nie ma węzłów highway=traffic_signals, a zapytanie na żywo nie wróciło,
+// więc światła stoją na skupionych skrzyżowaniach dróg primary/secondary/tertiary
+// z co najmniej dwiema nazwami ulic (te same dane, co reszta mapy).
+// Cykl na oś: zielone, żółte, faza piesza (wszystko czerwone), potem druga oś.
+// Auta z ruchu stają przed linią stopu. Piesi wchodzą na pasy dopiero na swoim zielonym.
+// Gracz nie jest karany. Odświeżane są tylko światła blisko kamery.
+const TL_RAW = [
+  [-3647.0, 4599.0, 'Turystyczna × Wisłostrada'],
+  [-3524.5, 5660.5, 'Strefowa × Zakładowa'],
+  [-2408.5, 2340.0, 'Plażowa × Wisłostrada'],
+  [-1222.5, 1242.5, 'Wisłostrada × Dworska'],
+  [-706.0, 2176.5, 'Siarkowa × Orląt Lwowskich × Adama Mickiewicza'],
+  [-685.5, 1788.0, 'Krzywa × Adama Mickiewicza'],
+  [-648.5, 1033.5, 'Graniczna × Wisłostrada'],
+  [-532.5, 2371.5, 'Krzywa × Orląt Lwowskich'],
+  [-447.5, 251.5, 'Stanisława Jachowicza × Sokola × Wiślna'],
+  [-338.0, 1048.5, 'Generała Władysława Sikorskiego × Adama Mickiewicza × Wisłostrada'],
+  [-237.5, 798.0, 'Rondo Siarkowców × Adama Mickiewicza'],
+  [-152.5, 579.0, 'Adama Mickiewicza × Jana Kochanowskiego'],
+  [-131.5, 479.5, 'Stanisława Moniuszki × Adama Mickiewicza × Stanisława Wyspiańskiego'],
+  [-106.5, 350.0, 'Sokola × Adama Mickiewicza'],
+  [-46.5, 145.5, 'Józefa Piłsudskiego × Adama Mickiewicza'],
+  [55.0, 543.0, 'Rondo Gracjana Fróga × Targowa × Stanisława Wyspiańskiego'],
+  [67.0, 157.5, 'Józefa Piłsudskiego × Targowa × Rondo Juliusza Tarnowskiego'],
+  [159.5, 1045.5, 'Porucznika Józefa Sarny × Generała Władysława Sikorskiego'],
+  [184.5, 130.5, 'Plac Generała Grota-Roweckiego × Józefa Piłsudskiego'],
+  [207.5, 1002.0, 'Porucznika Józefa Sarny × Generała Władysława Sikorskiego'],
+  [223.5, 53.5, 'Henryka Sienkiewicza × Rondo Solidarności'],
+  [264.0, 3345.0, 'Ocicka × Orląt Lwowskich'],
+  [281.0, 858.0, 'Świętej Barbary × Szpitalna × Generała Władysława Sikorskiego'],
+  [360.0, 574.5, 'Stanisława Wyspiańskiego × Mikołaja Kopernika × Generała Władysława Sikorskiego'],
+  [476.0, 155.5, 'Henryka Sienkiewicza × Generała Władysława Sikorskiego'],
+  [606.5, -360.5, 'Zwierzyniecka × Kardynała Stefana Wyszyńskiego × Generała Władysława Sikorskiego'],
+  [647.0, -506.5, 'Sandomierska × Generała Władysława Sikorskiego'],
+  [937.0, -1704.0, 'Polna × Jana Słomki'],
+  [962.0, -1473.5, 'Profesora Stanisława Tarnowskiego × Rondo Ochotników Dzikowskich'],
+  [965.5, -825.0, 'Kazimierza Wielkiego × Generała Władysława Sikorskiego'],
+  [989.0, 307.5, 'Henryka Sienkiewicza × Marii Dąbrowskiej'],
+  [1034.0, -923.5, 'Bolesława Śmiałego × Generała Władysława Sikorskiego'],
+  [1057.0, -962.5, 'Generała Władysława Sikorskiego × Wiejska'],
+  [1066.5, -1651.5, 'Jana Słomki × Profesora Stanisława Tarnowskiego'],
+  [1095.0, -595.0, 'Dąbrówki × Konstytucji 3 Maja × Kazimierza Wielkiego'],
+  [1136.0, -2488.5, 'Polna × Sadowa'],
+  [1156.5, -477.5, 'Królowej Jadwigi × Kazimierza Wielkiego'],
+  [1192.5, -406.5, 'Eugeniusza Kwiatkowskiego × Kazimierza Wielkiego'],
+  [1210.5, -358.0, 'Eugeniusza Kwiatkowskiego × Rondo Księdza Prałata Michała Józefczyka'],
+  [1322.0, 367.0, 'Henryka Sienkiewicza × Rondo Olgi i Andrzeja Małkowskich'],
+  [1365.0, -1501.0, 'Fabryczna × Jana Słomki × Aleja Warszawska'],
+  [1576.5, 410.5, 'Rondo Młodzieżowego Ruchu Oporu × 871'],
+  [1670.5, 541.5, 'Rondo Rodziny Pawlasów × 871'],
+  [1697.5, 567.0, 'Dworcowa × Rondo Rodziny Pawlasów'],
+  [2070.0, 471.0, 'Henryka Sienkiewicza × Rondo Centralnego Okręgu Przemysłowego'],
+  [3176.5, 684.0, 'Henryka Sienkiewicza × Zakrzowska'],
+  [3388.5, 702.0, 'Zamkowa × Henryka Sienkiewicza'],
+  [3953.5, 4434.0, 'Brzozowa × Jana Pawła II'],
+];
+const TL_CYCLE = 26;
+const TL = { list: [], grid: new Map(), meshes: [], visT: 0, nearN: 0, shown: 0 };
+const tlD = new THREE.Object3D();
+
+function initTrafficLights() {
+  const kept = [];
+  TL_RAW.forEach((row, i) => {
+    const s = { i, x: row[0], z: row[1], name: row[2], h0: 0, node: -1 };
+    snapSignal(s);
+    if (kept.some((o) => Math.hypot(o.x - s.x, o.z - s.z) < 14)) return;
+    s.i = kept.length;
+    kept.push(s);
+  });
+  TL.list = kept;
+  for (const s of TL.list) {
+    const ck = Math.floor(s.x / 80) + ',' + Math.floor(s.z / 80);
+    let arr = TL.grid.get(ck); if (!arr) { arr = []; TL.grid.set(ck, arr); } arr.push(s);
+  }
+  buildSignalMeshes();
+}
+
+function snapSignal(s) {
+  const cx = Math.floor(s.x / 100), cz = Math.floor(s.z / 100);
+  let best = -1, bd = 32;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const arr = TR.egrid.get((cx + i) + ',' + (cz + j)); if (!arr) continue;
+    for (const id of arr) {
+      const e = TR.edges[id];
+      for (const nid of [e.a, e.b]) {
+        const n = TR.nodes[nid]; if (!n || n.deg < 3) continue;
+        const d = Math.hypot(n.x - s.x, n.z - s.z);
+        if (d < bd) { bd = d; best = nid; }
+      }
+    }
+  }
+  if (best < 0) return;
+  const n = TR.nodes[best];
+  s.x = n.x; s.z = n.z; s.node = best;
+  let h0 = 0, got = false;
+  for (const o of TR.adj[best]) {
+    const e = TR.edges[o.e]; if (!e) continue;
+    const u = o.dir > 0 ? Math.min(10, e.len * 0.35) : Math.max(0, e.len - Math.min(10, e.len * 0.35));
+    const smp = edgeSample(e, u, { x: 0, z: 0, h: 0 });
+    h0 = Math.atan2(smp.x - n.x, smp.z - n.z); got = true; break;
+  }
+  if (got) s.h0 = h0;
+}
+
+function tlMat(color) {
+  const m = mkMat({ color });
+  m.shadowSide = THREE.FrontSide;
+  return m;
+}
+function tlPut(mesh, i, x, y, z, hy, sx, sy, sz) {
+  tlD.position.set(x, y, z);
+  tlD.rotation.set(0, hy, 0);
+  tlD.scale.set(sx, sy, sz);
+  tlD.updateMatrix();
+  mesh.setMatrixAt(i, tlD.matrix);
+}
+function buildSignalMeshes() {
+  const n = TL.list.length * 4;
+  if (!n) return;
+  const pole = new THREE.InstancedMesh(new THREE.BoxGeometry(0.32, 3.5, 0.32), tlMat(0x2a211c), n);
+  const head = new THREE.InstancedMesh(new THREE.BoxGeometry(0.52, 1.02, 0.4), tlMat(0x1a1612), n);
+  const red = new THREE.InstancedMesh(new THREE.BoxGeometry(0.28, 0.2, 0.1), tlMat(0xe23b3b), n);
+  const yel = new THREE.InstancedMesh(new THREE.BoxGeometry(0.28, 0.2, 0.1), tlMat(0xf0c431), n);
+  const grn = new THREE.InstancedMesh(new THREE.BoxGeometry(0.28, 0.2, 0.1), tlMat(0x3dcc5a), n);
+  TL.meshes = [pole, head, red, yel, grn];
+  TL.lamps = [red, yel, grn];
+  let k = 0;
+  for (const s of TL.list) {
+    const fx = Math.sin(s.h0), fz = Math.cos(s.h0);
+    const lx = Math.cos(s.h0), lz = -Math.sin(s.h0);
+    const spots = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+    s.base = k;
+    s.spots = [];
+    for (const [sx, sz] of spots) {
+      const x = s.x + fx * sx * 6.2 + lx * sz * 6.2;
+      const z = s.z + fz * sx * 6.2 + lz * sz * 6.2;
+      const y = groundH(x, z);
+      const hy = Math.atan2(s.x - x, s.z - z);
+      const hx = Math.sin(hy), hz = Math.cos(hy);
+      s.spots.push({ x, z, y, hy, hx, hz });
+      tlPut(pole, k, x, y + 1.75, z, hy, 1, 1, 1);
+      tlPut(head, k, x + hx * 0.18, y + 3.35, z + hz * 0.18, hy, 1, 1, 1);
+      tlPut(red, k, x + hx * 0.42, y + 3.62, z + hz * 0.42, hy, 1, 1, 1);
+      tlPut(yel, k, x + hx * 0.42, y + 3.35, z + hz * 0.42, hy, 0.001, 0.001, 0.001);
+      tlPut(grn, k, x + hx * 0.42, y + 3.08, z + hz * 0.42, hy, 0.001, 0.001, 0.001);
+      k++;
+    }
+    s._k = '';
+  }
+  for (const m of TL.meshes) {
+    m.instanceMatrix.needsUpdate = true;
+    m.frustumCulled = false;
+    m.castShadow = false;
+    m.receiveShadow = false;
+    scene.add(m);
+  }
+}
+
+function lightPhase(s, now) {
+  const t = ((now / 1000 + s.i * 3.7) % TL_CYCLE + TL_CYCLE) % TL_CYCLE;
+  const ped = (t >= 10 && t < 13) || t >= 23;
+  let a = 'red', b = 'red';
+  if (t < 8) a = 'green';
+  else if (t < 10) a = 'yellow';
+  else if (t >= 13 && t < 21) b = 'green';
+  else if (t >= 21 && t < 23) b = 'yellow';
+  const key = (ped ? 'p' : 'c') + a[0] + b[0];
+  return { car: [a, b], ped, key };
+}
+function lightAxisOf(s, h) {
+  let d = Math.abs(Math.atan2(Math.sin(h - s.h0), Math.cos(h - s.h0)));
+  if (d > Math.PI / 2) d = Math.PI - d;
+  return d < 0.65 ? 0 : 1;
+}
+function lightNear(x, z, r) {
+  const cx = Math.floor(x / 80), cz = Math.floor(z / 80);
+  let best = null, bd = r;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const arr = TL.grid.get((cx + i) + ',' + (cz + j)); if (!arr) continue;
+    for (const s of arr) {
+      const d = Math.hypot(s.x - x, s.z - z);
+      if (d < bd) { bd = d; best = s; }
+    }
+  }
+  return best;
+}
+function lightCarSpeed(c, a, e) {
+  if (!TL.list.length) return 1e9;
+  const nid = a.dir > 0 ? e.b : e.a;
+  const nd = TR.nodes[nid]; if (!nd) return 1e9;
+  const s = lightNear(nd.x, nd.z, 18); if (!s) return 1e9;
+  const rem = e.len - a.s;
+  if (rem > 20 || rem < 2.2) return 1e9;
+  const col = lightPhase(s, performance.now()).car[lightAxisOf(s, c.h)];
+  if (col === 'green') return 1e9;
+  if (col === 'yellow' && rem < 8) return 1e9;
+  const stop = 6.5;
+  if (rem <= stop) return 0;
+  return Math.max(0, (rem - stop) * 1.15);
+}
+function lightPedHold(x, z) {
+  if (!TL.list.length) return false;
+  const s = lightNear(x, z, 18); if (!s) return false;
+  return !lightPhase(s, performance.now()).ped;
+}
+function updateTrafficLights(dt) {
+  if (!TL.lamps) return;
+  TL.visT -= dt; if (TL.visT > 0) return;
+  TL.visT = 0.4;
+  const f = focusPos();
+  const R = settings.quality === 'low' ? 150 : (settings.quality === 'high' ? 280 : 210);
+  const now = performance.now();
+  let near = 0, dirty = false;
+  for (const s of TL.list) {
+    const on = Math.hypot(s.x - f.x, s.z - f.z) < R;
+    if (on) near++;
+    const ph = on ? lightPhase(s, now) : null;
+    const key = ph ? ph.key : 'off';
+    if (s._k === key) continue;
+    s._k = key; dirty = true;
+    for (let c = 0; c < 4; c++) {
+      const p = s.spots[c]; const i = s.base + c;
+      const col = ph ? ph.car[c < 2 ? 0 : 1] : '';
+      const ys = [p.y + 3.62, p.y + 3.35, p.y + 3.08];
+      for (let li = 0; li < 3; li++) {
+        const want = (li === 0 && col === 'red') || (li === 1 && col === 'yellow') || (li === 2 && col === 'green');
+        const sc = want ? 1 : 0.001;
+        tlPut(TL.lamps[li], i, p.x + p.hx * 0.42, ys[li], p.z + p.hz * 0.42, p.hy, sc, sc, sc);
+      }
+    }
+  }
+  TL.nearN = near;
+  if (dirty) for (const m of TL.lamps) m.instanceMatrix.needsUpdate = true;
+}
+
+// NPC-ROUTINE
+// Własna, lokalna rutyna zleceniodawców (bez sieci, bez modelu językowego).
+// Zegar: Europe/Warsaw, czyli czas lokalny urządzenia — gra dzieje się w Tarnobrzegu.
+// 7:00–22:00 każdy dawca stoi na swoim posterunku i da się z nim pogadać.
+// Przez 3 minuty w swojej minucie godziny robi krótki spacer (do ~3 m, wciąż w zasięgu rozmowy).
+// 22:00–7:00 zostaje na miejscu, tylko kwestia jest senna. Misja nie znika.
+// Nastrój (zadowolony / neutralny / zły) i kilka ostatnich spotkań siedzą w localStorage.
+const NPC_MEM_KEY = 'gtatbg_npcmem';
+const NPC_MEM_CAP = 10;
+const NPC_BREAK = {
+  taxi: 10, pizza: 15, race: 20, escape: 25, steal: 30, offroad: 35, courier: 40, final: 45,
+  kursy: 50, targ: 5, uliczna: 12, jezioro: 18, drift: 22, tort: 28, placki: 33, list: 38, paczka: 48,
+};
+const NPC_MOOD_LINE = {
+  zadowolony: 'Dobrze cię widzieć. Ostatnia robota była czysta.',
+  zły: 'Znowu ty? Ostatnio się nie udało. Pokaż, że umiesz.',
+  neutralny: 'Cześć. Masz chwilę na robotę?',
+};
+
+function warsawClock() {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Warsaw', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
+    let h = 0, m = 0;
+    for (const p of parts) { if (p.type === 'hour') h = parseInt(p.value, 10) || 0; else if (p.type === 'minute') m = parseInt(p.value, 10) || 0; }
+    return { h: ((h % 24) + 24) % 24, m: Math.max(0, Math.min(59, m)) };
+  } catch (e) {
+    const d = new Date();
+    return { h: d.getHours(), m: d.getMinutes() };
+  }
+}
+function npcPhase(m) {
+  const c = warsawClock();
+  const mins = c.h * 60 + c.m;
+  if (mins < 7 * 60 || mins >= 22 * 60) return 'sleepy';
+  const br0 = NPC_BREAK[(m && m.id) || ''];
+  const br = br0 == null ? 10 : br0;
+  const slot = c.m;
+  if (slot >= br && slot < br + 3) return 'wander';
+  return 'work';
+}
+function npcPin(m) {
+  const ph = npcPhase(m);
+  if (ph === 'wander') return 'spacer, wraca za chwilę';
+  if (ph === 'sleepy') return 'senny, od 7:00';
+  return 'na miejscu do 22:00';
+}
+function npcLoad() {
+  try { const o = JSON.parse(localStorage.getItem(NPC_MEM_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; }
+}
+function npcSave(all) {
+  try { localStorage.setItem(NPC_MEM_KEY, JSON.stringify(all)); } catch (e) { /* prywatny tryb */ }
+}
+function npcBag(id) {
+  const all = npcLoad();
+  const b = all[id];
+  if (!b || typeof b !== 'object') return { log: [], mood: '', moodAt: 0 };
+  if (!Array.isArray(b.log)) b.log = [];
+  return b;
+}
+function npcMood(id) {
+  const b = npcBag(id);
+  if (b.mood !== 'zadowolony' && b.mood !== 'zły') return 'neutralny';
+  if (!b.moodAt || Date.now() - b.moodAt > 20 * 3600000) return 'neutralny';
+  return b.mood;
+}
+function npcPush(id, entry, mood) {
+  if (!id) return;
+  const all = npcLoad();
+  const b = all[id] && typeof all[id] === 'object' ? all[id] : { log: [] };
+  if (!Array.isArray(b.log)) b.log = [];
+  b.log.push(entry);
+  if (b.log.length > NPC_MEM_CAP) b.log = b.log.slice(-NPC_MEM_CAP);
+  if (mood) { b.mood = mood; b.moodAt = entry.t; }
+  all[id] = b;
+  npcSave(all);
+}
+function npcRemember(id, kind, name) {
+  const mood = kind === 'done' ? 'zadowolony' : (kind === 'fail' ? 'zły' : '');
+  npcPush(id, { t: Date.now(), kind, name: name || '' }, mood);
+}
+function npcVisit(m) {
+  if (!m || !m.id) return;
+  const b = npcBag(m.id);
+  const last = b.log[b.log.length - 1];
+  if (last && last.kind === 'visit' && Date.now() - last.t < 120000) return;
+  npcPush(m.id, { t: Date.now(), kind: 'visit', name: m.name || '' }, '');
+}
+function npcWhen(t) {
+  const h = (Date.now() - t) / 3600000;
+  if (h < 2) return 'przed chwilą';
+  if (h < 16) return 'dziś';
+  if (h < 40) return 'wczoraj';
+  return 'ostatnio';
+}
+function npcCap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+function npcMemoryLine(m) {
+  const ev = [...(npcBag(m.id).log || [])].reverse().find((e) => e && (e.kind === 'done' || e.kind === 'fail'));
+  if (!ev) return '';
+  const w = npcWhen(ev.t);
+  if (ev.kind === 'fail') {
+    if (m.id === 'placki') return npcCap(w) + ' placki nie dojechały.';
+    return npcCap(w) + ' „' + (ev.name || m.name) + '” się nie udało.';
+  }
+  if (m.id === 'placki') return 'O, to ty! ' + npcCap(w) + ' placki dowiozłeś na czas!';
+  return 'O, to ty! ' + npcCap(w) + ' „' + (ev.name || m.name) + '” poszło gładko.';
+}
+function npcGreet(m) {
+  if (!m) return '';
+  const ph = npcPhase(m);
+  const mood = npcMood(m.id);
+  const mem = npcMemoryLine(m);
+  const base = mem || NPC_MOOD_LINE[mood] || NPC_MOOD_LINE.neutralny;
+  if (ph === 'sleepy') return (mem ? mem + ' ' : '') + 'Jestem senny, ale pogadam. Pełna para od siódmej.';
+  if (ph === 'wander') return base + ' Krótka przerwa, ale jestem.';
+  return base;
+}
+function paintNpcLabel(sprite, text, color) {
+  let cv = sprite.userData.cv;
+  if (!cv) {
+    cv = document.createElement('canvas'); cv.width = 640; cv.height = 96; sprite.userData.cv = cv;
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    sprite.material.map = tex; sprite.material.needsUpdate = true;
+  }
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, 640, 96);
+  g.fillStyle = 'rgba(8,16,30,0.78)';
+  g.beginPath();
+  if (g.roundRect) g.roundRect(4, 4, 632, 88, 26); else g.rect(4, 4, 632, 88);
+  g.fill();
+  g.strokeStyle = color || '#ffd21f'; g.lineWidth = 5; g.stroke();
+  g.fillStyle = '#fff';
+  g.font = (text.length > 36 ? 'bold 26px ' : 'bold 34px ') + 'system-ui, sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, 320, 50);
+  sprite.material.map.needsUpdate = true;
+  const w = Math.min(9.2, 4.4 + text.length * 0.11);
+  sprite.scale.set(w, w * 96 / 640, 1);
+}
+function npcStep(m) {
+  if (!m || !m.obj3) return;
+  if (m.hx == null) { m.hx = m.gx; m.hz = m.gz; }
+  let x = m.hx, z = m.hz;
+  if (npcPhase(m) === 'wander') {
+    const h = m.face != null ? m.face : 0;
+    const along = Math.sin(performance.now() * 0.0012) * 3;
+    const tx = m.hx + Math.cos(h) * along, tz = m.hz - Math.sin(h) * along;
+    if (!insideBuilding(tx, tz, 0.55)) { x = tx; z = tz; }
+  }
+  if (m._npcX === x && m._npcZ === z) return;
+  m._npcX = x; m._npcZ = z; m.gx = x; m.gz = z;
+  m.obj3.g.position.set(x, groundH(x, z), z);
+}
+
 
 // ======================= HUD =======================
 function updateStreet() {
@@ -6616,7 +7262,11 @@ function drawBigMap() {
   }
   if (typeof MIS !== 'undefined') {
     g.fillStyle = '#ffd21f';
-    for (const m of MIS.list) if (m.giver) { const x = (m.giver[0] - MINX) * S, y = (m.giver[1] - MINZ) * S; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); }
+    g.font = 'bold 11px Fredoka, system-ui, sans-serif'; g.fillStyle = '#1b140f';
+    for (const m of MIS.list) if (m.giver) {
+      const x = (m.giver[0] - MINX) * S, y = (m.giver[1] - MINZ) * S; g.fillStyle = '#ffd21f'; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill();
+      if (typeof npcPin === 'function' && giverOpen(m)) { g.fillStyle = '#1b140f'; g.fillText(npcPin(m), x, y + 16); }
+    }
   }
   g.fillStyle = '#2b4a6b'; g.font = 'bold 22px system-ui, sans-serif';
   for (const w of W.water) if (w.name && Math.abs(ringArea(w.ring)) > 200000) { let cx = 0, cz = 0; const n = w.ring.length / 2; for (let i = 0; i < w.ring.length; i += 2) { cx += w.ring[i]; cz += w.ring[i + 1]; } g.fillText(w.name, (cx / n - MINX) * S, (cz / n - MINZ) * S); }
@@ -6733,6 +7383,17 @@ function initMenu() {
 
 Object.assign(G, {
   teleport, enterExit, openMap, closeMap, toggleRadio, toggleNight, startGame, pauseGame, actionE,
+  libs: () => ({
+    kits: Object.keys(KIT),
+    kay: Object.keys(KAY),
+    bvh: typeof BVH !== 'undefined' ? { built: BVH.built, chunks: BVH.list.length, dropped: BVH.dropped } : null,
+    yuka: typeof Vehicle === 'function',
+    yukaPeds: typeof TR !== 'undefined' ? TR.peds.filter((p) => p._yv).length : 0,
+    yukaCars: typeof TR !== 'undefined' ? TR.agents.filter((c) => c._yv).length : 0,
+    nipple: typeof nipplejs !== 'undefined' && !!nipplejs.create,
+    lights: typeof TL !== 'undefined' ? TL.list.length : 0,
+    lightNear: typeof TL !== 'undefined' ? TL.nearN : 0,
+  }),
   cam: () => {
     let best = null;
     const px = G.mode === 'car' && activeCar ? activeCar.x : player.x;
@@ -6746,10 +7407,16 @@ Object.assign(G, {
   police: () => ({ stars: WANT.stars, seen: WANT.seen, evade: WANT.evade, chasers: chasers().length, blocks: POL.blocks.length, foot: POL.foot.filter((p) => p.on).length, bustT: POL.bustT, busted: G.bustedN || 0, footList: POL.foot.filter((p) => p.on).map((p) => Math.round(Math.hypot(p.x - focusXZ().x, p.z - focusXZ().z))), wasted: G.wastedN || 0, cut: !!G.cut, events: POL.events.slice(-10), siren: G.sirenVol || 0,
     list: POL.cars.filter((c) => c.g.visible).map((c) => ({ x: c.x, z: c.z, sp: c.speed, chase: !!c.pai, block: !!c.block, patrol: !!c.patrol, wrecked: !!c.wrecked, hp: Math.round(c.hp || 0), h: c.h, pi: c.pai ? c.pai.pi : -1, pl: c.pai && c.pai.path ? c.pai.path.length / 2 : 0, rev: c.pai ? +(c.pai.rev || 0).toFixed(1) : 0, srch: !!(c.pai && c.pai.search) })) }),
   mission: () => ({ active: MIS.active ? MIS.active.id : null, stage: MIS.active ? MIS.active.stage : null, obj: MIS.active ? MIS.active.obj : '', t: MIS.active ? MIS.active.t : null, target: MIS.active && MIS.active.target ? { x: MIS.active.target.x, z: MIS.active.target.z } : null, events: MIS.events.slice(-10), done: { ...SAVE.done }, money: SAVE.money, dialog: MIS.dlg ? MIS.dlg.id : null,
-    givers: MIS.list.map((m) => ({ id: m.id, x: m.gx, z: m.gz, open: giverOpen(m) })), car: MIS.active && MIS.active.car ? { x: MIS.active.car.x, z: MIS.active.car.z } : null, cps: MIS.active && MIS.active.cps ? MIS.active.cps.length : 0, i: MIS.active ? MIS.active.i : 0 }),
+    givers: MIS.list.map((m) => ({ id: m.id, x: m.gx, z: m.gz, hx: m.hx, hz: m.hz, open: giverOpen(m), phase: typeof npcPhase === 'function' ? npcPhase(m) : '' })), car: MIS.active && MIS.active.car ? { x: MIS.active.car.x, z: MIS.active.car.z } : null, cps: MIS.active && MIS.active.cps ? MIS.active.cps.length : 0, i: MIS.active ? MIS.active.i : 0 }),
   path: (ax, az, bx, bz) => { const p = astar(nearestNode(ax, az), nearestNode(bx, bz)); return p ? pathPoints(p) : null; },
   touchStats: () => ({ ...TP.stats, ptrs: TP.ptrs.size, joy: !!TP.joy, look: !!TP.look, jx: G.touch.jx, jy: G.touch.jy, gas: !!G.touch.gas, brake: !!G.touch.brake, hand: !!G.touch.hand, steer: activeCar ? activeCar.steer : 0 }), touchReset,
   dialogAction, dialogClose, shopBuy, shopClose, places: PLACES, money: () => SAVE.money,
+  npcGreet: (id) => npcGreet(MIS.list.find((m) => m.id === id)), npcPhase: (id) => npcPhase(MIS.list.find((m) => m.id === id)), npcMood: (id) => npcMood(id), npcRemember, npcBag,
+  lights: () => (typeof TL === 'undefined' ? null : {
+    n: TL.list.length, near: TL.nearN,
+    at: TL.list.map((s) => ({ n: s.name, x: +s.x.toFixed(1), z: +s.z.toFixed(1) })),
+    phase: (i) => lightPhase(TL.list[i], performance.now()),
+  }),
   navState: () => ({ on: NAV.on, status: NAV.status, note: NAV.note, instr: NAV.instr, dist: NAV.dist, src: NAV.src, n: NAV.pts ? NAV.pts.length / 2 : 0, plans: NAV.plans, tail: !!NAV.tail, cls: NAV.cls, name: NAV.name, dx: NAV.dx, dz: NAV.dz, sig: NAV.sig, bridges: NAV.bridges || 0, comps: NAV.comps || 0 }),
   navSet: (x, z, name, opt) => navSet(x, z, name, opt || { src: 'place' }), navClear, navAudit, openJournal, closeJournal, openTutor, closeTutor, missionCancel,
   storyDone: () => storyDoneCount(), save: () => SAVE,

@@ -7,6 +7,9 @@ Przeglądarkowa gra 3D z otwartym światem, której mapą jest **Tarnobrzeg**. M
 > Czcionka: [Fredoka](https://fonts.google.com/specimen/Fredoka) (OFL 1.1, podzbiór z polskimi literami). Dodatkowe auta: [Kenney Car Kit](https://kenney.nl/assets/car-kit) (CC0). Autobus jest modelem własnym. Trzy sklepy przy Rynku: [KayKit City Builder Bits](https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0) (CC0, Kay Lousberg).
 > „GTA TBG” to fanowski projekt hobbystyczny. Logo jest własnym projektem i nie korzysta z materiałów Rockstar Games.
 > Szum miasta i kroki są syntetyzowane w przeglądarce (WebAudio, przefiltrowany szum). Nie ma zewnętrznych próbek dźwięku. Szum miasta milknie, gdy gra radio. Suwak „Głośność silnika i efektów” ścisza też te odgłosy; zero to cisza.
+> Biblioteki (MIT): [Yuka](https://github.com/Mugen87/yuka) © Mugen87 — sterowanie pieszych i ruchu (`YUKA-STEER`). [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) © Garrett Johnson — BVH przy kamerze i kolizjach (`MESH-BVH`). [nipplejs](https://github.com/yoannmoinet/nipplejs) © Yoann Moinet — joystick na telefonie (`NIPPLEJS`).
+> Zleceniodawcy misji mają prostą rutynę według czasu lokalnego (Europe/Warsaw): 7:00–22:00 stoją na posterunku, na chwilę odchodzą kilka metrów, w nocy są senni, ale nadal da się z nimi pogadać. Pamiętają kilka ostatnich spotkań w tej przeglądarce i witają inaczej, gdy są zadowoleni albo źli (`NPC-ROUTINE`).
+> Na większych skrzyżowaniach stoją komiksowe sygnalizatory. Auta z ruchu stają na czerwonym, piesi wchodzą na pasy na swoim zielonym. Gracz może jechać dalej (`TRAFFIC-LIGHTS`).
 
 ## Jak uruchomić
 

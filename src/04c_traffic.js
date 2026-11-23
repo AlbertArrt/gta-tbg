@@ -198,6 +198,7 @@ function initTraffic() {
   placeBusStop();
   for (let i = 0; i < roster.buses; i++) spawnBus({ x: -7, z: 10 });
   initPeds();
+  if (typeof initTrafficLights === 'function') initTrafficLights();
 }
 function laneOffset(e) { return e.ow ? 0 : Math.min(e.w / 4, 1.8); }
 function agentPose(c) {
@@ -283,6 +284,7 @@ function despawnCar(c) {
   if (c.bus) TR.busPool.push(c); else if (c.police) POL.pool.push(c); else TR.pool.push(c); TR.stats.despawned++;
 }
 function updateTraffic(dt) {
+  if (typeof updateTrafficLights === 'function') updateTrafficLights(dt);
   const f = focusPos(); const max = trafficMax();
   const busCap = TR.roster ? TR.roster.buses : 1;
   TR.spawnT -= dt; if (TR.spawnT <= 0) { TR.spawnT = 0.35; if (!inOffZone(f.x, f.z)) { const carsN = TR.agents.reduce((n, a) => n + (a.bus ? 0 : 1), 0); const k = carsN < max * 0.5 ? 3 : 1; for (let q = 0; q < k && TR.agents.reduce((n, a) => n + (a.bus ? 0 : 1), 0) < max; q++) spawnAgent(f); } }
@@ -307,6 +309,8 @@ function updateTraffic(dt) {
     if (a.next && rem < 22 && a.next.turn > 0.5) target = Math.min(target, 5.5 + rem * 0.35);
     if (a.next && a.next.turn > 2.5 && rem < 10) target = Math.min(target, 3);
     if (c.bus) target = Math.min(target, 9.5);
+    if (typeof yukaTrafficSpeed === 'function') target = Math.min(target, yukaTrafficSpeed(c, a, e, dt, target));
+    if (typeof lightCarSpeed === 'function') target = Math.min(target, lightCarSpeed(c, a, e));
     const look = 7 + a.v * 1.4; let block = 1e9;
     const chk = (ox, oz, rr) => { const dx = ox - c.x, dz = oz - c.z; const fw = dx * fx + dz * fz; if (fw <= 0 || fw > look) return; const lat = Math.abs(dx * fz - dz * fx); if (lat < (c.rad || 0.95) + 1.15 + rr) block = Math.min(block, fw); };
     for (const o of cars) if (o !== c && o.g.visible && Math.abs(o.x - c.x) < look && Math.abs(o.z - c.z) < look) chk(o.x, o.z, 0);
@@ -513,12 +517,20 @@ function pedJunction(p, e, nodeId, walk) {
 }
 function pedStep(p, dt) {
   if (p.kind === 'cross') {
-    const dx = p.tx - p.x, dz = p.tz - p.z, L = Math.hypot(dx, dz) || 1; p.t -= dt;
+    const dx = p.tx - p.x, dz = p.tz - p.z, L = Math.hypot(dx, dz) || 1;
+    if (typeof lightPedHold === 'function' && lightPedHold((p.x + p.tx) * 0.5, (p.z + p.tz) * 0.5)) { p.h = Math.atan2(dx, dz); return; }
+    p.t -= dt;
     if (L < 0.4 || p.t <= 0) { if (p.next) pedAdopt(p, p.next); else pedRescue(p); return; }
     const step = Math.min(L, 2.5 * dt); p.x += dx / L * step; p.z += dz / L * step; p.h = Math.atan2(dx, dz); return;
   }
   if (p.kind === 'walk') {
     const e = TR.walk[p.e]; if (!e) { pedRescue(p); return; }
+    if (!e.cross && typeof yukaPedNudge === 'function') {
+      const smp0 = edgeSample(e, Math.min(e.len, Math.max(0, p.s)), { x: 0, z: 0, h: 0 });
+      let tx = Math.sin(smp0.h), tz = Math.cos(smp0.h); if (p.dir < 0) { tx = -tx; tz = -tz; }
+      if (yukaPedNudge(p, dt, tx, tz) < 0) p.dir = -p.dir;
+    }
+    if (e.cross && typeof lightPedHold === 'function' && lightPedHold(p.x, p.z)) return;
     const v = e.cross ? 2.5 : p.v; p.s += p.dir * v * dt;
     if (p.s < 0 || p.s > e.len) { pedJunction(p, e, p.s < 0 ? e.a : e.b, true); return; }
     const smp = edgeSample(e, p.s, { x: 0, z: 0, h: 0 });
@@ -527,6 +539,11 @@ function pedStep(p, dt) {
   }
   if (p.kind === 'side') {
     const e = TR.edges[p.e]; if (!e) { pedRescue(p); return; }
+    if (typeof yukaPedNudge === 'function') {
+      const smp0 = pedSide(e, Math.min(e.len, Math.max(0, p.s)), p.side || 1, { x: 0, z: 0, h: 0 });
+      let tx = Math.sin(smp0.h), tz = Math.cos(smp0.h); if (p.dir < 0) { tx = -tx; tz = -tz; }
+      if (yukaPedNudge(p, dt, tx, tz) < 0) p.dir = -p.dir;
+    }
     p.s += p.dir * p.v * dt;
     if (p.s < 0 || p.s > e.len) { pedJunction(p, e, p.s < 0 ? e.a : e.b, false); return; }
     const smp = pedSide(e, p.s, p.side || 1, { x: 0, z: 0, h: 0 });
