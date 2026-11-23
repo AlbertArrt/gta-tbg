@@ -572,6 +572,8 @@ function renderJournal() {
     b.onclick = () => { JRN.tab = id; renderJournal(); }; tabs.appendChild(b);
   }
   body.innerHTML = '';
+  const showDive = typeof diveJournalCard === 'function' && (JRN.tab === 'open' || (JRN.tab === 'active' && !MIS.active));
+  if (showDive) body.appendChild(diveJournalCard());
   const rows = MIS.list.filter((m) => (JRN.tab === 'active' ? misBucket(m) === 'active' : JRN.tab === 'done' ? (m.done && misBucket(m) !== 'active') : misBucket(m) === 'open' || misBucket(m) === 'locked'));
   if (JRN.tab === 'active' && MIS.active) {
     const info = document.createElement('div'); info.className = 'jNow';
@@ -579,6 +581,7 @@ function renderJournal() {
     body.appendChild(info);
   }
   if (!rows.length) {
+    if (showDive) return;
     const e = document.createElement('div'); e.className = 'jEmpty';
     e.textContent = JRN.tab === 'active' ? 'Brak aktywnej misji. Wejdź w Dostępne albo szukaj świecącego „!”.' : (JRN.tab === 'done' ? 'Jeszcze nic nie ukończone.' : 'Wszystko już zaliczone – powtórki są w zakładce Ukończone.');
     body.appendChild(e); return;

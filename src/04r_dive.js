@@ -52,6 +52,32 @@ function initDive() {
   hud.innerHTML = '<b>Powietrze</b><div class="bar"><i id="diveAir"></i></div><span id="diveLoot">Skarby: 0/10</span>';
   document.body.appendChild(hud);
   DIVE.hud = hud;
+  if (W.travel && !W.travel.some((t) => String(t[0]).includes('Nurkowanie'))) W.travel.splice(1, 0, ['🤿 Nurkowanie – zatopione skarby', DIVE_RENT.x, DIVE_RENT.z]);
+}
+function diveFoundCount() { return diveLoad().found.length; }
+function diveJournalCard() {
+  const n = diveFoundCount();
+  const card = document.createElement('div'); card.className = 'jCard';
+  const h = document.createElement('b'); h.textContent = 'Nurkowanie – zatopione skarby'; card.appendChild(h);
+  const who = document.createElement('div'); who.className = 'jWho'; who.textContent = 'Wypożyczalnia · plaża Jeziora Tarnobrzeskiego'; card.appendChild(who);
+  const rec = document.createElement('div'); rec.className = 'jPay'; rec.textContent = 'Skarby: ' + n + '/10'; card.appendChild(rec);
+  const p = document.createElement('p'); p.textContent = 'Zejdź pod wodę przy budce na plaży. Wynurz się tam, żeby schować łup do kasy.'; card.appendChild(p);
+  const btns = document.createElement('div'); btns.className = 'jBtns';
+  const gps = document.createElement('button'); gps.type = 'button'; gps.textContent = 'GPS';
+  gps.onclick = () => {
+    navSet(DIVE_RENT.x, DIVE_RENT.z, 'Nurkowanie – zatopione skarby', { src: 'place' });
+    closeJournal(); toast('GPS: Nurkowanie', 1400);
+  };
+  btns.appendChild(gps); card.appendChild(btns);
+  return card;
+}
+function drawDiveIcon(g, r) {
+  g.beginPath(); g.arc(0, 0, r, 0, 7); g.fillStyle = '#1a8a9a'; g.fill();
+  g.lineWidth = Math.max(2, r * 0.16); g.strokeStyle = '#2a211c'; g.stroke();
+  g.strokeStyle = '#fff'; g.lineWidth = Math.max(1.6, r * 0.14); g.lineCap = 'round'; g.lineJoin = 'round';
+  g.beginPath(); g.arc(0, -r * 0.22, r * 0.2, 0, 7); g.stroke();
+  g.beginPath(); g.moveTo(0, -r * 0.02); g.lineTo(0, r * 0.46); g.stroke();
+  g.beginPath(); g.moveTo(-r * 0.4, r * 0.16); g.lineTo(0, r * 0.46); g.lineTo(r * 0.4, r * 0.16); g.stroke();
 }
 function diveHint() {
   if (G.diving || G.mode !== 'foot') return '';
