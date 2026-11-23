@@ -57,8 +57,16 @@ function drawMinimap() {
   drawEggMinimap(g, sc);
   g.fillStyle = '#e8503a';
   for (const p of MAP_PINS) {
+    if (p[0] === 'Nurkowanie') continue;
     if (Math.hypot(p[1] - x, p[2] - z) > R * 0.92) continue;
     g.beginPath(); g.arc(p[1], p[2], 6 / sc, 0, 7); g.fill();
+  }
+  if (typeof drawDiveIcon === 'function') {
+    const dx = DIVE_RENT.x - x, dz = DIVE_RENT.z - z, dist = Math.hypot(dx, dz) || 1;
+    const lim = R * 0.78; const k = dist > lim ? lim / dist : 1;
+    g.save(); g.translate(x + dx * k, z + dz * k); drawDiveIcon(g, 12 / sc);
+    if (dist < R * 0.9) { g.fillStyle = '#1b140f'; g.font = 'bold ' + (11 / sc) + 'px Fredoka, system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('Nurkowanie', 0, -16 / sc); }
+    g.restore();
   }
   if (typeof drawNavOverlay === 'function') drawNavOverlay(g, sc);
   // cars
@@ -91,6 +99,7 @@ const MAP_PINS = [
   ['The Italiana', -119.1, 158.1, '#e2a122'],
   ['Mokrzyszów', 3419, 750, '#45b65a'],
   ['Kościół Wniebowzięcia NMP', -84.2, -69.6, '#f4efe4'],
+  ['Nurkowanie', -1792, 2348, '#1a8a9a'],
 ];
 function initBigMap() {
   const [MINX, MINZ, MAXX, MAXZ] = W.rect; const w = MAXX - MINX, h = MAXZ - MINZ;
@@ -209,6 +218,7 @@ function drawBigMap() {
   W.travel.forEach((t, i) => { const x = (t[1] - MINX) * S, y = (t[2] - MINZ) * S; g.fillStyle = t[0][0] === '★' ? '#0a8fa8' : '#123'; g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillText(String(i + 1), x, y + 1); });
   g.font = 'bold 11px Fredoka, system-ui, sans-serif';
   for (const p of MAP_PINS) {
+    if (p[0] === 'Nurkowanie') continue;
     const x = (p[1] - MINX) * S, y = (p[2] - MINZ) * S;
     g.fillStyle = p[3] || '#e8503a'; g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill();
     g.lineWidth = 2; g.strokeStyle = '#2a211c'; g.stroke();
@@ -228,6 +238,12 @@ function drawBigMap() {
   const px = G.mode === 'car' ? activeCar.x : player.x, pz = G.mode === 'car' ? activeCar.z : player.z; const ph = G.mode === 'car' ? activeCar.h : player.h;
   g.save(); g.translate((px - MINX) * S, (pz - MINZ) * S); g.rotate(Math.PI - ph); g.fillStyle = '#ff3b30'; g.strokeStyle = '#fff'; g.lineWidth = 3;
   g.beginPath(); g.moveTo(0, -16); g.lineTo(11, 12); g.lineTo(0, 6); g.lineTo(-11, 12); g.closePath(); g.fill(); g.stroke(); g.restore();
+  if (typeof drawDiveIcon === 'function') {
+    const x = (DIVE_RENT.x - MINX) * S, y = (DIVE_RENT.z - MINZ) * S;
+    g.save(); g.translate(x, y); drawDiveIcon(g, 18);
+    g.font = 'bold 18px Fredoka, system-ui, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#fff6e4'; g.strokeStyle = '#2a211c'; g.lineWidth = 4;
+    g.strokeText('Nurkowanie', 0, -28); g.fillText('Nurkowanie', 0, -28); g.restore();
+  }
 }
 function openMap() {
   if (!G.started) return;
@@ -252,7 +268,7 @@ function initInput() {
     if (G.inRange) { if (e.code === 'Escape' || e.code === 'KeyE') { if (typeof rangeExit === 'function') rangeExit(); } return; }
     if (G.inGarage) { garageKey(e.code); return; }
     if (POL.shop) { if (e.code === 'Digit1') { shopBuy('paint'); return; } if (e.code === 'Digit2') { shopBuy('fix'); return; } if (e.code === 'Escape' || e.code === 'Digit3') { shopClose(); return; } }
-    if (e.code === 'Space' && G.mode === 'foot') G.jumpReq = true;
+    if (e.code === 'Space' && G.mode === 'foot' && !G.diving) G.jumpReq = true;
     if (e.code === 'KeyE' || e.code === 'KeyF') actionE();
     else if (e.code === 'KeyM') { G.mapOpen ? closeMap() : openMap(); }
     else if (e.code === 'KeyJ') { if (!G.mapOpen && !G.inGarage && !POL.shop) openJournal(); }
@@ -269,7 +285,7 @@ function initInput() {
     else if (e.code === 'KeyQ' || e.code === 'Comma') radioStep(-1);
     else if (e.code === 'KeyT') radioPower();
     else if (e.code === 'KeyN') toggleNight();
-    else if (e.code === 'KeyC') G.camZoom = G.camZoom ? 0 : 1;
+    else if (e.code === 'KeyC' && !G.diving) G.camZoom = G.camZoom ? 0 : 1;
     else if (e.code === 'Escape') { if (G.mapOpen) closeMap(); else pauseGame(); }
   });
   addEventListener('keyup', (e) => G.keys.delete(e.code));
@@ -380,6 +396,8 @@ Object.assign(G, {
       return { x: +x.toFixed(1), z: +z.toFixed(1), hit: !!o.hit };
     },
   }),
+  dive: () => ({ on: !!G.diving, x: DIVE.x, y: DIVE.y, z: DIVE.z, o2: DIVE.o2, bag: DIVE.bag.slice(), rent: { ...DIVE_RENT }, n: DIVE_LOOT.length }),
+  rings: () => (typeof auditVehicleRings === 'function' ? auditVehicleRings() : null),
   lights: () => (typeof TL === 'undefined' ? null : {
     n: TL.list.length, near: TL.nearN,
     at: TL.list.map((s) => ({ n: s.name, x: +s.x.toFixed(1), z: +s.z.toFixed(1) })),

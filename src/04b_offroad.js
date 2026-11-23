@@ -47,6 +47,137 @@ function nearestTrailPoint(x, z, maxR) {
   return best;
 }
 
+// OFFROAD-RINGS-DRY: dry trail samples a car can actually drive, joined across fords and bridges.
+function segDrivable(x0, z0, x1, z1) {
+  const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.ceil(L / 8));
+  for (let k = 0; k <= n; k++) {
+    const t = k / n;
+    if (waterAt(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, true) === 'deep') return false;
+  }
+  return true;
+}
+function buildDryNet() {
+  const nodes = [], parent = [];
+  const find = (a) => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
+  const unite = (a, b) => { a = find(a); b = find(b); if (a !== b) parent[a] = b; };
+  const add = (x, z) => { const i = nodes.length; nodes.push({ x, z }); parent.push(i); return i; };
+  for (const t of W.off.trails) {
+    const p = t.pts; let prev = -1, px = 0, pz = 0;
+    for (let i = 0; i < p.length - 2; i += 2) {
+      const x1 = p[i], z1 = p[i + 1], x2 = p[i + 2], z2 = p[i + 3];
+      const L = Math.hypot(x2 - x1, z2 - z1) || 1, steps = Math.max(1, Math.ceil(L / 16));
+      for (let s = (i === 0 ? 0 : 1); s <= steps; s++) {
+        const x = x1 + (x2 - x1) * (s / steps), z = z1 + (z2 - z1) * (s / steps);
+        if (waterAt(x, z, true) === 'deep') { prev = -1; continue; }
+        if (prev >= 0 && Math.hypot(x - px, z - pz) < 8) continue;
+        const id = add(x, z);
+        if (prev >= 0 && Math.hypot(x - px, z - pz) < 28 && segDrivable(px, pz, x, z)) unite(prev, id);
+        prev = id; px = x; pz = z;
+      }
+    }
+  }
+  const cell = 24, buckets = new Map();
+  nodes.forEach((n, i) => { const k = Math.floor(n.x / cell) + ',' + Math.floor(n.z / cell); const a = buckets.get(k); if (a) a.push(i); else buckets.set(k, [i]); });
+  for (let i = 0; i < nodes.length; i++) {
+    const cx = Math.floor(nodes[i].x / cell), cz = Math.floor(nodes[i].z / cell);
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      const a = buckets.get((cx + dx) + ',' + (cz + dz)); if (!a) continue;
+      for (const j of a) {
+        if (j <= i || find(i) === find(j)) continue;
+        const d = Math.hypot(nodes[i].x - nodes[j].x, nodes[i].z - nodes[j].z);
+        if (d > 22 || d < 0.4) continue;
+        if (segDrivable(nodes[i].x, nodes[i].z, nodes[j].x, nodes[j].z)) unite(i, j);
+      }
+    }
+  }
+  const nearestIn = (comp, x, z, maxR) => {
+    let best = -1, bd = maxR * maxR;
+    for (let i = 0; i < nodes.length; i++) {
+      if (comp >= 0 && find(i) !== comp) continue;
+      const d = (nodes[i].x - x) ** 2 + (nodes[i].z - z) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  };
+  return { nodes, find, nearest: (x, z, maxR) => nearestIn(-1, x, z, maxR), nearestIn };
+}
+function nearestDryReach(x0, z0, tx, tz) {
+  const pad = 900, cell = 18;
+  const minx = Math.min(x0, tx) - pad, minz = Math.min(z0, tz) - pad;
+  const maxx = Math.max(x0, tx) + pad, maxz = Math.max(z0, tz) + pad;
+  const nx = Math.ceil((maxx - minx) / cell), nz = Math.ceil((maxz - minz) / cell);
+  if (nx < 2 || nz < 2 || nx * nz > 50000) return null;
+  const ix = (x) => Math.max(0, Math.min(nx - 1, Math.floor((x - minx) / cell)));
+  const iz = (z) => Math.max(0, Math.min(nz - 1, Math.floor((z - minz) / cell)));
+  const id = (i, j) => j * nx + i;
+  const blocked = new Uint8Array(nx * nz);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    if (waterAt(minx + (i + 0.5) * cell, minz + (j + 0.5) * cell, true) === 'deep') blocked[id(i, j)] = 1;
+  }
+  const start = id(ix(x0), iz(z0)), goal = id(ix(tx), iz(tz));
+  blocked[start] = 0;
+  const q = [start]; const seen = new Uint8Array(nx * nz); seen[start] = 1;
+  for (let qi = 0; qi < q.length && !seen[goal]; qi++) {
+    const cur = q[qi], i = cur % nx, j = (cur / nx) | 0;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const ni = i + di, nj = j + dj; if (ni < 0 || nj < 0 || ni >= nx || nj >= nz) continue;
+      const nid = id(ni, nj); if (seen[nid] || blocked[nid]) continue;
+      seen[nid] = 1; q.push(nid);
+    }
+  }
+  if (seen[goal]) return { x: tx, z: tz, reached: true };
+  let best = null, bd = 1e18;
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    if (!seen[id(i, j)]) continue;
+    const x = minx + (i + 0.5) * cell, z = minz + (j + 0.5) * cell;
+    if (Math.hypot(x - x0, z - z0) < 90) continue;
+    const d = (x - tx) ** 2 + (z - tz) ** 2;
+    if (d < bd) { bd = d; best = { x, z, reached: false }; }
+  }
+  return best;
+}
+function placeDryRings(o, raw) {
+  const net = buildDryNet();
+  o.ringMoves = []; o.ringGaps = []; o.cps = [];
+  o.ringScan = raw.map(([x, z], i) => ({ i, x: +x.toFixed(1), z: +z.toFixed(1), w: waterAt(x, z), car: waterAt(x, z, true) }));
+  let comp = -1;
+  raw.forEach(([rx, rz], i) => {
+    const wet = waterAt(rx, rz, true) === 'deep';
+    let id = net.nearest(rx, rz, wet ? 450 : 60);
+    if (wet && comp >= 0 && (id < 0 || net.find(id) !== comp)) {
+      const alt = net.nearestIn(comp, rx, rz, 450);
+      if (alt >= 0) id = alt;
+    }
+    let x = rx, z = rz;
+    if (wet && id >= 0) { x = net.nodes[id].x; z = net.nodes[id].z; }
+    if (Math.hypot(x - rx, z - rz) > 2) o.ringMoves.push({ i, ox: +rx.toFixed(1), oz: +rz.toFixed(1), x: +x.toFixed(1), z: +z.toFixed(1) });
+    o.cps.push([x, z]);
+    if (id >= 0 && Math.hypot(net.nodes[id].x - x, net.nodes[id].z - z) < 30) comp = net.find(id);
+    else { const n = net.nearest(x, z, 36); if (n >= 0) comp = net.find(n); }
+  });
+  for (let i = 1; i < o.cps.length; i++) {
+    const a = o.cps[i - 1], b = o.cps[i];
+    if (segDrivable(a[0], a[1], b[0], b[1])) continue;
+    const hit = nearestDryReach(a[0], a[1], b[0], b[1]);
+    if (hit && hit.reached) continue;
+    if (!hit) { o.ringGaps.push({ i: i - 1, j: i }); continue; }
+    let x = hit.x, z = hit.z;
+    const tr = nearestTrailPoint(x, z, 36);
+    if (tr && waterAt(tr.x, tr.z, true) !== 'deep' && Math.hypot(tr.x - x, tr.z - z) < 36) { x = tr.x; z = tr.z; }
+    o.ringMoves.push({ i, ox: +b[0].toFixed(1), oz: +b[1].toFixed(1), x: +x.toFixed(1), z: +z.toFixed(1), why: 'odcięty' });
+    o.cps[i] = [x, z];
+  }
+  for (let i = 1; i < o.cps.length; i++) {
+    const a = o.cps[i - 1], b = o.cps[i];
+    if (segDrivable(a[0], a[1], b[0], b[1])) continue;
+    const hit = nearestDryReach(a[0], a[1], b[0], b[1]);
+    if (!hit || !hit.reached) o.ringGaps.push({ i: i - 1, j: i, ax: +a[0].toFixed(1), az: +a[1].toFixed(1), bx: +b[0].toFixed(1), bz: +b[1].toFixed(1) });
+  }
+  if (o.th && waterAt(o.th.x, o.th.z, true) === 'deep') {
+    const id = net.nearest(o.th.x, o.th.z, 300);
+    if (id >= 0) { o.ringMoves.push({ i: 'start', ox: +o.th.x.toFixed(1), oz: +o.th.z.toFixed(1), x: +net.nodes[id].x.toFixed(1), z: +net.nodes[id].z.toFixed(1) }); o.th.x = net.nodes[id].x; o.th.z = net.nodes[id].z; }
+  }
+}
 // Called from buildWorld after roads/buildings/water exist and before trees are planted.
 function buildOffroad(scene) {
   const c = OFFZ.cell; const nx = Math.ceil((OFFZ.x1 - OFFZ.x0) / c) + 1, nz = Math.ceil((OFFZ.z1 - OFFZ.z0) / c) + 1;
@@ -55,7 +186,12 @@ function buildOffroad(scene) {
   // trailhead + checkpoints snapped to real OSM tracks/paths
   const th = nearestTrailPoint(TH_GUESS[0], TH_GUESS[1], 250) || { x: TH_GUESS[0], z: TH_GUESS[1], h: 0 };
   o.th = th;
-  for (const [gx, gz] of CP_GUESS) { const p = nearestTrailPoint(gx, gz, 160); o.cps.push(p ? [p.x, p.z] : [gx, gz]); }
+  const raw = [];
+  for (const [gx, gz] of CP_GUESS) { const p = nearestTrailPoint(gx, gz, 160); raw.push(p ? [p.x, p.z] : [gx, gz]); }
+  o.cps = raw.map((p) => [p[0], p[1]]);
+  // OFFROAD-RINGS-DRY
+  if (typeof indexWater === 'function') indexWater();
+  placeDryRings(o, raw);
   // rasterise "flat" features (water, buildings, paved roads) into a mask, 1 = hills allowed
   const cv = document.createElement('canvas'); cv.width = nx; cv.height = nz; const g = cv.getContext('2d', { willReadFrequently: true });
   g.fillStyle = '#fff'; g.fillRect(0, 0, nx, nz);
@@ -241,7 +377,7 @@ function spawnEgg() {
   try { EGG.disc = JSON.parse(localStorage.getItem('gtatbg_egg') || '{}') || {}; } catch (e) { EGG.disc = {}; }
   if (EGG.disc.monument) discover('monument', true); if (EGG.disc.trails) discover('trails', true);
   EGG.race = { i: 0, t0: 0, running: false, done: false, best: EGG.disc.best || 0 };
-  window.__egg = EGG; EGG.action = actionE; EGG.groundH = groundH;
+  window.__egg = EGG; EGG.action = actionE; EGG.groundH = groundH; EGG.showCp = showCp;
   const hud = document.createElement('div'); hud.id = 'race'; hud.className = 'hidden'; $('hud').appendChild(hud); EGG.hud = hud;
 }
 function discover(what, silent) {
@@ -259,7 +395,7 @@ function nearEggButton() {
   if (Math.hypot(player.x - EGG.back.x, player.z - EGG.back.z) < 2.6) return 'back';
   return null;
 }
-function actionE() { if (G.cut) return false; if (G.inRange && typeof rangeAction === 'function') return rangeAction(); if (typeof dialogAction === 'function' && dialogAction()) return true; const b = nearEggButton(); if (b === 'go') return eggGo(); if (b === 'back') return eggBack(); if (missionAction()) return true; if (typeof rangeAction === 'function' && rangeAction()) return true; if (typeof garageAction === "function" && garageAction()) return true; if (shopAction()) return true; return enterExit(); }
+function actionE() { if (G.cut) return false; if (G.diving && typeof diveAction === 'function') return diveAction(); if (G.inRange && typeof rangeAction === 'function') return rangeAction(); if (typeof dialogAction === 'function' && dialogAction()) return true; const b = nearEggButton(); if (b === 'go') return eggGo(); if (b === 'back') return eggBack(); if (missionAction()) return true; if (typeof rangeAction === 'function' && rangeAction()) return true; if (typeof garageAction === "function" && garageAction()) return true; if (typeof diveAction === 'function' && diveAction()) return true; if (shopAction()) return true; return enterExit(); }
 function eggGo() {
   discover('trails'); const j = EGG.jeep, s = EGG.jeepSpot;
   j.x = s.x; j.z = s.z; j.h = s.h; j.vx = j.vz = 0; j.y = groundH(j.x, j.z); j.vy = 0; j.sync();

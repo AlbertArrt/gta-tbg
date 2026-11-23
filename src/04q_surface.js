@@ -30,9 +30,25 @@ function indexWater() {
     return { ring: w.ring, holes: w.holes, x0, x1, z0, z1 };
   });
 }
-function waterAt(x, z) {
+function onPaved(x, z) {
+  const g = W.roadGrid; if (!g || !g.stamp) return false;
+  let hit = false;
+  g.query(x, z, 14, (i) => {
+    if (hit) return;
+    const r = W.roads[g.meta[i]]; if (!r || !r.drivable) return;
+    closestOnSeg(x, z, g.s[i * 4], g.s[i * 4 + 1], g.s[i * 4 + 2], g.s[i * 4 + 3], tmpC);
+    if (Math.hypot(tmpC.x - x, tmpC.z - z) < r.width / 2 + 0.4) hit = true;
+  });
+  return hit;
+}
+function waterAt(x, z, pavedOnly) {
   if (bridgeDeckH(x, z) > 0.08) return 'bridge';
-  if (typeof nearRoad === 'function' && nearRoad(x, z, 0.15)) return 'dry';
+  if (W.fords) for (const f of W.fords) {
+    closestOnSeg(x, z, f.x0, f.z0, f.x1, f.z1, tmpC);
+    if (Math.hypot(tmpC.x - x, tmpC.z - z) <= f.hw) return 'shallow';
+  }
+  if (pavedOnly) { if (onPaved(x, z)) return 'dry'; }
+  else if (typeof nearRoad === 'function' && nearRoad(x, z, 0.15)) return 'dry';
   let kind = 'dry';
   const g = W.wwGrid;
   if (g && g.stamp) {
@@ -62,6 +78,44 @@ function waterAt(x, z) {
     return shore < SHORE_M ? 'shallow' : 'deep';
   }
   return kind;
+}
+// OFFROAD-RINGS-DRY: a footpath painted across the lake is not a place a car can stop.
+function ringBlocked(x, z) { return waterAt(x, z) === 'deep' || waterAt(x, z, true) === 'deep'; }
+function vehicleRingPoints() {
+  const out = [];
+  if (W.off && W.off.cps) W.off.cps.forEach(([x, z], i) => out.push({ id: 'offroad-' + i, x, z }));
+  if (typeof chainCheckpoints === 'function') {
+    for (const c of chainCheckpoints([[-733, 661, 'start'], [-290, 700, 'Stadion'], [-68, 776, 'Szpital'], [-87, 370, 'Urząd'], [-7, 10, 'Rynek']], 170)) out.push({ id: 'uliczna', x: c.x, z: c.z, name: c.name || '' });
+  }
+  if (typeof nearestNode === 'function' && typeof astar === 'function' && typeof pathPoints === 'function' && typeof roadSpot === 'function') {
+    const s = roadSpot(-87, 370);
+    const n0 = nearestNode(s.x, s.z), n1 = nearestNode(478, 162), n2 = nearestNode(1216, -49);
+    if (n0 >= 0 && n1 >= 0 && n2 >= 0) {
+      const p1 = astar(n0, n1) || [n0, n1], p2 = astar(n1, n2) || [n1, n2];
+      const pts = pathPoints(p1.concat(p2.slice(1)));
+      let acc = 0, lx = s.x, lz = s.z;
+      for (let i = 0; i < pts.length; i += 2) {
+        acc += Math.hypot(pts[i] - lx, pts[i + 1] - lz); lx = pts[i]; lz = pts[i + 1];
+        if (acc > 140 || i >= pts.length - 2) { out.push({ id: 'wyscig', x: lx, z: lz }); acc = 0; }
+      }
+    }
+    for (const [id, x, z] of [['taxi', 300, -575], ['apteka', -165, 788], ['final', 300, -575]]) {
+      const p = roadSpot(x, z, 140); out.push({ id, x: p.x, z: p.z });
+    }
+  }
+  return out;
+}
+function auditVehicleRings() {
+  const bad = [];
+  for (const c of vehicleRingPoints()) {
+    const w = waterAt(c.x, c.z);
+    const car = waterAt(c.x, c.z, true);
+    if (w === 'deep' || (String(c.id).startsWith('offroad') && car === 'deep')) bad.push({ id: c.id, x: +c.x.toFixed(1), z: +c.z.toFixed(1), name: c.name || '', w, car });
+  }
+  const gaps = (W.off && W.off.ringGaps) || [];
+  if (bad.length || gaps.length) console.warn('OFFROAD-RINGS-DRY', { bad, gaps });
+  else console.log('OFFROAD-RINGS-DRY ok', vehicleRingPoints().length);
+  return { bad, gaps, moves: (W.off && W.off.ringMoves) || [], scan: (W.off && W.off.ringScan) || [], n: vehicleRingPoints().length };
 }
 function dryNear(x, z) {
   if (waterAt(x, z) !== 'deep') return { x, z };
