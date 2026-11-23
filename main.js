@@ -593,7 +593,7 @@ async function buildWorld(data, scene, renderer) {
   W.waterways = [];
   data.waterways.forEach((w) => {
     const width = w[0] / 10; const pts = dec(w[2]);
-    W.waterways.push({ width, pts });
+    W.waterways.push({ width, pts, name: w[1] >= 0 ? data.names[w[1]] : '' });
     ribbon(pts, width, 0.095, waterCol, (x, z) => getChunk(x, z).water, false);
   });
 
@@ -614,9 +614,10 @@ async function buildWorld(data, scene, renderer) {
     W.roads.push(rec);
     const y = 0.13 + ROAD_RANK[type] * 0.006;
     const c2 = new THREE.Color(ROAD_COL[type] || '#666');
-    if (!trailInZone(type, pts)) ribbon(pts, width, y, c2, (x, z) => getChunk(x, z).road, true); // off-road trails are draped over the terrain later
+    if (rec.bridge) paintSpan(pts, width, c2, getChunk, rec);
+    else if (!trailInZone(type, pts)) ribbon(pts, width, y, c2, (x, z) => getChunk(x, z).road, true); // off-road trails are draped over the terrain later
     for (let i = 0; i < pts.length - 2; i += 2) W.roadGrid.add(pts[i], pts[i + 1], pts[i + 2], pts[i + 3], W.roads.length - 1);
-    if (type === 'secondary' || type === 'tertiary' || type === 'primary' || type === 'trunk') {
+    if (!rec.bridge && (type === 'secondary' || type === 'tertiary' || type === 'primary' || type === 'trunk')) {
       if (!rec.oneway) dashes(pts, 0.14, 3, 6, y + 0.02, white, (x, z) => getChunk(x, z).mark, 0);
       if (type !== 'tertiary') { dashes(pts, 0.12, 1e9, 0, y + 0.02, edge, (x, z) => getChunk(x, z).mark, width / 2 - 0.45); dashes(pts, 0.12, 1e9, 0, y + 0.02, edge, (x, z) => getChunk(x, z).mark, -(width / 2 - 0.45)); }
     }
@@ -624,7 +625,6 @@ async function buildWorld(data, scene, renderer) {
       const wf = (x, z) => getChunk(x, z).walk; const yw = 0.1;
       for (const sg of [1, -1]) { dashes(pts, 2.4, 1e9, 0, yw, walkCol, wf, sg * (width / 2 + 1.45)); dashes(pts, 0.4, 1e9, 0, yw + 0.002, curbCol, wf, sg * (width / 2 + 0.15)); }
     }
-    if (rec.bridge && rec.drivable) railings(pts, width, (x, z) => getChunk(x, z).walls);
   });
   W.roadGrid.finish();
   buildRoadGraph();
@@ -635,7 +635,9 @@ async function buildWorld(data, scene, renderer) {
     ribbon(pts, 3.2, 0.12, ballast, (x, z) => getChunk(x, z).road, false);
     dashes(pts, 0.09, 1e9, 0, 0.2, railCol, (x, z) => getChunk(x, z).mark, 0.72);
     dashes(pts, 0.09, 1e9, 0, 0.2, railCol, (x, z) => getChunk(x, z).mark, -0.72);
+    paintRailSpan(pts, getChunk);
   });
+  if (W.spanGrid) W.spanGrid.finish();
 
   // ---- buildings
   setLoad(0.55, 'Budynki…'); await nextFrame();
@@ -878,6 +880,7 @@ async function buildWorld(data, scene, renderer) {
   setLoad(0.92, 'Chmury i ulica…'); await nextFrame();
   buildLook(scene);
   setLoad(0.95, 'Prawie gotowe…'); await nextFrame();
+  if (typeof indexWater === 'function') indexWater();
 }
 
 function sealStreetWalls(fronts, getChunk) {
@@ -1168,6 +1171,103 @@ function dashes(pts, w, dashLen, gap, y, color, bufFor, offset) {
     }
   }
 }
+// BRIDGES: własny pomost (pokład + poręcze) na drogach i torach z OSM bridge=yes albo tam, gdzie tory idą przez głęboką wodę.
+const SPAN_DECK = new THREE.Color('#3c3e43');
+const SPAN_RAIL = new THREE.Color('#2a211c');
+const SPAN_CAP = new THREE.Color('#f4f1ea');
+function spanHeight(u, total) {
+  const deck = total > 80 ? 3.3 : total > 28 ? 2.35 : 1.55;
+  const ramp = Math.min(16, Math.max(4, total * 0.22));
+  let k = 1;
+  if (u < ramp) k = u / ramp;
+  else if (u > total - ramp) k = (total - u) / ramp;
+  return deck * Math.max(0, Math.min(1, k));
+}
+function spanSamples(pts) {
+  const n = pts.length / 2; const out = [pts[0], pts[1]]; const step = 8; let acc = 0;
+  for (let i = 0; i < n - 1; i++) {
+    const x1 = pts[i * 2], z1 = pts[i * 2 + 1], x2 = pts[i * 2 + 2], z2 = pts[i * 2 + 3];
+    const len = Math.hypot(x2 - x1, z2 - z1); if (len < 0.05) continue;
+    let d = step - (acc % step); if (acc % step < 0.05) d = step;
+    while (d < len - 0.4) { const t = d / len; out.push(x1 + (x2 - x1) * t, z1 + (z2 - z1) * t); d += step; }
+    acc += len; out.push(x2, z2);
+  }
+  return out;
+}
+function paintSpan(pts, width, color, getChunk, rec) {
+  pts = spanSamples(pts);
+  const n = pts.length / 2; if (n < 2) return;
+  const cum = [0];
+  for (let i = 1; i < n; i++) cum.push(cum[i - 1] + Math.hypot(pts[i * 2] - pts[i * 2 - 2], pts[i * 2 + 1] - pts[i * 2 - 1]));
+  const total = cum[n - 1]; if (total < 1.2) return;
+  if (!W.spanGrid) { W.spanGrid = new SegGrid(28); W.spans = []; }
+  const hw = Math.max(width * 0.5, 1.15);
+  const deckCol = color || SPAN_DECK;
+  let mx = 0, mz = 0;
+  for (let i = 0; i < n - 1; i++) {
+    const x1 = pts[i * 2], z1 = pts[i * 2 + 1], x2 = pts[i * 2 + 2], z2 = pts[i * 2 + 3];
+    const len = cum[i + 1] - cum[i]; if (len < 0.15) continue;
+    const dx = (x2 - x1) / len, dz = (z2 - z1) / len, nx = -dz, nz = dx;
+    const y1 = spanHeight(cum[i], total), y2 = spanHeight(cum[i + 1], total);
+    const ch = getChunk((x1 + x2) / 2, (z1 + z2) / 2);
+    const slab = (y, dy, col, ny) => {
+      const ax = x1 + nx * hw, az = z1 + nz * hw, bx = x2 + nx * hw, bz = z2 + nz * hw;
+      const cx = x2 - nx * hw, cz = z2 - nz * hw, dx2 = x1 - nx * hw, dz2 = z1 - nz * hw;
+      ch.road.tri(ax, y + dy, az, bx, y2 + dy, bz, cx, y2 + dy, cz, col, null, 0, ny, 0);
+      ch.road.tri(ax, y + dy, az, cx, y2 + dy, cz, dx2, y + dy, dz2, col, null, 0, ny, 0);
+    };
+    slab(y1, 0.16, deckCol, 1);
+    slab(y1, -0.08, SPAN_DECK, -1);
+    for (const side of [1, -1]) {
+      const o = hw + 0.08;
+      const ax = x1 + nx * o * side, az = z1 + nz * o * side, bx = x2 + nx * o * side, bz = z2 + nz * o * side;
+      const h1 = y1 + 0.95, h2 = y2 + 0.95;
+      ch.walls.tri(ax, y1 + 0.2, az, bx, y2 + 0.2, bz, bx, h2, bz, SPAN_RAIL, null, nx * side, 0, nz * side);
+      ch.walls.tri(ax, y1 + 0.2, az, bx, h2, bz, ax, h1, az, SPAN_RAIL, null, nx * side, 0, nz * side);
+      ch.walls.tri(ax, h1, az, bx, h2, bz, bx, h2 + 0.12, bz, SPAN_CAP, null, 0, 1, 0);
+      ch.walls.tri(ax, h1, az, bx, h2 + 0.12, bz, ax, h1 + 0.12, az, SPAN_CAP, null, 0, 1, 0);
+    }
+    W.spanGrid.add(x1, z1, x2, z2, { hw: hw + 0.35, y0: y1 + 0.16, y1: y2 + 0.16 });
+    mx += (x1 + x2) * 0.5; mz += (z1 + z2) * 0.5;
+  }
+  const segN = Math.max(1, n - 1);
+  W.spans.push({ name: (rec && rec.name) || (rec && rec.type) || 'most', type: (rec && rec.type) || 'road', len: Math.round(total), x: mx / segN, z: mz / segN, deck: spanHeight(total * 0.5, total) });
+}
+function paintRailSpan(pts, getChunk) {
+  const n = pts.length / 2; if (n < 2) return;
+  const keep = [];
+  for (let i = 0; i < n - 1; i++) {
+    const x = (pts[i * 2] + pts[i * 2 + 2]) / 2, z = (pts[i * 2 + 1] + pts[i * 2 + 3]) / 2;
+    if (railNeedsDeck(x, z)) keep.push(i);
+  }
+  if (!keep.length) return;
+  // group consecutive wet segments into one span
+  let run = [keep[0]];
+  const flush = () => {
+    if (!run.length) return;
+    const a = run[0], b = run[run.length - 1] + 1;
+    const sub = pts.slice(a * 2, b * 2 + 2);
+    paintSpan(sub, 3.4, new THREE.Color('#6a6258'), getChunk, { name: 'tory', type: 'rail' });
+    run = [];
+  };
+  for (let k = 1; k < keep.length; k++) {
+    if (keep[k] === run[run.length - 1] + 1) run.push(keep[k]);
+    else { flush(); run = [keep[k]]; }
+  }
+  flush();
+}
+function railNeedsDeck(x, z) {
+  for (const w of W.water) if (pointInRing(x, z, w.ring) && !w.holes.some((h) => pointInRing(x, z, h))) return true;
+  for (const w of W.waterways) {
+    if (w.width < 6) continue;
+    const p = w.pts;
+    for (let i = 0; i < p.length - 2; i += 2) {
+      closestOnSeg(x, z, p[i], p[i + 1], p[i + 2], p[i + 3], tmpC);
+      if (Math.hypot(tmpC.x - x, tmpC.z - z) < w.width * 0.32) return true;
+    }
+  }
+  return false;
+}
 function railings(pts, width, bufFor) {
   const c = new THREE.Color('#b8b8b4'); const n = pts.length / 2; const h = 1.0, t = 0.25;
   for (const side of [1, -1]) {
@@ -1264,6 +1364,7 @@ function buildTrees(density) {
     W.treeGrid.add(tr[0] - 0.01, tr[1], tr[0] + 0.01, tr[1], 0);
   }
   W.treeGrid.finish();
+  W.treeColliders = W.treeGrid.meta.length;
   if (TOON) { W.treeDensityNow = density; W.treeCount = buildTreesToon(list, rnd, cells); return; }
   if (!W.treeGeo) {
     const trunkGeo = new THREE.CylinderGeometry(0.16, 0.24, 2.4, 5); trunkGeo.translate(0, 1.2, 0);
@@ -2032,8 +2133,9 @@ function collideCircle(x, z, r, out, withTrees, buildings = true) {
         const push = r - d; px += nx * push; pz += nz * push; nxs += nx; nzs += nz; hit = true; moved = true;
       }
     });
+    // TREE-COLLIDE: pień to walec. Siatka ma komórki 16 m, więc sprawdzane są tylko drzewa obok.
     if (withTrees && W.treeGrid) {
-      const ts = W.treeGrid.s; const tr = 0.3;
+      const ts = W.treeGrid.s; const tr = 0.52;
       W.treeGrid.query(px, pz, r + tr + 0.5, (i) => {
         const tx = ts[i * 4] + 0.01, tz = ts[i * 4 + 1]; const dx = px - tx, dz = pz - tz; const d = Math.hypot(dx, dz); const R = r + tr;
         if (d < R && d > 1e-4) { const nx = dx / d, nz = dz / d; px += nx * (R - d); pz += nz * (R - d); nxs += nx; nzs += nz; hit = true; moved = true; }
@@ -2392,12 +2494,18 @@ function updateFoot(dt) {
   let speed = 0;
   if (ml > 0.05) {
     const k = Math.min(1, ml); mx /= ml; mz /= ml; speed = spd * k;
+    if (typeof waterAt === 'function' && waterAt(player.x, player.z) === 'shallow') speed *= 0.5;
     const nx = player.x + mx * speed * dt, nz = player.z + mz * speed * dt;
     const hop = typeof bvhMove === 'function' ? bvhMove(player.x, player.z, nx, nz, 0.35, 0.9) : null;
     collideCircle(hop ? hop.x : nx, hop ? hop.z : nz, 0.35, col, true, !(hop && hop.used));
     if (hop && hop.hit) { col.hit = true; col.nx = hop.nx; col.nz = hop.nz; }
     let px = col.x, pz = col.z;
     if (insideBuilding(px, pz, 0) && !insideBuilding(player.x, player.z, 0)) { px = player.x; pz = player.z; }
+    if (typeof waterAt === 'function' && waterAt(px, pz) === 'deep') {
+      px = player.x; pz = player.z;
+      const now = performance.now();
+      if (now - (G.wetFoot || 0) > 1600) { G.wetFoot = now; toast('Za głęboko! Tu się nie przejdzie.'); }
+    }
     for (const c of cars) for (const [cx, cz] of c.circles()) { const dx = px - cx, dz = pz - cz, d = Math.hypot(dx, dz); if (d < 1.3 && d > 1e-4) { px = cx + dx / d * 1.3; pz = cz + dz / d * 1.3; } }
     player.x = px; player.z = pz;
     const th = Math.atan2(mx, mz); let dh = th - player.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); player.h += dh * Math.min(1, dt * 12);
@@ -2440,6 +2548,12 @@ function updateCar(c, dt, drive) {
     if (vF > MAXV) vF -= (vF - MAXV) * Math.min(1, dt * 1.6);
   }
   if (c.wrecked) { thr = 0; hand = true; } if (c.scooter) MAXV = 22;
+  // SHALLOWS: bród przez rów albo brzeg jeziora, wolno i z pluskiem.
+  if (typeof waterAt === 'function' && waterAt(c.x, c.z) === 'shallow') {
+    MAXV = Math.min(MAXV, 6.2); ACC = Math.min(ACC, 4);
+    if (vF > MAXV) vF -= (vF - MAXV) * Math.min(1, dt * 3.2);
+    if (c === activeCar && Math.abs(vF) > 1.5 && performance.now() - (c.splashT || 0) > 180) { c.splashT = performance.now(); splashAt(c.x, c.y || 0, c.z, 4); }
+  }
   if (c.air) { thr *= 0.15; hand = false; }
   if (thr > 0) { if (vF < -0.5) vF += BRK * dt; else vF += ACC * thr * dt * (1 - Math.max(0, vF) / MAXV); }
   else if (thr < 0) { if (vF > 0.5) vF -= BRK * dt; else vF = Math.max(-12, vF - 7 * dt); }
@@ -2473,7 +2587,7 @@ function updateCar(c, dt, drive) {
     }
     for (const off of c.offs) {
       const cx = c.x + Math.sin(c.h) * off, cz = c.z + Math.cos(c.h) * off;
-      collideCircle(cx, cz, c.rad, col, false, !(hop && hop.used));
+      collideCircle(cx, cz, c.rad, col, true, !(hop && hop.used)); // TREE-COLLIDE
       if (col.hit) {
         c.x += col.x - cx; c.z += col.z - cz;
         const vn = c.vx * col.nx + c.vz * col.nz;
@@ -2483,6 +2597,13 @@ function updateCar(c, dt, drive) {
     // safety: never let any part of the car end up inside a building footprint
     let bad = false; for (const off of c.offs) if (insideBuilding(c.x + Math.sin(c.h) * off, c.z + Math.cos(c.h) * off, 0)) { bad = true; break; }
     if (bad) { impact = Math.max(impact, Math.hypot(c.vx, c.vz)); c.x = ox; c.z = oz; c.vx *= -0.25; c.vz *= -0.25; break; }
+    // WATER-BLOCK: głęboka woda odrzuca auto na ostatni suchy punkt.
+    if (typeof waterAt === 'function' && waterAt(c.x, c.z) === 'deep') {
+      splashAt(c.x, c.y || 0, c.z, 8);
+      c.x = ox; c.z = oz; c.vx *= -0.2; c.vz *= -0.2;
+      if (isPlayer && performance.now() - (G.wetCar || 0) > 1600) { G.wetCar = performance.now(); toast('Auto nie pływa!'); }
+      break;
+    }
   }
   for (const o of cars) {
     if (o === c || !o.g.visible) continue; const d = Math.hypot(o.x - c.x, o.z - c.z); if (d > 6) continue;
@@ -2677,13 +2798,16 @@ function offMask(x, z) {
 function terrainH(x, z) { if (!W.off || !inOffRect(x, z)) return 0; const m = offMask(x, z); return m > 0.002 ? m * hillRaw(x, z) : 0; }
 // physical ground height (terrain + ramps [+ small bumps for vehicles])
 function groundH(x, z, bumps) {
-  if (!W.off || !inOffRect(x, z)) return 0;
-  const m = offMask(x, z); let h = m > 0.002 ? m * hillRaw(x, z) : 0;
-  if (bumps && m > 0.15) h += m * 0.09 * (Math.sin(x * 2.3) * Math.sin(z * 1.9) + 0.6 * Math.sin(x * 0.9 + z * 1.3));
-  for (const r of W.off.ramps) {
-    const dx = x - r.x, dz = z - r.z; const u = dx * r.fx + dz * r.fz, v = dx * r.fz - dz * r.fx;
-    if (u > 0 && u < r.L && Math.abs(v) < r.w / 2) { const y = r.base + u / r.L * r.H; if (y > h) h = y; }
+  let h = 0;
+  if (W.off && inOffRect(x, z)) {
+    const m = offMask(x, z); h = m > 0.002 ? m * hillRaw(x, z) : 0;
+    if (bumps && m > 0.15) h += m * 0.09 * (Math.sin(x * 2.3) * Math.sin(z * 1.9) + 0.6 * Math.sin(x * 0.9 + z * 1.3));
+    for (const r of W.off.ramps) {
+      const dx = x - r.x, dz = z - r.z; const u = dx * r.fx + dz * r.fz, v = dx * r.fz - dz * r.fx;
+      if (u > 0 && u < r.L && Math.abs(v) < r.w / 2) { const y = r.base + u / r.L * r.H; if (y > h) h = y; }
+    }
   }
+  if (typeof bridgeDeckH === 'function') { const b = bridgeDeckH(x, z); if (b > h) h = b; }
   return h;
 }
 function boxBlur(src, nx, nz, r) {
@@ -3201,7 +3325,7 @@ function spawnAgent(f) {
     c.ai = { e: e.id, dir, s, v: e.vmax * 0.6, next: null, mode: 'drive', stuck: 0 };
     const p = agentPose(c); const d = Math.hypot(p.x - f.x, p.z - f.z); if (d < 80) continue;
     if (cars.some((o) => Math.hypot(o.x - p.x, o.z - p.z) < 15)) continue;
-    if (insideBuilding(p.x, p.z, 1.0)) continue;
+    if (insideBuilding(p.x, p.z, 1.0) || (typeof waterSpawnBlocked === 'function' && waterSpawnBlocked(p.x, p.z))) continue;
     c.x = p.x; c.z = p.z; c.h = p.h; c.vx = c.vz = 0; c.y = 0; c.vy = 0; c.hp = 100; c.wrecked = false; c.burn = 0; c.pooled = false; c.g.visible = true; c.sync();
     if (c.smokeT) c.smokeT = 0; TR.agents.push(c); cars.push(c); TR.stats.spawned++; return true;
   }
@@ -3221,7 +3345,7 @@ function spawnBus(f) {
     c.ai = { e: e.id, dir, s, v: Math.min(e.vmax, 9) * 0.55, next: null, mode: 'drive', stuck: 0 };
     const p = agentPose(c); const d = Math.hypot(p.x - f.x, p.z - f.z); if (d < 55 || d > 380) continue;
     if (cars.some((o) => o !== c && Math.hypot(o.x - p.x, o.z - p.z) < 14)) continue;
-    if (insideBuilding(p.x, p.z, 1.1)) continue;
+    if (insideBuilding(p.x, p.z, 1.1) || (typeof waterSpawnBlocked === 'function' && waterSpawnBlocked(p.x, p.z))) continue;
     c.x = p.x; c.z = p.z; c.h = p.h; c.vx = c.vz = 0; c.y = 0; c.vy = 0; c.hp = 100; c.wrecked = false; c.burn = 0; c.pooled = false; c.g.visible = true; c.sync();
     if (c.smokeT) c.smokeT = 0; TR.agents.push(c); cars.push(c); TR.stats.spawned++; return true;
   }
@@ -3487,6 +3611,7 @@ function pedJunction(p, e, nodeId, walk) {
   pedReverse(p, e.len);
 }
 function pedStep(p, dt) {
+  if (typeof waterAt === 'function' && waterAt(p.x, p.z) === 'deep') { pedRescue(p); return; }
   if (p.kind === 'cross') {
     const dx = p.tx - p.x, dz = p.tz - p.z, L = Math.hypot(dx, dz) || 1;
     if (typeof lightPedHold === 'function' && lightPedHold((p.x + p.tx) * 0.5, (p.z + p.tz) * 0.5)) { p.h = Math.atan2(dx, dz); return; }
@@ -3531,7 +3656,7 @@ function spawnPedWalker(f) {
       const e = TR.walk[wk[Math.floor(Math.random() * wk.length)]];
       if (e && e.use && !e.cross && e.len > 8) {
         const s = Math.random() * e.len; const smp = edgeSample(e, s, { x: 0, z: 0, h: 0 });
-        if (!pedBlocked(smp.x, smp.z) && !carriageNear(smp.x, smp.z)) {
+        if (!pedBlocked(smp.x, smp.z) && !carriageNear(smp.x, smp.z) && !(typeof waterSpawnBlocked === 'function' && waterSpawnBlocked(smp.x, smp.z))) {
           const p = spawnPedAt(smp.x, smp.z); if (!p) return;
           p.kind = 'walk'; p.e = e.id; p.s = s; p.dir = Math.random() < 0.5 ? 1 : -1; p.v = 1.15 + Math.random() * 0.4; return;
         }
@@ -3541,7 +3666,7 @@ function spawnPedWalker(f) {
     const e = TR.edges[arr[Math.floor(Math.random() * arr.length)]]; if (!e.ped || e.len < 12 || e.bridge) continue;
     let side = Math.random() < 0.5 ? 1 : -1; const s = 1 + Math.random() * Math.max(0.2, e.len - 2);
     let smp = pedSide(e, s, side, { x: 0, z: 0, h: 0 });
-    if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z)) { side = -side; smp = pedSide(e, s, side, { x: 0, z: 0, h: 0 }); if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z)) continue; }
+    if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z) || (typeof waterSpawnBlocked === 'function' && waterSpawnBlocked(smp.x, smp.z))) { side = -side; smp = pedSide(e, s, side, { x: 0, z: 0, h: 0 }); if (pedBlocked(smp.x, smp.z) || carriageNear(smp.x, smp.z) || (typeof waterSpawnBlocked === 'function' && waterSpawnBlocked(smp.x, smp.z))) continue; }
     const p = spawnPedAt(smp.x, smp.z); if (!p) return;
     p.kind = 'side'; p.e = e.id; p.s = s; p.dir = Math.random() < 0.5 ? 1 : -1; p.side = side; p.v = 1.15 + Math.random() * 0.4; return;
   }
@@ -7044,6 +7169,84 @@ function npcStep(m) {
   m.obj3.g.position.set(x, groundH(x, z), z);
 }
 
+// WATER-BLOCK, SHALLOWS, BRIDGES
+// Własna, lokalna warstwa: głęboka woda zatrzymuje auto i pieszych, wąski ciek to bród,
+// a pomost mostu (pokład z paintSpan) jest suchy i unosi pojazd. Bez sieci.
+const SHORE_M = 4.2;
+
+function bridgeDeckH(x, z) {
+  const g = W.spanGrid; if (!g || !g.stamp) return 0;
+  let best = 0;
+  g.query(x, z, 8, (i) => {
+    const s = g.s; const m = g.meta[i]; if (!m) return;
+    closestOnSeg(x, z, s[i * 4], s[i * 4 + 1], s[i * 4 + 2], s[i * 4 + 3], tmpC);
+    if ((tmpC.x - x) ** 2 + (tmpC.z - z) ** 2 <= m.hw * m.hw) {
+      const y = m.y0 + (m.y1 - m.y0) * tmpC.t;
+      if (y > best) best = y;
+    }
+  });
+  return best;
+}
+function indexWater() {
+  W.wwGrid = new SegGrid(48);
+  for (const w of W.waterways || []) {
+    const p = w.pts; if (!p || p.length < 4) continue;
+    const deep = w.width >= 6;
+    for (let i = 0; i < p.length - 2; i += 2) W.wwGrid.add(p[i], p[i + 1], p[i + 2], p[i + 3], { hw: w.width * 0.5, deep });
+  }
+  W.wwGrid.finish();
+  W.waterB = (W.water || []).map((w) => {
+    let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (let i = 0; i < w.ring.length; i += 2) { x0 = Math.min(x0, w.ring[i]); x1 = Math.max(x1, w.ring[i]); z0 = Math.min(z0, w.ring[i + 1]); z1 = Math.max(z1, w.ring[i + 1]); }
+    return { ring: w.ring, holes: w.holes, x0, x1, z0, z1 };
+  });
+}
+function waterAt(x, z) {
+  if (bridgeDeckH(x, z) > 0.08) return 'bridge';
+  if (typeof nearRoad === 'function' && nearRoad(x, z, 0.15)) return 'dry';
+  let kind = 'dry';
+  const g = W.wwGrid;
+  if (g && g.stamp) {
+    g.query(x, z, 62, (i) => {
+      const s = g.s; const m = g.meta[i]; if (!m) return;
+      closestOnSeg(x, z, s[i * 4], s[i * 4 + 1], s[i * 4 + 2], s[i * 4 + 3], tmpC);
+      const dx = tmpC.x - x, dz = tmpC.z - z, d = Math.hypot(dx, dz);
+      if (d > m.hw) return;
+      if (!m.deep) { if (kind !== 'deep') kind = 'shallow'; return; }
+      if (m.hw - d < 3.2) { if (kind !== 'deep') kind = 'shallow'; }
+      else kind = 'deep';
+    });
+  }
+  if (kind === 'deep') return 'deep';
+  const boxes = W.waterB;
+  if (boxes) for (let b = 0; b < boxes.length; b++) {
+    const w = boxes[b];
+    if (x < w.x0 || x > w.x1 || z < w.z0 || z > w.z1) continue;
+    if (!pointInRing(x, z, w.ring) || w.holes.some((h) => pointInRing(x, z, h))) continue;
+    let shore = 1e9; const r = w.ring; const n = r.length / 2;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      closestOnSeg(x, z, r[i * 2], r[i * 2 + 1], r[j * 2], r[j * 2 + 1], tmpC);
+      const d = Math.hypot(tmpC.x - x, tmpC.z - z);
+      if (d < shore) shore = d;
+    }
+    return shore < SHORE_M ? 'shallow' : 'deep';
+  }
+  return kind;
+}
+function waterSpawnBlocked(x, z) {
+  const k = waterAt(x, z);
+  return k === 'deep' || k === 'shallow';
+}
+function splashAt(x, y, z, n) {
+  if (typeof emitPart !== 'function' || typeof DRV === 'undefined' || !DRV.sparks) return;
+  const cap = settings.quality === 'low' ? 3 : Math.min(n, 6);
+  for (let i = 0; i < cap; i++) {
+    const a = Math.random() * 6.28, s = 1.1 + Math.random() * 1.5;
+    emitPart(DRV.sparks, x, (y || 0) + 0.35, z, Math.cos(a) * s, 1.5 + Math.random() * 1.6, Math.sin(a) * s, 0.32, 0.2, 0.05, '#8fd4f2', 0.85, 7, 1.1);
+  }
+}
+
 
 // ======================= HUD =======================
 function updateStreet() {
@@ -7392,6 +7595,8 @@ Object.assign(G, {
     yukaCars: typeof TR !== 'undefined' ? TR.agents.filter((c) => c._yv).length : 0,
     nipple: typeof nipplejs !== 'undefined' && !!nipplejs.create,
     lights: typeof TL !== 'undefined' ? TL.list.length : 0,
+    trees: typeof W !== 'undefined' ? W.treeColliders || 0 : 0,
+    spans: typeof W !== 'undefined' && W.spans ? W.spans.length : 0,
     lightNear: typeof TL !== 'undefined' ? TL.nearN : 0,
   }),
   cam: () => {
@@ -7412,6 +7617,18 @@ Object.assign(G, {
   touchStats: () => ({ ...TP.stats, ptrs: TP.ptrs.size, joy: !!TP.joy, look: !!TP.look, jx: G.touch.jx, jy: G.touch.jy, gas: !!G.touch.gas, brake: !!G.touch.brake, hand: !!G.touch.hand, steer: activeCar ? activeCar.steer : 0 }), touchReset,
   dialogAction, dialogClose, shopBuy, shopClose, places: PLACES, money: () => SAVE.money,
   npcGreet: (id) => npcGreet(MIS.list.find((m) => m.id === id)), npcPhase: (id) => npcPhase(MIS.list.find((m) => m.id === id)), npcMood: (id) => npcMood(id), npcRemember, npcBag,
+  surface: () => ({
+    trees: W.treeColliders || 0,
+    at: (x, z) => waterAt(x, z),
+    deck: (x, z) => bridgeDeckH(x, z),
+    spans: (W.spans || []).map((s) => ({ name: s.name, type: s.type, len: s.len, x: +s.x.toFixed(0), z: +s.z.toFixed(0), deck: +s.deck.toFixed(2) })),
+    tree: () => {
+      const s = W.treeGrid && W.treeGrid.s; if (!s || !s.length) return null;
+      const x = s[0] + 0.01, z = s[1]; const o = { x: 0, z: 0, hit: false };
+      collideCircle(x + 0.25, z, 0.95, o, true, false);
+      return { x: +x.toFixed(1), z: +z.toFixed(1), hit: !!o.hit };
+    },
+  }),
   lights: () => (typeof TL === 'undefined' ? null : {
     n: TL.list.length, near: TL.nearN,
     at: TL.list.map((s) => ({ n: s.name, x: +s.x.toFixed(1), z: +s.z.toFixed(1) })),

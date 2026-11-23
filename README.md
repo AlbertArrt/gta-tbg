@@ -10,6 +10,7 @@ Przeglądarkowa gra 3D z otwartym światem, której mapą jest **Tarnobrzeg**. M
 > Biblioteki (MIT): [Yuka](https://github.com/Mugen87/yuka) © Mugen87 — sterowanie pieszych i ruchu (`YUKA-STEER`). [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) © Garrett Johnson — BVH przy kamerze i kolizjach (`MESH-BVH`). [nipplejs](https://github.com/yoannmoinet/nipplejs) © Yoann Moinet — joystick na telefonie (`NIPPLEJS`).
 > Zleceniodawcy misji mają prostą rutynę według czasu lokalnego (Europe/Warsaw): 7:00–22:00 stoją na posterunku, na chwilę odchodzą kilka metrów, w nocy są senni, ale nadal da się z nimi pogadać. Pamiętają kilka ostatnich spotkań w tej przeglądarce i witają inaczej, gdy są zadowoleni albo źli (`NPC-ROUTINE`).
 > Na większych skrzyżowaniach stoją komiksowe sygnalizatory. Auta z ruchu stają na czerwonym, piesi wchodzą na pasy na swoim zielonym. Gracz może jechać dalej (`TRAFFIC-LIGHTS`).
+> Drzewa mają pnie, o które można stuknąć (`TREE-COLLIDE`). Głęboka woda zatrzymuje auto („Auto nie pływa!”) i pieszych. Wąski ciek i brzeg jeziora to płycizna: jedzie się wolno, z pluskiem (`WATER-BLOCK`, `SHALLOWS`). Mosty z OSM mają pomost i poręcze (`BRIDGES`).
 
 ## Jak uruchomić
 

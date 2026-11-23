@@ -157,12 +157,18 @@ function updateFoot(dt) {
   let speed = 0;
   if (ml > 0.05) {
     const k = Math.min(1, ml); mx /= ml; mz /= ml; speed = spd * k;
+    if (typeof waterAt === 'function' && waterAt(player.x, player.z) === 'shallow') speed *= 0.5;
     const nx = player.x + mx * speed * dt, nz = player.z + mz * speed * dt;
     const hop = typeof bvhMove === 'function' ? bvhMove(player.x, player.z, nx, nz, 0.35, 0.9) : null;
     collideCircle(hop ? hop.x : nx, hop ? hop.z : nz, 0.35, col, true, !(hop && hop.used));
     if (hop && hop.hit) { col.hit = true; col.nx = hop.nx; col.nz = hop.nz; }
     let px = col.x, pz = col.z;
     if (insideBuilding(px, pz, 0) && !insideBuilding(player.x, player.z, 0)) { px = player.x; pz = player.z; }
+    if (typeof waterAt === 'function' && waterAt(px, pz) === 'deep') {
+      px = player.x; pz = player.z;
+      const now = performance.now();
+      if (now - (G.wetFoot || 0) > 1600) { G.wetFoot = now; toast('Za głęboko! Tu się nie przejdzie.'); }
+    }
     for (const c of cars) for (const [cx, cz] of c.circles()) { const dx = px - cx, dz = pz - cz, d = Math.hypot(dx, dz); if (d < 1.3 && d > 1e-4) { px = cx + dx / d * 1.3; pz = cz + dz / d * 1.3; } }
     player.x = px; player.z = pz;
     const th = Math.atan2(mx, mz); let dh = th - player.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); player.h += dh * Math.min(1, dt * 12);
@@ -205,6 +211,12 @@ function updateCar(c, dt, drive) {
     if (vF > MAXV) vF -= (vF - MAXV) * Math.min(1, dt * 1.6);
   }
   if (c.wrecked) { thr = 0; hand = true; } if (c.scooter) MAXV = 22;
+  // SHALLOWS: bród przez rów albo brzeg jeziora, wolno i z pluskiem.
+  if (typeof waterAt === 'function' && waterAt(c.x, c.z) === 'shallow') {
+    MAXV = Math.min(MAXV, 6.2); ACC = Math.min(ACC, 4);
+    if (vF > MAXV) vF -= (vF - MAXV) * Math.min(1, dt * 3.2);
+    if (c === activeCar && Math.abs(vF) > 1.5 && performance.now() - (c.splashT || 0) > 180) { c.splashT = performance.now(); splashAt(c.x, c.y || 0, c.z, 4); }
+  }
   if (c.air) { thr *= 0.15; hand = false; }
   if (thr > 0) { if (vF < -0.5) vF += BRK * dt; else vF += ACC * thr * dt * (1 - Math.max(0, vF) / MAXV); }
   else if (thr < 0) { if (vF > 0.5) vF -= BRK * dt; else vF = Math.max(-12, vF - 7 * dt); }
@@ -238,7 +250,7 @@ function updateCar(c, dt, drive) {
     }
     for (const off of c.offs) {
       const cx = c.x + Math.sin(c.h) * off, cz = c.z + Math.cos(c.h) * off;
-      collideCircle(cx, cz, c.rad, col, false, !(hop && hop.used));
+      collideCircle(cx, cz, c.rad, col, true, !(hop && hop.used)); // TREE-COLLIDE
       if (col.hit) {
         c.x += col.x - cx; c.z += col.z - cz;
         const vn = c.vx * col.nx + c.vz * col.nz;
@@ -248,6 +260,13 @@ function updateCar(c, dt, drive) {
     // safety: never let any part of the car end up inside a building footprint
     let bad = false; for (const off of c.offs) if (insideBuilding(c.x + Math.sin(c.h) * off, c.z + Math.cos(c.h) * off, 0)) { bad = true; break; }
     if (bad) { impact = Math.max(impact, Math.hypot(c.vx, c.vz)); c.x = ox; c.z = oz; c.vx *= -0.25; c.vz *= -0.25; break; }
+    // WATER-BLOCK: głęboka woda odrzuca auto na ostatni suchy punkt.
+    if (typeof waterAt === 'function' && waterAt(c.x, c.z) === 'deep') {
+      splashAt(c.x, c.y || 0, c.z, 8);
+      c.x = ox; c.z = oz; c.vx *= -0.2; c.vz *= -0.2;
+      if (isPlayer && performance.now() - (G.wetCar || 0) > 1600) { G.wetCar = performance.now(); toast('Auto nie pływa!'); }
+      break;
+    }
   }
   for (const o of cars) {
     if (o === c || !o.g.visible) continue; const d = Math.hypot(o.x - c.x, o.z - c.z); if (d > 6) continue;
