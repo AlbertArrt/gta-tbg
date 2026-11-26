@@ -153,6 +153,14 @@ function closestOnSeg(px, pz, x1, z1, x2, z2, out) {
   out.x = x1 + dx * t; out.z = z1 + dz * t; out.t = t; return out;
 }
 
+// Service worker: gra działa bez internetu i instaluje się na ekranie głównym.
+// Bez SW milcząco nic nie robimy (file://, tryb prywatny, stara przeglądarka).
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => { /* offline/instalacja niedostępne */ });
+  });
+}
+
 
 // ======================= STYLE (komiks / cel-shading) =======================
 const OUTLINE_COL = new THREE.Color('#2a211c');

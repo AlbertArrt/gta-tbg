@@ -33,6 +33,7 @@ def build_single(main):
     # drop external assets; the single file carries them inline
     index = index.replace('<link rel="manifest" href="manifest.webmanifest">\n', "")
     index = index.replace('<link rel="icon" href="icon.svg" type="image/svg+xml">\n', "")
+    index = index.replace('<link rel="apple-touch-icon" href="./apple-touch-icon.png">\n', "")
     index = index.replace('<link rel="stylesheet" href="style.css">\n', "")
     index = index.replace('<script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "./vendor/game-libs.js": "./vendor/game-libs.js" } }</script>\n', "")
     icon_tag = '<link rel="icon" href="data:image/svg+xml;base64,' + base64.b64encode(icon).decode("ascii") + '" type="image/svg+xml">\n'
@@ -48,7 +49,8 @@ def build_single(main):
 
 def build_zip():
     names = [
-        "index.html", "main.js", "style.css", "manifest.webmanifest", "icon.svg",
+        "index.html", "main.js", "style.css", "manifest.webmanifest", "icon.svg", "sw.js",
+        "icon-192.png", "icon-512.png", "icon-512-maskable.png", "apple-touch-icon.png",
         "data/tarnobrzeg.json",
         "fonts/fredoka-400.woff", "fonts/fredoka-600.woff", "fonts/fredoka-700.woff", "fonts/OFL-Fredoka.txt",
         "vendor/three.module.js", "vendor/game-libs.js",

@@ -8,6 +8,25 @@
 <meta name="description" content="GTA TBG – gra 3D w otwartym świecie: prawdziwy Tarnobrzeg z danych OpenStreetMap. Jeździj autem i chodź pieszo.">
 <meta name="application-name" content="GTA TBG">
 <meta name="apple-mobile-web-app-title" content="GTA TBG">
+<!-- podgląd linku (Messenger, WhatsApp, Discord, X) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GTA TBG">
+<meta property="og:locale" content="pl_PL">
+<meta property="og:title" content="GTA TBG – Tarnobrzeg – otwarty świat">
+<meta property="og:description" content="Gra 3D w przeglądarce: prawdziwy Tarnobrzeg z danych OpenStreetMap. Jeździj autem, chodź pieszo, bierz misje. Bez instalacji – wystarczy link.">
+<meta property="og:url" content="https://gta-tbg-tarnobrzeg-viuizh.freebuff.site/">
+<meta property="og:image" content="https://gta-tbg-tarnobrzeg-viuizh.freebuff.site/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Zrzut ekranu z gry GTA TBG: bohater na Rynku w Tarnobrzegu">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GTA TBG – Tarnobrzeg – otwarty świat">
+<meta name="twitter:description" content="Gra 3D w przeglądarce: prawdziwy Tarnobrzeg z danych OpenStreetMap. Bez instalacji – wystarczy link.">
+<meta name="twitter:image" content="https://gta-tbg-tarnobrzeg-viuizh.freebuff.site/og-image.jpg">
+<meta name="twitter:image:alt" content="Zrzut ekranu z gry GTA TBG: bohater na Rynku w Tarnobrzegu">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjMGQyMjM2Ii8+PHRleHQgeD0iMjU2IiB5PSIyNTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJJbXBhY3QsQXJpYWwgQmxhY2ssc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOTAiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZmlsbD0iI2ZmZDIzZiIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEwIj5HVEE8L3RleHQ+PGcgdHJhbnNmb3JtPSJyb3RhdGUoLTYgMjU2IDM2MCkiPjxyZWN0IHg9IjEyNiIgeT0iMjkwIiB3aWR0aD0iMjYwIiBoZWlnaHQ9IjEyMCIgcng9IjE0IiBmaWxsPSIjZmY3YTFhIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMTAiLz48dGV4dCB4PSIyNTYiIHk9IjM4OCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkltcGFjdCxBcmlhbCBCbGFjayxzYW5zLXNlcmlmIiBmb250LXNpemU9IjEwMCIgZm9udC13ZWlnaHQ9IjkwMCIgZmlsbD0iIzExMSI+VEJHPC90ZXh0PjwvZz48L3N2Zz4K" type="image/svg+xml">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -699,6 +718,14 @@ function closestOnSeg(px, pz, x1, z1, x2, z2, out) {
   const dx = x2 - x1, dz = z2 - z1; const L = dx * dx + dz * dz;
   let t = L > 0 ? ((px - x1) * dx + (pz - z1) * dz) / L : 0; t = clamp(t, 0, 1);
   out.x = x1 + dx * t; out.z = z1 + dz * t; out.t = t; return out;
+}
+
+// Service worker: gra działa bez internetu i instaluje się na ekranie głównym.
+// Bez SW milcząco nic nie robimy (file://, tryb prywatny, stara przeglądarka).
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => { /* offline/instalacja niedostępne */ });
+  });
 }
 
 
