@@ -521,31 +521,35 @@ async function buildWorld(data, scene, renderer) {
   W.data = data; W.rect = data.rect; W.names = data.names;
   const CH = 250;
   const chunks = new Map();
-  const getChunk = (x, z) => { const k = Math.floor(x / CH) + ',' + Math.floor(z / CH); let c = chunks.get(k); if (!c) { c = { walls: new GeoBuf(), roofs: new GeoBuf(), detail: new GeoBuf(), area: new GeoBuf(), road: new GeoBuf(), mark: new GeoBuf(), water: new GeoBuf(), walk: new GeoBuf(), edges: [] }; if (TOON) c.walls.setX(null, -1); chunks.set(k, c); } return c; };
+  const getChunk = (x, z) => { const k = Math.floor(x / CH) + ',' + Math.floor(z / CH); let c = chunks.get(k); if (!c) { c = { walls: new GeoBuf(), roofs: new GeoBuf(), detail: new GeoBuf(), area: new GeoBuf(), road: new GeoBuf(), mark: new GeoBuf(), water: new GeoBuf(), walk: new GeoBuf(), pave: new GeoBuf(), edges: [] }; if (TOON) c.walls.setX(null, -1); chunks.set(k, c); } return c; };
   W.visObjects = [];
 
   const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   const { tex: winTex, emi: winEmi } = makeWindowTextures(maxAniso);
+  const groundTex = makeGroundTexture(maxAniso), areaTex = makeGroundTexture(maxAniso), paveTex = makePaveTexture(maxAniso);
+  areaTex.repeat.set(1, 1);
   W.mats = {
     wall: new THREE.MeshLambertMaterial({ vertexColors: true, map: winTex, emissive: 0xffd9a0, emissiveMap: winEmi, emissiveIntensity: 0 }),
     roof: new THREE.MeshLambertMaterial({ vertexColors: true }),
-    area: new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
+    area: new THREE.MeshLambertMaterial({ vertexColors: true, map: areaTex, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
+    pave: new THREE.MeshLambertMaterial({ vertexColors: true, map: paveTex, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -3 }),
     water: new THREE.MeshPhongMaterial({ color: 0x3f7398, specular: 0x9fc4e6, shininess: 90, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
     road: new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }),
     mark: new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }),
-    ground: new THREE.MeshLambertMaterial({ color: 0x93ad6e }),
+    ground: new THREE.MeshLambertMaterial({ color: 0x93ad6e, map: groundTex }),
   };
   if (TOON) {
     W.mats = {
       wall: makeFacadeMat(maxAniso),
       roof: mkMat({ vertexColors: true }),
       balcony: mkMat({ vertexColors: true }),
-      area: mkMat({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
+      area: mkMat({ vertexColors: true, map: areaTex, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
+      pave: mkMat({ vertexColors: true, map: paveTex, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -3 }),
       water: mkMat({ color: 0x47a6e0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
       walk: mkMat({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
       road: mkMat({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }),
       mark: mkMat({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }),
-      ground: mkMat({ color: 0xa3d65c }),
+      ground: mkMat({ color: 0xa3d65c, map: groundTex }),
     };
   }
 
@@ -555,6 +559,7 @@ async function buildWorld(data, scene, renderer) {
 
   // ---- areas (landuse / parks / forests)
   const AREA_COL = TOON ? { grass: '#a6da5c', park: '#98d454', forest: '#7cbd4a', farmland: '#dcd27e', residential: '#b0dc66', industrial: '#cdc8bf', cemetery: '#94c560', pitch: '#7fc94b', sand: '#efdc9c', plaza: '#e3ddd0', parking: '#a2a3a6', wetland: '#8fc47a', scrub: '#8cc452', commercial: '#d8d1c6', garden: '#a2d85e', allotments: '#b2d968', orchard: '#9fd05a', railway: '#c4bcae' } : { grass: '#8dbb68', park: '#79b257', forest: '#4b8139', farmland: '#c8bd78', residential: '#aab394', industrial: '#b1aaa4', cemetery: '#779a64', pitch: '#4d9846', sand: '#d6c695', plaza: '#cbc2b1', parking: '#8c8c8a', wetland: '#7c9a70', scrub: '#789953', commercial: '#bcb3ab', garden: '#84b765', allotments: '#9cbc69', orchard: '#8fb45d', railway: '#a49c92' };
+  const PAVED = new Set(['plaza', 'parking']);
   const AREA_Y = { residential: 0.03, industrial: 0.03, commercial: 0.03, railway: 0.03, farmland: 0.035, grass: 0.045, scrub: 0.045, wetland: 0.045, forest: 0.042, orchard: 0.045, allotments: 0.045, sand: 0.05, park: 0.055, garden: 0.055, cemetery: 0.055, pitch: 0.06, parking: 0.065, plaza: 0.07 };
   const col = new THREE.Color();
   W.forests = []; W.parks = [];
@@ -565,10 +570,15 @@ async function buildWorld(data, scene, renderer) {
     if (kind === 'farmland') col.offsetHSL((rnd() - 0.5) * 0.06, (rnd() - 0.5) * 0.2, (rnd() - 0.5) * 0.08);
     else col.offsetHSL(0, 0, (rnd() - 0.5) * 0.04);
     const y = AREA_Y[kind] || 0.04;
+    const paved = PAVED.has(kind);
     const { pts, faces } = triangulate(ring, holes);
     for (const f of faces) {
       const A = pts[f[0]], B = pts[f[1]], C = pts[f[2]];
-      getChunk((A.x + B.x + C.x) / 3, (A.y + B.y + C.y) / 3).area.tri(A.x, y, A.y, B.x, y, B.y, C.x, y, C.y, col, null, 0, 1, 0);
+      const ch = getChunk((A.x + B.x + C.x) / 3, (A.y + B.y + C.y) / 3);
+      ch.area.tri(A.x, y, A.y, B.x, y, B.y, C.x, y, C.y, col,
+        [A.x / 6, A.y / 6, B.x / 6, B.y / 6, C.x / 6, C.y / 6], 0, 1, 0);
+      if (paved) ch.pave.tri(A.x, y + 0.004, A.y, B.x, y + 0.004, B.y, C.x, y + 0.004, C.y, col,
+        [A.x / 2.4, A.y / 2.4, B.x / 2.4, B.y / 2.4, C.x / 2.4, C.y / 2.4], 0, 1, 0);
     }
     const rec = { ring, holes, kind, area: Math.abs(ringArea(ring)) };
     if (kind === 'residential') (W.resid = W.resid || []).push(rec);
@@ -838,6 +848,7 @@ async function buildWorld(data, scene, renderer) {
   sealStreetWalls(fronts, getChunk);
   W.bGrid.finish();
   if (typeof placeKayShops === 'function') placeKayShops(scene);
+  buildWallAO(scene);
 
   setLoad(0.78, 'Składanie miasta…'); await nextFrame();
   W.chunkGroup = new THREE.Group(); scene.add(W.chunkGroup);
@@ -851,6 +862,7 @@ async function buildWorld(data, scene, renderer) {
       const bs = geo.boundingSphere; W.visObjects.push({ obj: m, x: bs.center.x, z: bs.center.z, r: bs.radius, bias: opts.bias || 0 });
     };
     if (c.area.count) addMesh(c.area.toGeometry(), W.mats.area, { bias: 200 });
+    if (c.pave.count) addMesh(c.pave.toGeometry(), W.mats.pave, { bias: 190 });
     if (c.water.count) addMesh(c.water.toGeometry(), W.mats.water, { bias: 400 });
     if (c.road.count) addMesh(c.road.toGeometry(), W.mats.road, { bias: 100 });
     if (c.walk.count) addMesh(c.walk.toGeometry(), W.mats.walk, { bias: -50 });
@@ -1122,6 +1134,45 @@ function sealStreetWalls(fronts, getChunk) {
   W.sealStats = { quality: q, fronts: fronts.length, cracks, pulls, backs, plots, tris };
 }
 
+// Kontaktowe zaciemnienie gruntu przy elewacjach: pas ciemny u ściany, zanikający na 1,25 m.
+// Rysowane tuż nad chodnikiem (0,108), więc drogi (0,13) je przykrywają, a nie odwrotnie.
+function buildWallAO(scene) {
+  const P = [], C = [];
+  const Y = 0.108, REACH = 1.25, A0 = 0.42;
+  const near = (x, z) => Math.hypot(x + 7, z - 10) < 800 || Math.hypot(x - 1216, z + 49) < 650;
+  const put = (x, z, a) => { P.push(x, Y, z); C.push(0.16, 0.13, 0.10, a); };
+  let n = 0;
+  for (const b of W.buildings) {
+    if (n >= 1600) break;
+    const ring = b.ring;
+    if (!ring || ring.length < 8 || b.h < 2.4 || b.kay || !near(b.cx, b.cz)) continue;
+    const pos = ringArea(ring) > 0, m = ring.length / 2;
+    for (let i = 0; i < m; i++) {
+      const j = (i + 1) % m;
+      const x1 = ring[i * 2], z1 = ring[i * 2 + 1], x2 = ring[j * 2], z2 = ring[j * 2 + 1];
+      const len = Math.hypot(x2 - x1, z2 - z1);
+      if (len < 0.6) continue;
+      let nx = (z2 - z1) / len, nz = -(x2 - x1) / len;
+      if (!pos) { nx = -nx; nz = -nz; }
+      const ax = x1 + nx * 0.03, az = z1 + nz * 0.03, bx = x2 + nx * 0.03, bz = z2 + nz * 0.03;
+      const cx = ax + nx * REACH, cz = az + nz * REACH, dx = bx + nx * REACH, dz = bz + nz * REACH;
+      if (inWater(ax, az)) continue;
+      put(ax, az, A0); put(bx, bz, A0); put(dx, dz, 0);
+      put(ax, az, A0); put(dx, dz, 0); put(cx, cz, 0);
+    }
+    n++;
+  }
+  if (!P.length) return;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 4));
+  geo.computeBoundingSphere();
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -12 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = 1; mesh.matrixAutoUpdate = false;
+  scene.add(mesh); W.wallAO = mesh;
+}
+
 function ribbon(pts, width, y, color, bufFor, caps) {
   const n = pts.length / 2; if (n < 2) return;
   const hw = width / 2; const L = [], R = [];
@@ -1282,6 +1333,52 @@ function railings(pts, width, bufFor) {
     }
   }
 }
+// Grunt: delikatna faktura (plamy + drobny szum), mnożona przez kolor pory dnia.
+function makeGroundTexture(aniso) {
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d'), rnd = mulberry32(4242);
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 240; i++) {
+    const x = rnd() * S, y = rnd() * S, r = 8 + rnd() * 34;
+    const grd = g.createRadialGradient(x, y, 0, x, y, r);
+    grd.addColorStop(0, rnd() < 0.5 ? 'rgba(84,102,46,0.16)' : 'rgba(255,255,225,0.14)');
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grd; g.beginPath(); g.arc(x, y, r, 0, 6.2832); g.fill();
+  }
+  for (let i = 0; i < 6000; i++) {
+    g.fillStyle = rnd() < 0.5 ? 'rgba(64,84,36,0.10)' : 'rgba(255,255,238,0.10)';
+    g.fillRect(rnd() * S, rnd() * S, 1 + rnd() * 2, 1 + rnd() * 2);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = aniso; t.repeat.set(1800, 1800); t.needsUpdate = true;
+  return t;
+}
+// Kostka brukowa: rzędy kamieni z fugami, UV liczone w metrach (1 kafel = 2,4 m).
+function makePaveTexture(aniso) {
+  const S = 256, N = 8, cs = S / N, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d'), rnd = mulberry32(777);
+  g.fillStyle = '#8b877e'; g.fillRect(0, 0, S, S);
+  const stone = (x, y) => {
+    const l = 0.88 + rnd() * 0.22, b = Math.round(226 * l);
+    g.fillStyle = `rgb(${b},${Math.round(b * 0.99)},${Math.round(b * 0.96)})`;
+    g.beginPath();
+    if (g.roundRect) g.roundRect(x + 1.7, y + 1.7, cs - 3.4, cs - 3.4, 3); else g.rect(x + 1.7, y + 1.7, cs - 3.4, cs - 3.4);
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(x + 2.4, y + 2.4, cs - 4.8, 1.4);
+    g.fillStyle = 'rgba(0,0,0,0.08)'; g.fillRect(x + 2.4, y + cs - 3.8, cs - 4.8, 1.4);
+  };
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const off = (j % 2) * cs * 0.5;
+    const x = (i * cs + off) % S, y = j * cs;
+    stone(x, y);
+    if (x + cs > S) stone(x - S, y);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso;
+  return t;
+}
+
 function makeWindowTextures(aniso) {
   const S = 512, cells = 4, cs = S / cells;
   const c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
@@ -1575,6 +1672,7 @@ function buildLook(scene) {
   if (!TOON) return;
   buildClouds(scene);
   buildFurniture(scene);
+  buildLampLight(scene);
   buildBlobs(scene);
 }
 function buildClouds(scene) {
@@ -1631,6 +1729,7 @@ function buildFurniture(scene) {
   const keep = new Set(['residential', 'tertiary', 'secondary', 'primary', 'living_street', 'unclassified']);
   const rad = { lamp: 0.28, bench: 0.7, bin: 0.32, hydrant: 0.26, sign: 0.22, planter: 0.4 };
   if (!W.props) W.props = [];
+  W.lamps = [];
   let n = 0;
   for (const r of W.roads) {
     if (n >= cap) break;
@@ -1648,7 +1747,38 @@ function buildFurniture(scene) {
         const kind = kinds[(n + Math.floor(Math.abs(x * 3 + z) ) ) % kinds.length];
         buckets[kind].push([x, z, Math.atan2(dx, dz)]);
         W.props.push({ x, z, r: rad[kind] });
+        if (kind === 'lamp') W.lamps.push([x, z]);
         n++;
+      }
+    }
+  }
+  // Osobna siatka latarni wzdłuż ulic w centrum – bez niej noc nie ma rytmu świateł.
+  const lampCap = q === 'low' ? 190 : (q === 'high' ? 520 : 380);
+  const coreDist = (x, z) => Math.min(Math.hypot(x + 7, z - 10), Math.hypot(x - 1216, z + 49));
+  const nearLamp = (x, z) => { for (const l of W.lamps) if ((l[0] - x) ** 2 + (l[1] - z) ** 2 < 144) return true; return false; };
+  let lamps = buckets.lamp.length;
+  // najpierw najbliższe centrum, żeby limit nie wyczerpał się na obrzeżach
+  const order = W.roads.map((r, i) => i).filter((i) => !W.roads[i].bridge && keep.has(W.roads[i].type))
+    .sort((a, b) => coreDist(W.roads[a].pts[0], W.roads[a].pts[1]) - coreDist(W.roads[b].pts[0], W.roads[b].pts[1]));
+  for (const ri of order) {
+    if (lamps >= lampCap) break;
+    const r = W.roads[ri];
+    const pts = r.pts;
+    for (let i = 0; i < pts.length - 2 && lamps < lampCap; i += 2) {
+      const x1 = pts[i], z1 = pts[i + 1], x2 = pts[i + 2], z2 = pts[i + 3];
+      const len = Math.hypot(x2 - x1, z2 - z1); if (len < 10) continue;
+      const dx = (x2 - x1) / len, dz = (z2 - z1) / len;
+      const step = coreDist(x1, z1) < 300 ? 22 : 38;
+      for (let t = 5; t < len - 5 && lamps < lampCap; t += step) {
+        const side = (Math.floor(t / step) & 1) ? 1 : -1;
+        const x = x1 + dx * t - dz * side * (r.width / 2 + 2.4);
+        const z = z1 + dz * t + dx * side * (r.width / 2 + 2.4);
+        if (coreDist(x, z) > 740) continue;
+        if (nearLamp(x, z) || insideBuilding(x, z, 0.7) || inWater(x, z) || nearRoad(x, z, 0.3) || nearMark(x, z)) continue;
+        buckets.lamp.push([x, z, Math.atan2(dx, dz)]);
+        W.props.push({ x, z, r: rad.lamp });
+        W.lamps.push([x, z]);
+        lamps++;
       }
     }
   }
@@ -1668,6 +1798,37 @@ function buildFurniture(scene) {
     mesh.frustumCulled = false; hull.frustumCulled = false;
     scene.add(mesh); scene.add(hull);
   }
+}
+// Nocne światło ulic: ciepła plama na jezdni pod każdą latarnią + halo w kloszu.
+// Jedna instancja na latarnię, widoczne tylko w nocy (przełącza applyTime).
+function makePoolTexture() {
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  grd.addColorStop(0, 'rgba(255,232,182,0.85)');
+  grd.addColorStop(0.42, 'rgba(255,206,132,0.40)');
+  grd.addColorStop(1, 'rgba(255,188,110,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, S, S);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function buildLampLight(scene) {
+  const lamps = W.lamps || [];
+  if (!lamps.length) return;
+  const R = settings.quality === 'low' ? 8.5 : (settings.quality === 'high' ? 10.5 : 9.5);
+  const geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const mat = new THREE.MeshBasicMaterial({ map: makePoolTexture(), color: 0xffe2b0, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, fog: true, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -16 });
+  const pools = new THREE.InstancedMesh(geo, mat, lamps.length);
+  const m4 = new THREE.Matrix4();
+  lamps.forEach((p, i) => { m4.makeScale(R, 1, R); m4.setPosition(p[0], 0.185, p[1]); pools.setMatrixAt(i, m4); });
+  pools.instanceMatrix.needsUpdate = true;
+  pools.frustumCulled = false; pools.renderOrder = 3; pools.visible = !!G.night;
+  scene.add(pools); W.lampPools = pools;
+  const hm = new THREE.MeshBasicMaterial({ color: 0xfff2cf, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+  const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.34, 8, 6), hm, lamps.length);
+  lamps.forEach((p, i) => { m4.makeScale(1, 1, 1); m4.setPosition(p[0], 3.1, p[1] + 0.04); heads.setMatrixAt(i, m4); });
+  heads.instanceMatrix.needsUpdate = true;
+  heads.frustumCulled = false; heads.renderOrder = 4; heads.visible = !!G.night;
+  scene.add(heads); W.lampHeads = heads;
 }
 function buildBlobs(scene) {
   const geo = new THREE.CircleGeometry(1, 8); geo.rotateX(-Math.PI / 2);
@@ -2373,6 +2534,8 @@ function applyTime() {
   W.mats.wall.emissiveIntensity = n ? 1.1 : 0;
   W.mats.water.color.set(n ? '#1b3550' : (TOON ? '#47a6e0' : '#3f7398'));
   W.mats.ground.color.set(n ? (TOON ? '#5f7f3c' : '#5d7048') : (TOON ? '#a3d65c' : '#93ad6e'));
+  if (W.lampPools) W.lampPools.visible = n;
+  if (W.lampHeads) W.lampHeads.visible = n;
   headlight.intensity = n ? 60 : 0;
   for (const c of cars.concat(TR.pool, POL.cars)) { if (!c.headMat) continue; c._hl = c._tl = undefined; c.headMat.emissiveIntensity = n ? 2.3 : 0.12; c.tailMat.emissiveIntensity = n ? 1.25 : 0.22; }
   renderer.toneMapping = THREE.NoToneMapping;
@@ -4748,7 +4911,8 @@ function makeGiver(x, z, col, who, id) {
   const look = GIVER_LOOK[id] || { hairStyle: 'short' };
   const w = makeWalker({ shirt: c.getHex(), ...look }); g.add(w);
   const ex = labelSprite('!', col, 1.6); ex.position.y = 3.2; g.add(ex);
-  const lab = labelSprite(who, col, 6); lab.position.y = 4.4; lab.visible = false; g.add(lab);
+  const lab = labelSprite(who, col, 6); lab.position.y = 4.9; lab.visible = false;
+  lab.material.depthTest = false; lab.renderOrder = 6; g.add(lab);
   scene.add(g); return { g, beam, ring, w, ex, lab };
 }
 function makeTarget() {
@@ -7308,7 +7472,9 @@ function paintNpcLabel(sprite, text, color) {
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillText(text, 320, 50);
   sprite.material.map.needsUpdate = true;
-  const w = Math.min(9.2, 4.4 + text.length * 0.11);
+  // na wąskim (pionowym) ekranie tabliczka musi się zmieścić w kadrze
+  const fit = innerWidth < 760 ? 0.72 : 1;
+  const w = Math.min(9.2, 4.4 + text.length * 0.11) * fit;
   sprite.scale.set(w, w * 96 / 640, 1);
 }
 function npcStep(m) {

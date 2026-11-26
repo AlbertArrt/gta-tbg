@@ -133,7 +133,9 @@ function paintNpcLabel(sprite, text, color) {
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillText(text, 320, 50);
   sprite.material.map.needsUpdate = true;
-  const w = Math.min(9.2, 4.4 + text.length * 0.11);
+  // na wąskim (pionowym) ekranie tabliczka musi się zmieścić w kadrze
+  const fit = innerWidth < 760 ? 0.72 : 1;
+  const w = Math.min(9.2, 4.4 + text.length * 0.11) * fit;
   sprite.scale.set(w, w * 96 / 640, 1);
 }
 function npcStep(m) {

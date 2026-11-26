@@ -4,6 +4,7 @@ function buildLook(scene) {
   if (!TOON) return;
   buildClouds(scene);
   buildFurniture(scene);
+  buildLampLight(scene);
   buildBlobs(scene);
 }
 function buildClouds(scene) {
@@ -60,6 +61,7 @@ function buildFurniture(scene) {
   const keep = new Set(['residential', 'tertiary', 'secondary', 'primary', 'living_street', 'unclassified']);
   const rad = { lamp: 0.28, bench: 0.7, bin: 0.32, hydrant: 0.26, sign: 0.22, planter: 0.4 };
   if (!W.props) W.props = [];
+  W.lamps = [];
   let n = 0;
   for (const r of W.roads) {
     if (n >= cap) break;
@@ -77,7 +79,38 @@ function buildFurniture(scene) {
         const kind = kinds[(n + Math.floor(Math.abs(x * 3 + z) ) ) % kinds.length];
         buckets[kind].push([x, z, Math.atan2(dx, dz)]);
         W.props.push({ x, z, r: rad[kind] });
+        if (kind === 'lamp') W.lamps.push([x, z]);
         n++;
+      }
+    }
+  }
+  // Osobna siatka latarni wzdłuż ulic w centrum – bez niej noc nie ma rytmu świateł.
+  const lampCap = q === 'low' ? 190 : (q === 'high' ? 520 : 380);
+  const coreDist = (x, z) => Math.min(Math.hypot(x + 7, z - 10), Math.hypot(x - 1216, z + 49));
+  const nearLamp = (x, z) => { for (const l of W.lamps) if ((l[0] - x) ** 2 + (l[1] - z) ** 2 < 144) return true; return false; };
+  let lamps = buckets.lamp.length;
+  // najpierw najbliższe centrum, żeby limit nie wyczerpał się na obrzeżach
+  const order = W.roads.map((r, i) => i).filter((i) => !W.roads[i].bridge && keep.has(W.roads[i].type))
+    .sort((a, b) => coreDist(W.roads[a].pts[0], W.roads[a].pts[1]) - coreDist(W.roads[b].pts[0], W.roads[b].pts[1]));
+  for (const ri of order) {
+    if (lamps >= lampCap) break;
+    const r = W.roads[ri];
+    const pts = r.pts;
+    for (let i = 0; i < pts.length - 2 && lamps < lampCap; i += 2) {
+      const x1 = pts[i], z1 = pts[i + 1], x2 = pts[i + 2], z2 = pts[i + 3];
+      const len = Math.hypot(x2 - x1, z2 - z1); if (len < 10) continue;
+      const dx = (x2 - x1) / len, dz = (z2 - z1) / len;
+      const step = coreDist(x1, z1) < 300 ? 22 : 38;
+      for (let t = 5; t < len - 5 && lamps < lampCap; t += step) {
+        const side = (Math.floor(t / step) & 1) ? 1 : -1;
+        const x = x1 + dx * t - dz * side * (r.width / 2 + 2.4);
+        const z = z1 + dz * t + dx * side * (r.width / 2 + 2.4);
+        if (coreDist(x, z) > 740) continue;
+        if (nearLamp(x, z) || insideBuilding(x, z, 0.7) || inWater(x, z) || nearRoad(x, z, 0.3) || nearMark(x, z)) continue;
+        buckets.lamp.push([x, z, Math.atan2(dx, dz)]);
+        W.props.push({ x, z, r: rad.lamp });
+        W.lamps.push([x, z]);
+        lamps++;
       }
     }
   }
@@ -97,6 +130,37 @@ function buildFurniture(scene) {
     mesh.frustumCulled = false; hull.frustumCulled = false;
     scene.add(mesh); scene.add(hull);
   }
+}
+// Nocne światło ulic: ciepła plama na jezdni pod każdą latarnią + halo w kloszu.
+// Jedna instancja na latarnię, widoczne tylko w nocy (przełącza applyTime).
+function makePoolTexture() {
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  grd.addColorStop(0, 'rgba(255,232,182,0.85)');
+  grd.addColorStop(0.42, 'rgba(255,206,132,0.40)');
+  grd.addColorStop(1, 'rgba(255,188,110,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, S, S);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function buildLampLight(scene) {
+  const lamps = W.lamps || [];
+  if (!lamps.length) return;
+  const R = settings.quality === 'low' ? 8.5 : (settings.quality === 'high' ? 10.5 : 9.5);
+  const geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const mat = new THREE.MeshBasicMaterial({ map: makePoolTexture(), color: 0xffe2b0, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, fog: true, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -16 });
+  const pools = new THREE.InstancedMesh(geo, mat, lamps.length);
+  const m4 = new THREE.Matrix4();
+  lamps.forEach((p, i) => { m4.makeScale(R, 1, R); m4.setPosition(p[0], 0.185, p[1]); pools.setMatrixAt(i, m4); });
+  pools.instanceMatrix.needsUpdate = true;
+  pools.frustumCulled = false; pools.renderOrder = 3; pools.visible = !!G.night;
+  scene.add(pools); W.lampPools = pools;
+  const hm = new THREE.MeshBasicMaterial({ color: 0xfff2cf, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+  const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.34, 8, 6), hm, lamps.length);
+  lamps.forEach((p, i) => { m4.makeScale(1, 1, 1); m4.setPosition(p[0], 3.1, p[1] + 0.04); heads.setMatrixAt(i, m4); });
+  heads.instanceMatrix.needsUpdate = true;
+  heads.frustumCulled = false; heads.renderOrder = 4; heads.visible = !!G.night;
+  scene.add(heads); W.lampHeads = heads;
 }
 function buildBlobs(scene) {
   const geo = new THREE.CircleGeometry(1, 8); geo.rotateX(-Math.PI / 2);

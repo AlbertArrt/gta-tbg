@@ -36,6 +36,8 @@ function applyTime() {
   W.mats.wall.emissiveIntensity = n ? 1.1 : 0;
   W.mats.water.color.set(n ? '#1b3550' : (TOON ? '#47a6e0' : '#3f7398'));
   W.mats.ground.color.set(n ? (TOON ? '#5f7f3c' : '#5d7048') : (TOON ? '#a3d65c' : '#93ad6e'));
+  if (W.lampPools) W.lampPools.visible = n;
+  if (W.lampHeads) W.lampHeads.visible = n;
   headlight.intensity = n ? 60 : 0;
   for (const c of cars.concat(TR.pool, POL.cars)) { if (!c.headMat) continue; c._hl = c._tl = undefined; c.headMat.emissiveIntensity = n ? 2.3 : 0.12; c.tailMat.emissiveIntensity = n ? 1.25 : 0.22; }
   renderer.toneMapping = THREE.NoToneMapping;

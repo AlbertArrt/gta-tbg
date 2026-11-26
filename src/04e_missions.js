@@ -424,7 +424,8 @@ function makeGiver(x, z, col, who, id) {
   const look = GIVER_LOOK[id] || { hairStyle: 'short' };
   const w = makeWalker({ shirt: c.getHex(), ...look }); g.add(w);
   const ex = labelSprite('!', col, 1.6); ex.position.y = 3.2; g.add(ex);
-  const lab = labelSprite(who, col, 6); lab.position.y = 4.4; lab.visible = false; g.add(lab);
+  const lab = labelSprite(who, col, 6); lab.position.y = 4.9; lab.visible = false;
+  lab.material.depthTest = false; lab.renderOrder = 6; g.add(lab);
   scene.add(g); return { g, beam, ring, w, ex, lab };
 }
 function makeTarget() {
