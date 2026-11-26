@@ -1,6 +1,9 @@
 // GTA TBG – service worker: gra działa offline i instaluje się na ekranie głównym.
-// Strategia: statyki cache-first (z odświeżaniem w tle), nawigacja network-first z fallbackiem do cache.
+// Strategia: HTML i main.js network-first (nowa wersja od razu, cache tylko jako fallback
+// offline), pozostałe statyki cache-first z odświeżaniem w tle.
 const VERSION = 'tb3d-static-v1';
+// Pliki, które muszą sprawdzić sieć – inaczej po wdrożeniu widać starą wersję gry.
+const NETWORK_FIRST = [/\/main\.js$/, /\/index\.html$/, /\/$/];
 const CORE = [
   './',
   './index.html',
@@ -49,19 +52,27 @@ self.addEventListener('fetch', (event) => {
   // Radio i inne zewnętrzne streamy zostawiamy sieci (bez cache)
   if (url.origin !== self.location.origin) return;
 
-  if (req.mode === 'navigate') {
+  // Rewalidacja z serwerem (pomija cache HTTP), żeby nowe wdrożenie nie czekało na TTL.
+  const revalidate = () => fetch(req, { cache: 'no-cache' });
+
+  if (req.mode === 'navigate' || NETWORK_FIRST.some((re) => re.test(url.pathname))) {
     event.respondWith(
       (async () => {
         try {
-          const fresh = await fetch(req);
+          const fresh = await revalidate();
           if (fresh && fresh.ok) {
             const cache = await caches.open(VERSION);
-            cache.put('./index.html', fresh.clone());
+            if (req.mode === 'navigate') cache.put('./index.html', fresh.clone());
+            else cache.put(req, fresh.clone());
           }
           return fresh;
         } catch (e) {
           const cache = await caches.open(VERSION);
-          return (await cache.match(req)) || (await cache.match('./index.html')) || new Response('Gra jest niedostępna offline.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+          return (
+            (await cache.match(req, { ignoreSearch: true })) ||
+            (await cache.match('./index.html')) ||
+            new Response('Gra jest niedostępna offline.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+          );
         }
       })()
     );
