@@ -48,6 +48,9 @@ function makeWalker(opt = {}) {
   const leg = [[0.18, 0.74, 0.18, 0, -0.37, 0, pants], [0.2, 0.1, 0.3, 0, -0.78, 0.05, shoe]];
   const armL = limb(-0.33, 1.5, arm), armR = limb(0.33, 1.5, arm);
   const legL = limb(-0.13, 0.9, leg), legR = limb(0.13, 0.9, leg);
+  // PED-SCALE: model miał ~1,95 m i prawie metr szerokości w ramionach — przy autach
+  // czytał się jak olbrzym. 0,9 daje ~1,75 m wzrostu i ~0,86 m szerokości.
+  g.scale.setScalar(PED_SCALE);
   g.userData = { body, armL, armR, legL, legR, phase: Math.random() * 6 };
   return g;
 }
@@ -94,10 +97,20 @@ function wheelGeometry(WR, WW, offroad) {
   return mergeBoxes(parts);
 }
 function finishCar(c, x, z, heading) {
+  // CAR-SCALE: auta były o ~10% za małe wobec budynków i pieszych. Skalujemy całą bryłę
+  // razem z kołami, a promienie kolizji rozciągamy tak samo, żeby fizyka została spójna.
+  if (!c._scaled) {
+    c._scaled = true;
+    c.g.scale.setScalar(CAR_SCALE);
+    c.offs = c.offs.map((o) => o * CAR_SCALE);
+    c.rad *= CAR_SCALE;
+  }
   c.x = x; c.z = z; c.h = heading; c.vx = 0; c.vz = 0; c.steer = 0; c.spin = 0; c.yawRate = 0;
   c.y = groundH(x, z); c.vy = 0; c.pgh = c.y; c.air = false; c.sus = 0; c.susV = 0; c.pitch = 0; c.roll = 0;
   c.sync();
 }
+const CAR_SCALE = 1.12;
+const PED_SCALE = 0.9;
 const CAR_COLORS = [0xc0392b, 0x2e86c1, 0xf1c40f, 0x27ae60, 0xecf0f1, 0x34495e, 0xe67e22, 0x8e44ad];
 const TOON_CAR_COLORS = [0xe8503a, 0x3d8fe0, 0xf6c431, 0x45b65a, 0xf4f1ea, 0x5a6b8c, 0xf08a2c, 0xa66bd0, 0x4fc3c8, 0xe86fa0];
 let carMatV = null;

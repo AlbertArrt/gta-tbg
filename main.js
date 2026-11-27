@@ -621,12 +621,16 @@ async function buildWorld(data, scene, renderer) {
   const ROAD_COL = TOON ? { motorway: '#3b3d42', trunk: '#3b3d42', primary: '#3d3f44', secondary: '#3d3f44', tertiary: '#404247', residential: '#43454a', unclassified: '#43454a', living_street: '#4a4c51', service: '#55575c', pedestrian: '#e2dccf', track: '#c2a271', footway: '#e6e0d2', path: '#dccb9f', cycleway: '#d0806a', steps: '#d6d6d6' } : { motorway: '#45474b', trunk: '#45474b', primary: '#47494d', secondary: '#4a4c50', tertiary: '#535559', residential: '#5e6064', unclassified: '#5e6064', living_street: '#6a6a6c', service: '#6d6d6e', pedestrian: '#b9ae9c', track: '#9c8767', footway: '#c4baa5', path: '#b8a682', cycleway: '#a3675a', steps: '#a8a8a8' };
   const ROAD_RANK = { footway: 0, path: 0, steps: 0, cycleway: 1, track: 1, pedestrian: 2, service: 3, living_street: 4, unclassified: 5, residential: 5, tertiary: 6, secondary: 7, primary: 8, trunk: 9, motorway: 10 };
   const DRIVABLE = new Set(['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'residential', 'unclassified', 'living_street', 'service']);
+  // ROAD-WIDTH: OSM podaje realną szerokość jezdni. W grze, przy kamerze z wysokości
+  // pieszego, ulice czytały się ciasno — drogi jezdne dostają więc kilkanaście procent.
+  const ROAD_W_SCALE = { motorway: 1.12, trunk: 1.12, primary: 1.14, secondary: 1.16, tertiary: 1.18, residential: 1.22, unclassified: 1.2, living_street: 1.18, service: 1.1, pedestrian: 1, footway: 1, path: 1, track: 1, cycleway: 1, steps: 1 };
   W.roadGrid = new SegGrid(40); W.roads = [];
   const white = new THREE.Color(TOON ? '#ffffff' : '#f2f2f2'), edge = new THREE.Color(TOON ? '#ffffff' : '#e9e3c8'), railCol = new THREE.Color('#4a4642');
   const SIDEWALK = new Set(['residential', 'unclassified', 'tertiary', 'secondary', 'primary', 'trunk', 'living_street']);
   const walkCol = new THREE.Color('#cfcbc5'), curbCol = new THREE.Color('#f6f4ef');
   data.roads.forEach((r) => {
-    const type = RT[r[0]]; const name = r[1] >= 0 ? data.names[r[1]] : null; const width = r[2] / 10; const flags = r[4];
+    const type = RT[r[0]]; const name = r[1] >= 0 ? data.names[r[1]] : null; const flags = r[4];
+    const width = Math.round((r[2] / 10) * (ROAD_W_SCALE[type] || 1) * 10) / 10;
     const pts = dec(r[5]); if (pts.length < 4) return;
     const rec = { type, name, width, pts, drivable: DRIVABLE.has(type), bridge: !!(flags & 2), oneway: !!(flags & 1) };
     W.roads.push(rec);
@@ -646,6 +650,25 @@ async function buildWorld(data, scene, renderer) {
   });
   W.roadGrid.finish();
   buildRoadGraph();
+  // ROAD-JOIN: każdy odcinek jest rysowany osobno, więc na skrzyżowaniu zostawały cienkie
+  // szpary i uskoki między jezdniami. Płaski asfaltowy krąg pod węzłami domyka powierzchnię.
+  for (let ni = 0; ni < W.graph.nodes.length; ni++) {
+    const nd = W.graph.nodes[ni]; if (nd.deg < 3) continue;
+    let maxW = 0, bestRank = -1, col = null;
+    for (const a of W.graph.adj[ni]) {
+      const e = W.graph.edges[a.e]; if (!e) continue;
+      if (e.w > maxW) maxW = e.w;
+      const rk = ROAD_RANK[e.type] || 0;
+      if (rk > bestRank) { bestRank = rk; col = ROAD_COL[e.type]; }
+    }
+    if (maxW < 4 || !col) continue;
+    const R = maxW * 0.5 + 0.85, padY = 0.2, seg = 14;
+    const buf = getChunk(nd.x, nd.z).road, c3 = new THREE.Color(col);
+    for (let k = 0; k < seg; k++) {
+      const a0 = k / seg * Math.PI * 2, a1 = (k + 1) / seg * Math.PI * 2;
+      buf.tri(nd.x, padY, nd.z, nd.x + Math.cos(a0) * R, padY, nd.z + Math.sin(a0) * R, nd.x + Math.cos(a1) * R, padY, nd.z + Math.sin(a1) * R, c3, null, 0, 1, 0);
+    }
+  }
   if (TOON) addZebras((x, z) => getChunk(x, z).mark, white);
   const ballast = new THREE.Color('#8b8378');
   data.rail.forEach((r) => {
@@ -2131,6 +2154,9 @@ function makeWalker(opt = {}) {
   const leg = [[0.18, 0.74, 0.18, 0, -0.37, 0, pants], [0.2, 0.1, 0.3, 0, -0.78, 0.05, shoe]];
   const armL = limb(-0.33, 1.5, arm), armR = limb(0.33, 1.5, arm);
   const legL = limb(-0.13, 0.9, leg), legR = limb(0.13, 0.9, leg);
+  // PED-SCALE: model miał ~1,95 m i prawie metr szerokości w ramionach — przy autach
+  // czytał się jak olbrzym. 0,9 daje ~1,75 m wzrostu i ~0,86 m szerokości.
+  g.scale.setScalar(PED_SCALE);
   g.userData = { body, armL, armR, legL, legR, phase: Math.random() * 6 };
   return g;
 }
@@ -2177,10 +2203,20 @@ function wheelGeometry(WR, WW, offroad) {
   return mergeBoxes(parts);
 }
 function finishCar(c, x, z, heading) {
+  // CAR-SCALE: auta były o ~10% za małe wobec budynków i pieszych. Skalujemy całą bryłę
+  // razem z kołami, a promienie kolizji rozciągamy tak samo, żeby fizyka została spójna.
+  if (!c._scaled) {
+    c._scaled = true;
+    c.g.scale.setScalar(CAR_SCALE);
+    c.offs = c.offs.map((o) => o * CAR_SCALE);
+    c.rad *= CAR_SCALE;
+  }
   c.x = x; c.z = z; c.h = heading; c.vx = 0; c.vz = 0; c.steer = 0; c.spin = 0; c.yawRate = 0;
   c.y = groundH(x, z); c.vy = 0; c.pgh = c.y; c.air = false; c.sus = 0; c.susV = 0; c.pitch = 0; c.roll = 0;
   c.sync();
 }
+const CAR_SCALE = 1.12;
+const PED_SCALE = 0.9;
 const CAR_COLORS = [0xc0392b, 0x2e86c1, 0xf1c40f, 0x27ae60, 0xecf0f1, 0x34495e, 0xe67e22, 0x8e44ad];
 const TOON_CAR_COLORS = [0xe8503a, 0x3d8fe0, 0xf6c431, 0x45b65a, 0xf4f1ea, 0x5a6b8c, 0xf08a2c, 0xa66bd0, 0x4fc3c8, 0xe86fa0];
 let carMatV = null;
@@ -3620,7 +3656,7 @@ function initTraffic() {
   initPeds();
   if (typeof initTrafficLights === 'function') initTrafficLights();
 }
-function laneOffset(e) { return e.ow ? 0 : Math.min(e.w / 4, 1.8); }
+function laneOffset(e) { return e.ow ? 0 : Math.min(e.w / 4, 2.6); }
 function agentPose(c) {
   const a = c.ai, e = TR.edges[a.e]; const u = a.dir > 0 ? a.s : e.len - a.s;
   edgeSample(e, u, tmpS); const u2 = a.dir > 0 ? Math.min(e.len, a.s + 2.5) : Math.max(0, e.len - a.s - 2.5), u1 = a.dir > 0 ? Math.max(0, a.s - 2.5) : Math.min(e.len, e.len - a.s + 2.5);
@@ -4034,7 +4070,7 @@ function updatePeds(dt) {
     const far = camD > rng.far; const dress = !far && camD < rng.detail; const bones = dress && settings.quality !== 'low';
     const bob = p.state === 'fall' ? 0 : Math.abs(Math.sin(p.phase)) * (run ? 0.055 : 0.03);
     pe.set(pitch + (p.state === 'fall' ? 0 : run ? 0.12 : 0.04), p.h, 0, 'YXZ'); pq.setFromEuler(pe);
-    pv3.set(p.x, groundH(p.x, p.z) + bob, p.z); ps3.set(1, 1, 1); pm4.compose(pv3, pq, ps3);
+    pv3.set(p.x, groundH(p.x, p.z) + bob, p.z); ps3.setScalar(PED_SCALE); pm4.compose(pv3, pq, ps3);
     const b = p.i * PED_N; const look = PED_LOOKS[p.look] || PED_LOOKS[0]; const fit = PED_FITS[p.fit] || PED_FITS[0];
     pedPut(b, pm4, 0, 1.22, 0, 0.5, 0.62, 0.28);
     pedPut(b + 1, pm4, 0, 1.68, 0, far ? 0.34 : 0.3, far ? 0.34 : 0.32, far ? 0.34 : 0.3);

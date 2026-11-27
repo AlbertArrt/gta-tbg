@@ -200,7 +200,7 @@ function initTraffic() {
   initPeds();
   if (typeof initTrafficLights === 'function') initTrafficLights();
 }
-function laneOffset(e) { return e.ow ? 0 : Math.min(e.w / 4, 1.8); }
+function laneOffset(e) { return e.ow ? 0 : Math.min(e.w / 4, 2.6); }
 function agentPose(c) {
   const a = c.ai, e = TR.edges[a.e]; const u = a.dir > 0 ? a.s : e.len - a.s;
   edgeSample(e, u, tmpS); const u2 = a.dir > 0 ? Math.min(e.len, a.s + 2.5) : Math.max(0, e.len - a.s - 2.5), u1 = a.dir > 0 ? Math.max(0, a.s - 2.5) : Math.min(e.len, e.len - a.s + 2.5);
@@ -614,7 +614,7 @@ function updatePeds(dt) {
     const far = camD > rng.far; const dress = !far && camD < rng.detail; const bones = dress && settings.quality !== 'low';
     const bob = p.state === 'fall' ? 0 : Math.abs(Math.sin(p.phase)) * (run ? 0.055 : 0.03);
     pe.set(pitch + (p.state === 'fall' ? 0 : run ? 0.12 : 0.04), p.h, 0, 'YXZ'); pq.setFromEuler(pe);
-    pv3.set(p.x, groundH(p.x, p.z) + bob, p.z); ps3.set(1, 1, 1); pm4.compose(pv3, pq, ps3);
+    pv3.set(p.x, groundH(p.x, p.z) + bob, p.z); ps3.setScalar(PED_SCALE); pm4.compose(pv3, pq, ps3);
     const b = p.i * PED_N; const look = PED_LOOKS[p.look] || PED_LOOKS[0]; const fit = PED_FITS[p.fit] || PED_FITS[0];
     pedPut(b, pm4, 0, 1.22, 0, 0.5, 0.62, 0.28);
     pedPut(b + 1, pm4, 0, 1.68, 0, far ? 0.34 : 0.3, far ? 0.34 : 0.32, far ? 0.34 : 0.3);

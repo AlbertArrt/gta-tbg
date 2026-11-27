@@ -101,12 +101,16 @@ async function buildWorld(data, scene, renderer) {
   const ROAD_COL = TOON ? { motorway: '#3b3d42', trunk: '#3b3d42', primary: '#3d3f44', secondary: '#3d3f44', tertiary: '#404247', residential: '#43454a', unclassified: '#43454a', living_street: '#4a4c51', service: '#55575c', pedestrian: '#e2dccf', track: '#c2a271', footway: '#e6e0d2', path: '#dccb9f', cycleway: '#d0806a', steps: '#d6d6d6' } : { motorway: '#45474b', trunk: '#45474b', primary: '#47494d', secondary: '#4a4c50', tertiary: '#535559', residential: '#5e6064', unclassified: '#5e6064', living_street: '#6a6a6c', service: '#6d6d6e', pedestrian: '#b9ae9c', track: '#9c8767', footway: '#c4baa5', path: '#b8a682', cycleway: '#a3675a', steps: '#a8a8a8' };
   const ROAD_RANK = { footway: 0, path: 0, steps: 0, cycleway: 1, track: 1, pedestrian: 2, service: 3, living_street: 4, unclassified: 5, residential: 5, tertiary: 6, secondary: 7, primary: 8, trunk: 9, motorway: 10 };
   const DRIVABLE = new Set(['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'residential', 'unclassified', 'living_street', 'service']);
+  // ROAD-WIDTH: OSM podaje realną szerokość jezdni. W grze, przy kamerze z wysokości
+  // pieszego, ulice czytały się ciasno — drogi jezdne dostają więc kilkanaście procent.
+  const ROAD_W_SCALE = { motorway: 1.12, trunk: 1.12, primary: 1.14, secondary: 1.16, tertiary: 1.18, residential: 1.22, unclassified: 1.2, living_street: 1.18, service: 1.1, pedestrian: 1, footway: 1, path: 1, track: 1, cycleway: 1, steps: 1 };
   W.roadGrid = new SegGrid(40); W.roads = [];
   const white = new THREE.Color(TOON ? '#ffffff' : '#f2f2f2'), edge = new THREE.Color(TOON ? '#ffffff' : '#e9e3c8'), railCol = new THREE.Color('#4a4642');
   const SIDEWALK = new Set(['residential', 'unclassified', 'tertiary', 'secondary', 'primary', 'trunk', 'living_street']);
   const walkCol = new THREE.Color('#cfcbc5'), curbCol = new THREE.Color('#f6f4ef');
   data.roads.forEach((r) => {
-    const type = RT[r[0]]; const name = r[1] >= 0 ? data.names[r[1]] : null; const width = r[2] / 10; const flags = r[4];
+    const type = RT[r[0]]; const name = r[1] >= 0 ? data.names[r[1]] : null; const flags = r[4];
+    const width = Math.round((r[2] / 10) * (ROAD_W_SCALE[type] || 1) * 10) / 10;
     const pts = dec(r[5]); if (pts.length < 4) return;
     const rec = { type, name, width, pts, drivable: DRIVABLE.has(type), bridge: !!(flags & 2), oneway: !!(flags & 1) };
     W.roads.push(rec);
@@ -126,6 +130,25 @@ async function buildWorld(data, scene, renderer) {
   });
   W.roadGrid.finish();
   buildRoadGraph();
+  // ROAD-JOIN: każdy odcinek jest rysowany osobno, więc na skrzyżowaniu zostawały cienkie
+  // szpary i uskoki między jezdniami. Płaski asfaltowy krąg pod węzłami domyka powierzchnię.
+  for (let ni = 0; ni < W.graph.nodes.length; ni++) {
+    const nd = W.graph.nodes[ni]; if (nd.deg < 3) continue;
+    let maxW = 0, bestRank = -1, col = null;
+    for (const a of W.graph.adj[ni]) {
+      const e = W.graph.edges[a.e]; if (!e) continue;
+      if (e.w > maxW) maxW = e.w;
+      const rk = ROAD_RANK[e.type] || 0;
+      if (rk > bestRank) { bestRank = rk; col = ROAD_COL[e.type]; }
+    }
+    if (maxW < 4 || !col) continue;
+    const R = maxW * 0.5 + 0.85, padY = 0.2, seg = 14;
+    const buf = getChunk(nd.x, nd.z).road, c3 = new THREE.Color(col);
+    for (let k = 0; k < seg; k++) {
+      const a0 = k / seg * Math.PI * 2, a1 = (k + 1) / seg * Math.PI * 2;
+      buf.tri(nd.x, padY, nd.z, nd.x + Math.cos(a0) * R, padY, nd.z + Math.sin(a0) * R, nd.x + Math.cos(a1) * R, padY, nd.z + Math.sin(a1) * R, c3, null, 0, 1, 0);
+    }
+  }
   if (TOON) addZebras((x, z) => getChunk(x, z).mark, white);
   const ballast = new THREE.Color('#8b8378');
   data.rail.forEach((r) => {
