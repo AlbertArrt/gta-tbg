@@ -361,10 +361,8 @@ Object.assign(G, {
     yukaPeds: typeof TR !== 'undefined' ? TR.peds.filter((p) => p._yv).length : 0,
     yukaCars: typeof TR !== 'undefined' ? TR.agents.filter((c) => c._yv).length : 0,
     nipple: typeof nipplejs !== 'undefined' && !!nipplejs.create,
-    lights: typeof TL !== 'undefined' ? TL.list.length : 0,
     trees: typeof W !== 'undefined' ? W.treeColliders || 0 : 0,
     spans: typeof W !== 'undefined' && W.spans ? W.spans.length : 0,
-    lightNear: typeof TL !== 'undefined' ? TL.nearN : 0,
   }),
   cam: () => {
     let best = null;
@@ -398,11 +396,6 @@ Object.assign(G, {
   }),
   dive: () => ({ on: !!G.diving, x: DIVE.x, y: DIVE.y, z: DIVE.z, o2: DIVE.o2, bag: DIVE.bag.slice(), rent: { ...DIVE_RENT }, n: DIVE_LOOT.length }),
   rings: () => (typeof auditVehicleRings === 'function' ? auditVehicleRings() : null),
-  lights: () => (typeof TL === 'undefined' ? null : {
-    n: TL.list.length, near: TL.nearN,
-    at: TL.list.map((s) => ({ n: s.name, x: +s.x.toFixed(1), z: +s.z.toFixed(1) })),
-    phase: (i) => lightPhase(TL.list[i], performance.now()),
-  }),
   navState: () => ({ on: NAV.on, status: NAV.status, note: NAV.note, instr: NAV.instr, dist: NAV.dist, src: NAV.src, n: NAV.pts ? NAV.pts.length / 2 : 0, plans: NAV.plans, tail: !!NAV.tail, cls: NAV.cls, name: NAV.name, dx: NAV.dx, dz: NAV.dz, sig: NAV.sig, bridges: NAV.bridges || 0, comps: NAV.comps || 0 }),
   navSet: (x, z, name, opt) => navSet(x, z, name, opt || { src: 'place' }), navClear, navAudit, openJournal, closeJournal, openTutor, closeTutor, missionCancel,
   storyDone: () => storyDoneCount(), save: () => SAVE,
