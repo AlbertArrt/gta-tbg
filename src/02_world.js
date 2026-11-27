@@ -142,7 +142,11 @@ async function buildWorld(data, scene, renderer) {
       if (rk > bestRank) { bestRank = rk; col = ROAD_COL[e.type]; }
     }
     if (maxW < 4 || !col) continue;
-    const R = maxW * 0.5 + 0.85, padY = 0.2, seg = 14;
+    // PAD-FIT: krąg ma tylko domykać styk jezdni. Przy +0,85 m wychodził za krawężnik
+    // (chodnik zaczyna się 0,15 m od krawędzi) i leżał 0,2 m nad asfaltem, czyli rysował
+    // wypukłą plamę na rogu ulicy. Teraz kończy się tuż za krawędzią jezdni i leży na
+    // poziomie jezdni najwyższej klasy, więc nie ma progu ani zasłoniętego chodnika.
+    const R = maxW * 0.5 + 0.05, padY = 0.133 + Math.max(0, bestRank) * 0.006, seg = 24;
     const buf = getChunk(nd.x, nd.z).road, c3 = new THREE.Color(col);
     for (let k = 0; k < seg; k++) {
       const a0 = k / seg * Math.PI * 2, a1 = (k + 1) / seg * Math.PI * 2;

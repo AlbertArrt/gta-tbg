@@ -84,6 +84,18 @@ function spawnAtRynek() {
   const [x, z] = findFree(r[1], r[2], 0.8);
   player.x = x; player.z = z; player.h = Math.PI * 0.5; G.yaw = player.h;
 }
+// Auto parkowane przy krawężniku musi mieć wolne miejsce: drzewa i meble ulicy
+// stoją właśnie na chodniku, więc sprawdzamy ich siatki zanim wstawimy bryłę.
+function parkedSpotBlocked(x, z) {
+  const R = 2.2;
+  if (W.props) for (const p of W.props) if (Math.hypot(p.x - x, p.z - z) < R + p.r) return true;
+  let hit = false;
+  if (W.treeGrid) W.treeGrid.query(x, z, R + 0.6, (i) => {
+    const s = W.treeGrid.s;
+    if ((s[i * 4] - x) ** 2 + (s[i * 4 + 1] - z) ** 2 < (R + 0.45) ** 2) hit = true;
+  });
+  return hit;
+}
 function spawnCars() {
   const rnd = mulberry32(42);
   const spots = [];
@@ -93,10 +105,21 @@ function spawnCars() {
   for (const t of W.travel) pre.push([t[1], t[2]]);
   for (const [x, z] of pre) {
     const rp = nearestRoadPoint(x, z, true, 480); if (!rp) continue;
-    const off = rp.road.width / 2 - 1.2; const nx = Math.cos(rp.h), nz = -Math.sin(rp.h);
+    // PARK-EDGE: auto stało 1,2 m od krawężnika, czyli w pasie ruchu — jadące auta
+    // (offset do 2,6 m + pół szerokości) przechodziły przez zaparkowane. Na ulicach
+    // z chodnikiem parkujemy na krawężniku, poza pasem; na drogach bez chodnika
+    // (service) zostaje stary offset, bo ruch tam nie jeździ.
+    const walkable = ['residential', 'unclassified', 'tertiary', 'secondary', 'primary', 'trunk', 'living_street'].includes(rp.road.type);
+    const off = walkable ? rp.road.width / 2 + 0.5 : rp.road.width / 2 - 1.2;
+    const nx = Math.cos(rp.h), nz = -Math.sin(rp.h);
     let cx = rp.x + nx * off, cz = rp.z + nz * off;
-    if (insideBuilding(cx, cz, 2.2) || spots.some((s) => Math.hypot(s[0] - cx, s[1] - cz) < 8)) { cx = rp.x; cz = rp.z; }
-    if (insideBuilding(cx, cz, 2.2) || spots.some((s) => Math.hypot(s[0] - cx, s[1] - cz) < 8)) continue;
+    // Na chodniku musimy ominąć drzewa, latarnie i kosze — auto nie może w nie wjechać.
+    if (walkable && parkedSpotBlocked(cx, cz)) continue;
+    if (insideBuilding(cx, cz, 2.2) || spots.some((s) => Math.hypot(s[0] - cx, s[1] - cz) < 8)) {
+      if (walkable) continue; // nie wracamy do środka jezdni — tam stoi ruch
+      cx = rp.x; cz = rp.z;
+      if (insideBuilding(cx, cz, 2.2) || spots.some((s) => Math.hypot(s[0] - cx, s[1] - cz) < 8)) continue;
+    }
     spots.push([cx, cz, rp.h]);
   }
   const roster = kitRoster(); const pal = TOON ? TOON_CAR_COLORS : CAR_COLORS;
