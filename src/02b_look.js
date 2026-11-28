@@ -4,6 +4,7 @@ function buildLook(scene) {
   if (!TOON) return;
   buildClouds(scene);
   buildFurniture(scene);
+  buildShopGlow(scene);
   buildBlobs(scene);
 }
 function buildClouds(scene) {
@@ -96,6 +97,67 @@ function buildFurniture(scene) {
     mesh.frustumCulled = false; hull.frustumCulled = false;
     scene.add(mesh); scene.add(hull);
   }
+}
+// Ciepłe plamy światła z witryn na jezdni/chodniku – bez słupów i bez świateł punktowych.
+function makeGlowTexture() {
+  const S = 128, cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const g = cv.getContext('2d');
+  const gr = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  gr.addColorStop(0, 'rgba(255,226,176,0.9)');
+  gr.addColorStop(0.45, 'rgba(255,206,136,0.38)');
+  gr.addColorStop(1, 'rgba(255,190,110,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function buildShopGlow(scene) {
+  const q = settings.quality;
+  const cap = q === 'low' ? 28 : (q === 'high' ? 110 : 72);
+  const glow = W.travel && W.travel[0];
+  const cx = glow ? glow[1] : -7, cz = glow ? glow[2] : 10;
+  // Plama stoi przy elewacji zwróconej do najbliższej jezdni – światło "wycieka" z witryn na chodnik.
+  const cand = [];
+  for (const b of W.buildings) {
+    if (!b.ring || b.ring.length < 8 || b.h < 4) continue;
+    const d = Math.hypot(b.cx - cx, b.cz - cz);
+    if (d < 320) cand.push([d, b]);
+  }
+  cand.sort((a, b) => a[0] - b[0]);
+  const spots = [];
+  for (const [, b] of cand) {
+    if (spots.length >= cap) break;
+    const ring = b.ring, n = ring.length / 2, area = ringArea(ring);
+    let best = null, bestScore = -1;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const x1 = ring[i * 2], z1 = ring[i * 2 + 1], x2 = ring[j * 2], z2 = ring[j * 2 + 1];
+      const len = Math.hypot(x2 - x1, z2 - z1); if (len < 2) continue;
+      let nx = (z2 - z1) / len, nz = -(x2 - x1) / len; if (area <= 0) { nx = -nx; nz = -nz; }
+      const mx = (x1 + x2) * 0.5, mz = (z1 + z2) * 0.5;
+      const rp = nearestRoadPoint(mx + nx * 3, mz + nz * 3, true, 30);
+      if (!rp) continue;
+      const score = len / (2 + rp.dist);
+      if (score > bestScore) { bestScore = score; best = { mx, mz, nx, nz }; }
+    }
+    if (!best) continue;
+    const x = best.mx + best.nx * 2.4, z = best.mz + best.nz * 2.4;
+    if (insideBuilding(x, z, 0.4) || inWater(x, z)) continue;
+    if (spots.some((s) => (s[0] - x) ** 2 + (s[1] - z) ** 2 < 60)) continue;
+    spots.push([x, z, Math.atan2(best.nx, best.nz)]);
+  }
+  if (!spots.length) return;
+  const geo = new THREE.CircleGeometry(1, 20); geo.rotateX(-Math.PI / 2);
+  const mat = new THREE.MeshBasicMaterial({ map: makeGlowTexture(), color: 0xffd9a8, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  const mesh = new THREE.InstancedMesh(geo, mat, spots.length);
+  mesh.frustumCulled = false; mesh.renderOrder = 3; mesh.castShadow = false; mesh.visible = !!G.night;
+  const up = new THREE.Vector3(0, 1, 0), m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3();
+  const rnd = mulberry32(991);
+  spots.forEach((it, i) => {
+    const sc = 5.5 + rnd() * 3;
+    p.set(it[0], 0.22, it[2]); qq.setFromAxisAngle(up, it[1]); s.set(sc, 1, sc * 0.85);
+    m4.compose(p, qq, s); mesh.setMatrixAt(i, m4);
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  scene.add(mesh); W.shopGlow = mesh; W.shopGlowCount = spots.length;
 }
 function buildBlobs(scene) {
   const geo = new THREE.CircleGeometry(1, 8); geo.rotateX(-Math.PI / 2);

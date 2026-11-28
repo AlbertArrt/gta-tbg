@@ -344,7 +344,7 @@ function renderFrame() {
   }
   if (POST.on) {
     if (POST.edge) { POST.mat.uniforms.uNear.value = camera.near; POST.mat.uniforms.uFar.value = camera.far; }
-    if (POST.exp) POST.exp.value = G.night ? 1.08 : 1.0;
+    if (POST.exp) POST.exp.value = G.night ? 1.14 : 1.0;
     renderer.setRenderTarget(POST.rt); renderer.render(scene, camera);
     G.sceneCalls = renderer.info.render.calls; G.sceneTris = renderer.info.render.triangles;
     renderer.setRenderTarget(null); renderer.render(POST.scene, POST.cam);

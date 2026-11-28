@@ -31,16 +31,17 @@ function applyTime() {
   sky.material.uniforms.night.value = n ? 1 : 0;
   const sd = n ? new THREE.Vector3(-0.4, 0.55, 0.5) : new THREE.Vector3(0.45, 0.75, 0.35); sd.normalize();
   sky.material.uniforms.sunDir.value.copy(sd); G.sunDir = sd;
-  hemi.intensity = n ? 0.22 : (TOON ? 0.55 : 1.6); hemi.color.set(n ? '#5a6f99' : (TOON ? '#d5e4f4' : '#dfefff')); hemi.groundColor.set(n ? '#141820' : (TOON ? '#6d8a48' : '#6f7a5a'));
-  sun.intensity = n ? 0.28 : (TOON ? 1.65 : 2.4); sun.color.set(n ? '#9fb6ff' : '#fff3dd');
+  hemi.intensity = n ? 0.32 : (TOON ? 0.55 : 1.6); hemi.color.set(n ? '#5a6f99' : (TOON ? '#d5e4f4' : '#dfefff')); hemi.groundColor.set(n ? '#242b38' : (TOON ? '#6d8a48' : '#6f7a5a'));
+  sun.intensity = n ? 0.32 : (TOON ? 1.65 : 2.4); sun.color.set(n ? '#9fb6ff' : '#fff3dd');
   W.mats.wall.emissiveIntensity = n ? 1.1 : 0;
+  if (W.shopGlow) W.shopGlow.visible = n;
   W.mats.water.color.set(n ? '#1b3550' : (TOON ? '#47a6e0' : '#3f7398'));
   W.mats.ground.color.set(n ? (TOON ? '#5f7f3c' : '#5d7048') : (TOON ? '#a3d65c' : '#93ad6e'));
   headlight.intensity = n ? 60 : 0;
   for (const c of cars.concat(TR.pool, POL.cars)) { if (!c.headMat) continue; c._hl = c._tl = undefined; c.headMat.emissiveIntensity = n ? 2.3 : 0.12; c.tailMat.emissiveIntensity = n ? 1.25 : 0.22; }
   renderer.toneMapping = THREE.NoToneMapping;
   renderer.toneMappingExposure = 1;
-  if (typeof POST !== 'undefined' && POST.exp) POST.exp.value = n ? 1.08 : 1;
+  if (typeof POST !== 'undefined' && POST.exp) POST.exp.value = n ? 1.14 : 1;
   $('btnNight').textContent = n ? '☀️' : '🌙';
   applyFog();
 }
