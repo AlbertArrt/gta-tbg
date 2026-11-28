@@ -36,8 +36,6 @@ function applyTime() {
   W.mats.wall.emissiveIntensity = n ? 1.1 : 0;
   W.mats.water.color.set(n ? '#1b3550' : (TOON ? '#47a6e0' : '#3f7398'));
   W.mats.ground.color.set(n ? (TOON ? '#5f7f3c' : '#5d7048') : (TOON ? '#a3d65c' : '#93ad6e'));
-  if (W.lampPools) W.lampPools.visible = n;
-  if (W.lampHeads) W.lampHeads.visible = n;
   headlight.intensity = n ? 60 : 0;
   for (const c of cars.concat(TR.pool, POL.cars)) { if (!c.headMat) continue; c._hl = c._tl = undefined; c.headMat.emissiveIntensity = n ? 2.3 : 0.12; c.tailMat.emissiveIntensity = n ? 1.25 : 0.22; }
   renderer.toneMapping = THREE.NoToneMapping;
@@ -113,7 +111,7 @@ function spawnCars() {
     const off = walkable ? rp.road.width / 2 + 0.5 : rp.road.width / 2 - 1.2;
     const nx = Math.cos(rp.h), nz = -Math.sin(rp.h);
     let cx = rp.x + nx * off, cz = rp.z + nz * off;
-    // Na chodniku musimy ominąć drzewa, latarnie i kosze — auto nie może w nie wjechać.
+    // Na chodniku musimy ominąć drzewa i meble uliczne — auto nie może w nie wjechać.
     if (walkable && parkedSpotBlocked(cx, cz)) continue;
     if (insideBuilding(cx, cz, 2.2) || spots.some((s) => Math.hypot(s[0] - cx, s[1] - cz) < 8)) {
       if (walkable) continue; // nie wracamy do środka jezdni — tam stoi ruch
